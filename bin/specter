@@ -1,0 +1,92 @@
+#!/usr/bin/env python
+
+"""
+Simulate multi-object spectrograph CCD images given input spectra and PSF
+
+Stephen Bailey, LBL
+Fall 2012
+"""
+
+import sys
+import os
+import numpy as N
+import optparse
+from specter.psf import load_psf
+import fitsio
+
+parser = optparse.OptionParser(usage = "%prog [options]")
+parser.add_option("-i", "--input", type="string",  help="input spectra")
+parser.add_option("-o", "--output", type="string",  help="output image")
+parser.add_option("-p", "--psf", type="string",  help="input PSF")
+parser.add_option("-n", "--noise", action="store_true", help="add noise")
+parser.add_option("-N", "--readnoise", type="float", default=4.0, help="readout noise [%default]")
+parser.add_option("-s", "--sky", type="string",  help="input sky spectra")
+parser.add_option("-w", "--wavelength", type="string",
+    help="wavelength range min,max in Angstroms")
+parser.add_option("-l", "--loglam", type="string",
+    help="log10(wavelength[A]) range min,max")
+parser.add_option("-r", "--specrange", type="string",
+    help="range of spectra to simulate specmin,specmax")
+
+opts, args = parser.parse_args()
+
+#+ TODO: Test input consistency
+#- required: --input, --output, --psf
+#- exclusive: --wavelength or --loglam or neither, but not both
+
+#- Load inputs
+psf = load_psf(opts.psf)
+spectra = fitsio.read(opts.input, 1).view(N.recarray)
+
+#- Expand defaults
+if opts.specrange is not None:
+    x = map(int, opts.specrange.split(','))
+    opts.specrange = range(x[0], x[1])
+else:
+    opts.specrange = range(psf.nspec)
+
+#- Wavelength and loglam are just 2-elements min,max
+if opts.wavelength is not None:
+    opts.wavelength = map(float, opts.split(opts.wavelength, ','))
+    opts.loglam = N.log10(opts.wavelength)
+elif opts.loglam is not None:
+    opts.loglam = map(float, opts.split(opts.loglam, ','))
+    opts.wavelength = 10**opts.loglam
+else:
+    ll = psf.loglam()
+    opts.loglam = N.array( [N.min(ll), N.max(ll)] )
+    opts.wavelength = 10**opts.loglam
+    
+#- ???
+#- Should projection be evaluated on spectral or PSF wavelength grid?
+#- e.g. for arcs it would make sense to evaluate only at spectral resolution
+#- But high-res input spectra we might want to down sample.
+#- Just use opts.wavelength for that?
+#- ???
+    
+#- Simulate
+#+ TODO: Add options for simulating subregion
+
+wavelength = spectra['wavelength']
+flux = spectra['flux']
+if flux.ndim == 1:
+    flux = N.tile(flux, psf.nspec).reshape(psf.nspec, len(flux))
+
+#- Trim to just requested specrange
+flux = flux[opts.specrange]
+if wavelength.ndim == 2:
+    wavelength = wavelength[opts.specrange]
+
+img = psf.project(flux, wavelength, specmin=opts.specrange[0])
+
+if opts.noise:
+    var = opts.readnoise**2 + img
+    img += N.random.normal(scale=N.sqrt(var))
+    
+fitsio.write(opts.output, img, clobber=True)
+if opts.noise:
+    fitsio.write(opts.output, 1.0/var)
+
+fx = fitsio.FITS(opts.output, 'rw')
+fx[0].write_key('SIMDATA', True, 'Simulated image written by specter')
+fx.close()
