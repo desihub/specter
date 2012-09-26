@@ -1,5 +1,8 @@
 """
 Utility functions and classes for specter
+
+Stephen Bailey
+Fall 2012
 """
 
 import numpy as N
@@ -8,7 +11,8 @@ import scipy.signal
 #- 2D Linear interpolator
 class LinearInterp2D(object):
     """
-    Linear interpolation on a 2D grid
+    Linear interpolation on a 2D grid.  Allows values to be interpolated
+    to be multi-dimensional.
     """
     def __init__(self, x, y, data):
         """
@@ -27,14 +31,15 @@ class LinearInterp2D(object):
         """
         #- Find where we are in grid
         #- clip to 1 because we will use i and i-1
+        #- clip to len(x)-1 to allow extrapolation beyond grid boundary
         ix = N.searchsorted(self.x, x).clip(1, len(self.x)-1)
         iy = N.searchsorted(self.y, y).clip(1, len(self.y)-1)
         
-        #- Interpolate
+        #- Interpolation distances from points
         dx = (x - self.x[ix-1]) / (self.x[ix] - self.x[ix-1])
         dy = (y - self.y[iy-1]) / (self.y[iy] - self.y[iy-1])
         
-        #- Allow x and/or y to be multi-dimensional
+        #- Interpolate, allowing x and/or y to be multi-dimensional
         data1 = (self.data[ix-1,iy-1].T*(1-dx) + self.data[ix,iy-1].T*dx).T
         data2 = (self.data[ix-1,iy].T*(1-dx) + self.data[ix,iy].T*dx).T
         dataxy = (data1.T*(1-dy) + data2.T*dy).T
@@ -62,7 +67,7 @@ def rebin(pix, n):
     
 #- Utility functions for sinc shifting pixelated PSFs
 def _sincfunc(x, dx, dampfac=3.25):
-    """sinc helpful function for sincshift()"""
+    """sinc helper function for sincshift()"""
     if dx != 0.0:
         return N.exp( -((x+dx)/dampfac)**2 ) * N.sin( N.pi*(x+dx) ) / (N.pi * (x+dx))
     else:
@@ -72,13 +77,13 @@ def _sincfunc(x, dx, dampfac=3.25):
 
 def sincshift(image, dx, dy, sincrad=10, dampfac=3.25):
     """
-    Return image shifted by dx, dy
+    Return image shifted by dx, dy using sinc interpolation
     """
     s = N.arange(-sincrad, sincrad+1)
     sincx = _sincfunc(s, -dx, dampfac=dampfac)
 
     #- If we're shifting just in x, do faster 1D convolution with wraparound
-    #- WARNING: can introduce edge effects if PSF isn't nearly 0 at edge
+    #- WARNING: can introduce edge effects if image isn't nearly 0 at edge
     if abs(dy) < 1e-6:
         newimage = scipy.signal.convolve(image.ravel(), sincx, mode='same')
         return newimage.reshape(image.shape)

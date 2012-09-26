@@ -1,7 +1,7 @@
-Spectacle Data Model
-====================
+Specter data model
+==================
 
-Input Spectra
+Input spectra
 =============
 
 ### HDU 0 : blank ###
