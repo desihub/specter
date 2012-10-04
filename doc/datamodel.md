@@ -8,36 +8,22 @@ Input spectra
 
 ### HDU 1 : binary table of spectra ###
 
-  - flux
-  - calib
-  - loglam or wavelength
-  - sky
-  - sky_calib
+Required:
+  - flux[nwave] or flux[nspec, nwave]
+  - loglam or wavelength (1D[nwave] or 2D[nspec, nwave])
 
-If `sky` exists, it is added to `flux`
+Optional:
+  - sky[nwave] or sky[nspec, nwave]
 
-If `calib` exists, `flux` and `sky` are in ergs/s/cm2/A and
+If `sky` exists, it is added to `flux`.  Other user-specific columns may
+exist and will be ignored by specter.
 
-    photons = (flux + sky) / calib
-    
-Otherwise, `flux` and `sky` are in units of photons as seen by CCD.
-
-If `sky_calib` exists,
-
-    photons = flux/calib + sky/sky_calib
-    
-This can be useful for simulating the throughput differences for 
-pointing misalignments: the effective object throughput changes but not
-the effective sky throughput.
-
-i.e. depeneding upon whether `sky_calib`, `calib`, and `sky` exist,
-the photons obeserved by the CCD could be:
-
-    photons = flux/calib + sky/sky_calib
-    photons = (flux + sky) / calib
-    photons = flux / calib
-    photons = flux + sky
-    photons = flux
+If units aren't specified, flux will be treated as photons/bin as seen
+by the CCD.  If TUNITn keyword for the flux column starts with "erg" then
+it will be treated as ergs/sec/cm^2/A and converted to photons and throughput
+applied.  In both cases, the flux will be treated as a delta function at
+that wavelength; it will not be integrated or interpolated between points.
+Thus the wavelength sampling should be finer than the PSF resolution.
 
 
 PSF Formats
@@ -46,13 +32,36 @@ PSF Formats
 Base PSF
 --------
 
+All PSF files have the same format for HDUs 0-2; additional extensions
+are specific to each subtype and contain whatever information in whatever
+format is needed to express the PSF in that parameterization.
+
 HDU 0 : x[nspec, nwave]             EXTNAME="X"
 HDU 1 : y[nspec, nwave]             EXTNAME="Y"
 HDU 2 : wavelength[nspec, nwave]    EXTNAME="WAVELENGTH", or
         loglam[nspec, nwave]        EXTNAME="LOGLAM"
 HDU 3+ : specific to each subformat
 
---> Additional extensions should be read by EXTNAME, not by number
+--> Additional extensions should be read by EXTNAME, not by number; the
+    order of these extensions should be treated as arbitrary
+
+HDU 0 keywords:
+  - NPIX_X, NPIX_Y : CCD dimensions in pixels
+
+Optional: extensions and keywords to convert ergs/s/cm^2/A -> photons
+
+HDU EXTNAME="THROUGHPUT", binary table with columns:
+  - wavelength[nwave] or loglam[nwave]
+  - throughput[nwave]
+
+HDU 0 keywords
+  - EXPTIME: Standard exposure time in seconds
+  - EFFAREA: Effective area of mirror, including obscuration effects, in cm^2
+  
+photons/A = (ergs/s/cm^2/A) * EXPTIME * EFFAREA * wavelength / (h*c)
+
+These these keywords aren't available, the PSF can still be used to project
+photons onto a CCD, but not flux in ergs/s/cm^2/A .
 
 Spot Grid PSF
 -------------

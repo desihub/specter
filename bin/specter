@@ -64,9 +64,7 @@ else:
 #- Just use opts.wavelength for that?
 #- ???
     
-#- Simulate
-#+ TODO: Add options for simulating subregion
-
+#- Get flux and wavelength arrays
 wavelength = spectra['wavelength']
 flux = spectra['flux']
 if flux.ndim == 1:
@@ -77,16 +75,21 @@ flux = flux[opts.specrange]
 if wavelength.ndim == 2:
     wavelength = wavelength[opts.specrange]
 
+#- Do the projection
+#+ TODO: Add options for simulating subregion
 img = psf.project(flux, wavelength, specmin=opts.specrange[0])
 
+#- Add noise
 if opts.noise:
     var = opts.readnoise**2 + img
     img += N.random.normal(scale=N.sqrt(var))
     
+#- Write output
 fitsio.write(opts.output, img, clobber=True)
 if opts.noise:
     fitsio.write(opts.output, 1.0/var)
 
+#- Update header with SIMDATA keyword
 fx = fitsio.FITS(opts.output, 'rw')
 fx[0].write_key('SIMDATA', True, 'Simulated image written by specter')
 fx.close()

@@ -93,3 +93,11 @@ def sincshift(image, dx, dy, sincrad=10, dampfac=3.25):
     newimage = scipy.signal.convolve2d(image, kernel, mode='same')
     return newimage
 
+#- Integrals
+def trapz(x, xp, yp):
+    """
+    Given a function yp[] sampled at values xp[], return an array of
+    size len(xedges)-1 integating yp(xp) between the values given in x
+    using trapezoidal integration.
+    """
+    raise NotImplementedError
