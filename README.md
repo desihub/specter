@@ -12,7 +12,7 @@ lib : add this to PYTHONPATH to get the live development version
 
 Run bin/specter -h to see command line options.
 
-To use the python toolkit:
+Example usage of the python toolkit:
 
     #- Load PSF file for some spectrograph
     from specter.psf import load_psf
