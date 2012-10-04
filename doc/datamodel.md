@@ -18,6 +18,9 @@ Optional:
 If `sky` exists, it is added to `flux`.  Other user-specific columns may
 exist and will be ignored by specter.
 
+Current implementation: flux is in units of total photons
+
+Future implementation:
 If units aren't specified, flux will be treated as photons/bin as seen
 by the CCD.  If TUNITn keyword for the flux column starts with "erg" then
 it will be treated as ergs/sec/cm^2/A and converted to photons and throughput
@@ -42,13 +45,14 @@ HDU 2 : wavelength[nspec, nwave]    EXTNAME="WAVELENGTH", or
         loglam[nspec, nwave]        EXTNAME="LOGLAM"
 HDU 3+ : specific to each subformat
 
---> Additional extensions should be read by EXTNAME, not by number; the
-    order of these extensions should be treated as arbitrary
+--> Additional extensions should be read by EXTNAME, not by number;
+    the order of these extensions is arbitrary
 
 HDU 0 keywords:
   - NPIX_X, NPIX_Y : CCD dimensions in pixels
 
 Optional: extensions and keywords to convert ergs/s/cm^2/A -> photons
+--> NOT YET IMPLEMENTED
 
 HDU EXTNAME="THROUGHPUT", binary table with columns:
   - wavelength[nwave] or loglam[nwave]

@@ -73,6 +73,8 @@ class SpotGridPSF(PSF):
         A[yoffset:yoffset+ny, xoffset:xoffset+nx] = pix
         ccdpix = rebin(A, rpix)
 
+        #- TODO: Could do sub-pixel sinc shifting, but that is slow
+
         #- Find where this goes on the CCD
         xccd = int(xc - ccdpix.shape[1]/2 + 1)
         yccd = int(yc - ccdpix.shape[0]/2 + 1)

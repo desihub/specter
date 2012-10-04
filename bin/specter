@@ -14,13 +14,16 @@ import optparse
 from specter.psf import load_psf
 import fitsio
 
-parser = optparse.OptionParser(usage = "%prog [options]")
+parser = optparse.OptionParser(
+    usage = "%prog [options]",
+    epilog = "See $SPECTER_DIR/doc/datamodel.md for input format details"
+    )
 parser.add_option("-i", "--input", type="string",  help="input spectra")
 parser.add_option("-o", "--output", type="string",  help="output image")
 parser.add_option("-p", "--psf", type="string",  help="input PSF")
 parser.add_option("-n", "--noise", action="store_true", help="add noise")
 parser.add_option("-N", "--readnoise", type="float", default=4.0, help="readout noise [%default]")
-parser.add_option("-s", "--sky", type="string",  help="input sky spectra")
+### parser.add_option("-s", "--sky", type="string",  help="input sky spectra")
 parser.add_option("-w", "--wavelength", type="string",
     help="wavelength range min,max in Angstroms")
 parser.add_option("-l", "--loglam", type="string",
@@ -36,7 +39,7 @@ opts, args = parser.parse_args()
 
 #- Load inputs
 psf = load_psf(opts.psf)
-spectra = fitsio.read(opts.input, 1).view(N.recarray)
+spectra = fitsio.read(opts.input, 1, lower=True).view(N.recarray)
 
 #- Expand defaults
 if opts.specrange is not None:
@@ -66,7 +69,11 @@ else:
     
 #- Get flux and wavelength arrays
 wavelength = spectra['wavelength']
-flux = spectra['flux']
+if 'phot' in spectra.dtype.names:
+    flux = spectra['phot']
+else:
+    flux = spectra['flux']
+    
 if flux.ndim == 1:
     flux = N.tile(flux, psf.nspec).reshape(psf.nspec, len(flux))
 
