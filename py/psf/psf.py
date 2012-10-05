@@ -72,7 +72,7 @@ class PSF(object):
         
         also see xypix(ispec, wavelength)
         """
-        return self._xypix(ispec, wavelength)[2]
+        return self.xypix(ispec, wavelength)[2]
         
     def xypix(self, ispec, wavelength):
         """
