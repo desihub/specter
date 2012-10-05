@@ -44,16 +44,17 @@ spectra = fitsio.read(opts.input, 1, lower=True).view(N.recarray)
 #- Expand defaults
 if opts.specrange is not None:
     x = map(int, opts.specrange.split(','))
+    x[1] = min(x[1], psf.nspec)
     opts.specrange = range(x[0], x[1])
 else:
     opts.specrange = range(psf.nspec)
 
 #- Wavelength and loglam are just 2-elements min,max
 if opts.wavelength is not None:
-    opts.wavelength = map(float, opts.split(opts.wavelength, ','))
+    opts.wavelength = map(float, opts.wavelength.split(','))
     opts.loglam = N.log10(opts.wavelength)
 elif opts.loglam is not None:
-    opts.loglam = map(float, opts.split(opts.loglam, ','))
+    opts.loglam = map(float, opts.loglam.split(','))
     opts.wavelength = 10**opts.loglam
 else:
     ll = psf.loglam()
@@ -82,8 +83,19 @@ flux = flux[opts.specrange]
 if wavelength.ndim == 2:
     wavelength = wavelength[opts.specrange]
 
+#- Trim wavelength range by setting flux=0 outside wavelength range
+wmin, wmax = opts.wavelength
+if wavelength.ndim == 1:
+    ii = (wmin <= wavelength) & (wavelength <= wmax)
+    flux = flux[:, ii]
+    wavelength = wavelength[ii]
+else:
+    #- for 2D, just set flux=0 outside wavelength range
+    ii = (wavelength < wmin) | (wmax < wavelength)
+    flux[ii] = 0.0
+
 #- Do the projection
-#+ TODO: Add options for simulating subregion
+#+ TODO: Add options for simulating xy subregion
 img = psf.project(flux, wavelength, specmin=opts.specrange[0])
 
 #- Add noise
