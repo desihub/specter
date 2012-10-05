@@ -48,8 +48,8 @@ class PSF(object):
         #- Load basic dimensions
         self.npix_x = hdr['NPIX_X']
         self.npix_y = hdr['NPIX_Y']
-        self.nspec  = hdr['NAXIS1']
-        self.nwave  = hdr['NAXIS2']
+        self.nspec  = hdr['NAXIS2']
+        self.nwave  = hdr['NAXIS1']
         
         #- Load x, y, loglam arrays
         self._x = fx[0].read()
