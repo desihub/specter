@@ -83,7 +83,7 @@ class PSF(object):
         spectrum ispec at that wavelength.
         
         Subclasses of PSF should implement this function for their
-        specific model.
+        specific model -- it is NOT implemented for the PSF base class.
         """
         raise NotImplementedError
 
@@ -138,6 +138,8 @@ class PSF(object):
     def x(self, ispec=None, wavelength=None, copy=False):
         """
         Return CCD X centroid of spectrum ispec at given wavelength(s).
+        
+        ispec can be None or scalar
         wavelength can be None, scalar, or a vector
         
         May return a view of the underlying array; do not modify unless

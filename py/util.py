@@ -38,12 +38,12 @@ class LinearInterp2D(object):
         #- Interpolation distances from points
         dx = (x - self.x[ix-1]) / (self.x[ix] - self.x[ix-1])
         dy = (y - self.y[iy-1]) / (self.y[iy] - self.y[iy-1])
-        
+
         #- Interpolate, allowing x and/or y to be multi-dimensional
         data1 = (self.data[ix-1,iy-1].T*(1-dx) + self.data[ix,iy-1].T*dx).T
         data2 = (self.data[ix-1,iy].T*(1-dx) + self.data[ix,iy].T*dx).T
         dataxy = (data1.T*(1-dy) + data2.T*dy).T
-        
+
         return dataxy
         
 def psfbias(pix1, pix2):

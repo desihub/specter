@@ -75,10 +75,32 @@ class SpotGridPSF(PSF):
 
         #- TODO: Could do sub-pixel sinc shifting, but that is slow
 
-        #- Find where this goes on the CCD
+        #- Find where the [0,0] pixel goes on the CCD 
         xccd = int(xc - ccdpix.shape[1]/2 + 1)
         yccd = int(yc - ccdpix.shape[0]/2 + 1)
-                    
+        
+        print xccd, yccd, 
+        
+        #- Check if completely off the edge in any direction
+        if (xccd > self.npix_x) or (xccd+ccdpix.shape[1] < 0) or \
+           (yccd > self.npix_y) or (yccd+ccdpix.shape[0] < 0):
+            return slice(0,0), slice(0,0), N.zeros(0)
+            
+        #- Check if partially off edge
+        if xccd < 0:
+            ccdpix = ccdpix[:, -xccd:]
+            xccd = 0
+        elif xccd + ccdpix.shape[1] > self.npix_x:
+            dx = xccd + ccdpix.shape[1] - self.npix_x
+            ccdpix = ccdpix[:, -dx]
+
+        if yccd < 0:
+            ccdpix = ccdpix[-yccd:, ]
+            yccd = 0
+        elif yccd + ccdpix.shape[0] > self.npix_y:
+            dy = yccd + ccdpix.shape[0] - self.npix_y
+            ccdpix = ccdpix[-dy, :]
+        
         xx = slice(xccd, xccd+ccdpix.shape[1])
         yy = slice(yccd, yccd+ccdpix.shape[0])
         
