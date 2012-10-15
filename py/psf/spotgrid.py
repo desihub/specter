@@ -29,8 +29,8 @@ class SpotGridPSF(PSF):
         #- Load extensions specific to this PSF type
         fx = fitsio.FITS(filename)
         self._spots = fx['SPOTS'].read()  #- PSF spots
-        self._xccd  = fx['XCCD'].read()   #- X location of spots
-        self._yccd  = fx['YCCD'].read()   #- Y location of spots
+        self._spotx  = fx['SPOTX'].read()   #- X location of spots
+        self._spoty  = fx['SPOTY'].read()   #- Y location of spots
         self._fiberpos = fx['FIBERPOS'].read()  #- Location of fibers on slit
         self._spotpos = fx['SPOTPOS'].read()    #- Slit loc of sampled spots
         self._spotwave = fx['SPOTWAVE'].read()  #- Wavelengths of spots
@@ -39,8 +39,8 @@ class SpotGridPSF(PSF):
         pp = self._spotpos
         ww = self._spotwave
         self._fspot = LinearInterp2D(pp, ww, self._spots)
-        self._fx    = LinearInterp2D(pp, ww, self._xccd)
-        self._fy    = LinearInterp2D(pp, ww, self._yccd)
+        self._fx    = LinearInterp2D(pp, ww, self._spotx)
+        self._fy    = LinearInterp2D(pp, ww, self._spoty)
         
         #- Read spot vs. CCD pixel scales from header
         hdr = fx[0].read_header()
@@ -78,8 +78,6 @@ class SpotGridPSF(PSF):
         #- Find where the [0,0] pixel goes on the CCD 
         xccd = int(xc - ccdpix.shape[1]/2 + 1)
         yccd = int(yc - ccdpix.shape[0]/2 + 1)
-        
-        print xccd, yccd, 
         
         #- Check if completely off the edge in any direction
         if (xccd > self.npix_x) or (xccd+ccdpix.shape[1] < 0) or \
