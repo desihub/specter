@@ -193,29 +193,49 @@ class PSF(object):
         y = self.y(ispec, wavelength, copy=copy)
         return x, y
 
-    def loglam(self, ispec=None, y=None):
+    def xyw(self, ispec=None, copy=False):
+        """
+        Utility function to return x, y, and wavelength arrays for a
+        single spectrum in a single call
+        """
+        x = self.x(ispec, copy=copy)
+        y = self.y(ispec, copy=copy)
+        w = self.wavelength(ispec, copy=copy)
+        return x, y, w
+
+    def loglam(self, ispec=None, y=None, copy=False):
         """
         Return log10(wavelength) of spectrum[ispec] evaluated at y.
         y can be None, scalar, or vector
+        
+        TODO: Directly interpolate on loglam grid?
         """
-        if ispec is None:
-            return self._loglam
-        elif y is None:
-            return self._loglam[ispec]
-        else:
-            return N.interp(y, self._y[ispec], self._loglam[ispec])
+        return N.log10(self.wavelength(ispec, y, copy=copy))
     
-    def wavelength(self, ispec=None, y=None):
+    def wavelength(self, ispec=None, y=None, copy=False):
         """
         Return wavelength of spectrum[ispec] evaluated at y.
-        y can be None, scalar, or vector
+        
+        ispec can be None or scalar; y can be None, scalar, or vector
+
+        May return a view of the underlying array; do not modify unless
+        specifying copy=True to get a copy of the data.
         """
         if ispec is None:
-            return self._wavelength
-        elif y is None:
-            return self._wavelength[ispec]
+            if y is None:
+                result = self._wavelength
+            else:
+                result = N.array([self.wavelength(i,y) for i in range(self.nspec)])
         else:
-            return N.interp(y, self._y[ispec], self._wavelength[ispec])
+            if y is None:
+                result = self._wavelength[ispec]
+            else:
+                result = N.interp(y, self._y[ispec], self._wavelength[ispec])
+                
+        if copy:
+            return N.copy(result)
+        else:
+            return result
     
     #-------------------------------------------------------------------------
     #- Project spectra onto CCD pixels
