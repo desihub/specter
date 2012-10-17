@@ -34,7 +34,7 @@ class LegendreFit(object):
 
         self.xmin = xmin if xmin is not None else N.min(x)
         self.xmax = xmax if xmax is not None else N.max(x)
-        self.dx = self.xmax - self.xmin
+        self.dx = float(self.xmax - self.xmin)
 
         #- map x to range [-1,1]
         tx = self.tx(x)
@@ -57,7 +57,7 @@ class LegendreFit(object):
         """
         Return x mapped to [xmin,xmax] -> [-1,1]
         """
-        return 2*(x - self.xmin) / self.dx - 1.0
+        return 2.0*(x - self.xmin) / self.dx - 1.0
 
     def __call__(self, x):
         """
