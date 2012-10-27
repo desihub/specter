@@ -11,7 +11,7 @@ import os
 import numpy as N
 import fitsio
 from specter.psf import PSF
-from specter.util import LinearInterp2D, rebin
+from specter.util import LinearInterp2D, rebin, sincshift
 
 class SpotGridPSF(PSF):
     """
@@ -54,7 +54,7 @@ class SpotGridPSF(PSF):
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
         """
         
-        #- x,y of spot[0,0], referenced to center of CCD
+        #- x,y of spot on CCD
         p, w = self._fiberpos[ispec], wavelength
         xc = self._fx(p, w)
         yc = self._fy(p, w)
@@ -72,8 +72,12 @@ class SpotGridPSF(PSF):
         A = N.zeros(shape=(pix.shape[0]+rpix, pix.shape[1]+rpix))
         A[yoffset:yoffset+ny, xoffset:xoffset+nx] = pix
         ccdpix = rebin(A, rpix)
-
-        #- TODO: Could do sub-pixel sinc shifting, but that is slow
+        
+        #- Fractional high-res pixel offset
+        #- This can be slow; is it really necessary?
+        dxx = ((xc * rpix) % rpix - xoffset) / rpix
+        dyy = ((yc * rpix) % rpix - yoffset) / rpix
+        ccdpix = sincshift(ccdpix, dxx, dyy)
 
         #- Find where the [0,0] pixel goes on the CCD 
         xccd = int(xc - ccdpix.shape[1]/2 + 1)
