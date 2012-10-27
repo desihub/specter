@@ -36,7 +36,7 @@ class PixPSF(PSF):
         self.xyscale  = fx[4].read().view(N.ndarray)  #- ifiber igroup x0 xscale y0 yscale
         self.psfimage = fx[5].read().view(N.ndarray)  #- [igroup, icoeff, iy, ix]
                 
-    def xypix(self, ispec, wavelength):
+    def _xypix(self, ispec, wavelength):
         """
         Evaluate PSF for a given spectrum and wavelength
         
