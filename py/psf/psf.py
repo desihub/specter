@@ -73,19 +73,63 @@ class PSF(object):
         also see xypix(ispec, wavelength)
         """
         return self.xypix(ispec, wavelength)[2]
-        
-    def xypix(self, ispec, wavelength):
+
+    def _xypix(self, ispec):
         """
-        Evaluate PSF for spectrum[ispec] at given wavelength
+        Subclasses of PSF should implement this to return
+        xslice, yslice, pixels[iy,ix] for their particular
+        models.  Don't worry about edge effects -- PSF.xypix
+        will take care of that.
+        """
+        raise NotImplementedError
+        
+    def xypix(self, ispec, wavelength, xmin=0, xmax=None, ymin=0, ymax=None):
+        """
+        Evaluate PSF for spectrum[ispec] at given wavelength(s)
         
         returns xslice, yslice, pixels[iy,ix] such that
         image[yslice,xslice] += flux*pixels adds the contribution from
         spectrum ispec at that wavelength.
         
-        Subclasses of PSF should implement this function for their
-        specific model -- it is NOT implemented for the PSF base class.
+        if xmin or ymin are set, the slices are relative to those
+        minima (useful for simulating subimages)
         """
-        raise NotImplementedError
+        
+        xx, yy, ccdpix = self._xypix(ispec, wavelength)
+        xlo, xhi = xx.start, xx.stop
+        ylo, yhi = yy.start, yy.stop
+
+        if xmax is None:
+            xmax = self.npix_x
+        if ymax is None:
+            ymax = self.npix_y
+        
+        #- Check if completely off the edge in any direction
+        if (xlo >= xmax) or (xhi <= xmin) or \
+           (ylo >= ymax) or (yhi < ymin):
+            return slice(0,0), slice(0,0), N.zeros(0)
+            
+        #- Check if partially off edge
+        if xlo < xmin:
+            ccdpix = ccdpix[:, -xlo:]
+            xlo = xmin
+        elif xhi > xmax:
+            dx = xmax - xlo
+            ccdpix = ccdpix[:, 0:dx]
+            xhi = xmax
+
+        if ylo < ymin:
+            ccdpix = ccdpix[-ylo:, ]
+            ylo = ymin
+        elif yhi > ymax:
+            dy = ymax - ylo
+            ccdpix = ccdpix[0:dy, :]
+            yhi = ymax
+        
+        xx = slice(xlo-xmin, xhi-xmin)
+        yy = slice(ylo-ymin, yhi-ymin)
+        
+        return xx, yy, ccdpix
 
     def xyrange(self, spec_range, wave_range, dx=8, dy=8):
         """
