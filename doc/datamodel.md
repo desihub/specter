@@ -13,7 +13,8 @@ Required:
   - loglam or wavelength (1D[nwave] or 2D[nspec, nwave])
 
 Optional:
-  - sky[nwave] or sky[nspec, nwave]
+  Header keyword OBJTYPE, or column objtype[nspec]
+    values = STAR GALAXY QSO CALIB SKY
 
 If `sky` exists, it is added to `flux`.  Other user-specific columns may
 exist and will be ignored by specter.
@@ -55,14 +56,19 @@ Optional: extensions and keywords to convert ergs/s/cm^2/A -> photons
 --> NOT YET IMPLEMENTED
 
 HDU EXTNAME="THROUGHPUT", binary table with columns:
-  - wavelength[nwave] or loglam[nwave]
-  - throughput[nwave]
+  - wavelength[nwave]   Wavelength in Angstroms
+      or loglam[nwave]    or log10(Angstroms)
+  - throughput[nwave]   Telescope, fibers, spectrographs, and CCDs
+  - extinction[nwave]   Atmospheric extinction in mags/airmass
+  - geominput[nwave]    Geometric loss at input of fiber for point source
 
-HDU 0 keywords
-  - EXPTIME: Standard exposure time in seconds
-  - EFFAREA: Effective area of mirror, including obscuration effects, in cm^2
+Keywords
+  - EXPTIME:  Standard exposure time in seconds
+  - EFFAREA:  Effective area of mirror, including obscuration effects, in cm^2
+  - FIBERDIA: Fiber diameter in arcsec
   
-photons/A = (ergs/s/cm^2/A) * EXPTIME * EFFAREA * wavelength / (h*c)
+flux units = ergs/s/cm^2/A
+photons/A = flux * EXPTIME * EFFAREA * wavelength / (h*c)
 
 These these keywords aren't available, the PSF can still be used to project
 photons onto a CCD, but not flux in ergs/s/cm^2/A .

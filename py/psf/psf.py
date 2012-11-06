@@ -21,11 +21,11 @@ class PSF(object):
     Base class for 2D PSFs
     
     Subclasses need to extend __init__ to load format-specific items
-    from the input fits file and implement xypix(ispec, wavelength)
+    from the input fits file and implement _xypix(ispec, wavelength)
     to return xslice, yslice, pixels[y,x] for the PSF evaluated at
     spectrum ispec at the given wavelength.  All interactions with PSF
     classes should be via the methods defined here, allowing
-    interchangeable use of different PSF models
+    interchangeable use of different PSF models.
     """
     def __init__(self, filename):
         """
