@@ -1,4 +1,4 @@
-specter : 2D CCD pixel-level simulation of multi-object spectrographs
+Specter : 2D CCD pixel-level simulation of multi-object spectrographs
 
 Directories included here:
 

@@ -12,6 +12,8 @@ from scipy.special import legendre
 class LegendreFit(object):
     """
     Interpolation by fitting Legendre polynomials
+    
+    Code which uses this should use numpy.polynomial.legendre instead
     """
     def __init__(self, x, y, order=7, xmin=None, xmax=None):
         """

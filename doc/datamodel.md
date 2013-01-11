@@ -14,20 +14,57 @@ Required:
 
 Optional:
   Header keyword OBJTYPE, or column objtype[nspec]
-    values = STAR GALAXY QSO CALIB SKY
+    values = CALIB, SKY, other (GAL, QSO, STAR)...
+    Anything other than CALIB or SKY will be treated as an astronomical source
 
-If `sky` exists, it is added to `flux`.  Other user-specific columns may
-exist and will be ignored by specter.
+Other user-specific columns may exist and will be ignored by Specter.
 
-Current implementation: flux is in units of total photons
+Current implementation: flux is in units of total photons on CCD
 
-Future implementation:
-If units aren't specified, flux will be treated as photons/bin as seen
-by the CCD.  If TUNITn keyword for the flux column starts with "erg" then
-it will be treated as ergs/sec/cm^2/A and converted to photons and throughput
-applied.  In both cases, the flux will be treated as a delta function at
-that wavelength; it will not be integrated or interpolated between points.
-Thus the wavelength sampling should be finer than the PSF resolution.
+Units to support (in progress)
+    photons               - treated as a delta function in wavelength
+    photons/A             - to be integrated over a wavelength range
+    ergs/s/cm2/A          - astronomical objects
+    ergs/s/cm2/A/arcsec2  - sky spectra, calibration lamps/lasers
+
+photons = (flux * EXPTIME * EFFAREA * wavelength / (h*c)) * throughput
+
+
+Throughput
+==========
+In Progress
+
+HDU EXTNAME=THROUGHPUT, binary table with columns:
+  - wavelength[nwave]   Wavelength in Angstroms
+      or loglam[nwave]    or log10(Angstroms)
+  - extinction[nwave]   Atmospheric extinction in mags/airmass
+                        Atm throughput = 10^(0.4 * extinction * airmass)
+  - throughput[nwave]   Telescope, fibers, spectrographs, and CCDs
+  - fiberinput[nwave]   Geometric loss at input of fiber for point source.
+
+TODO: throughput and fiberinput may optinally have dimensions [nfiber, nwave]
+
+Keywords in same HDU EXTNAME=THROUGHPUT
+  - EXPTIME:  Standard exposure time in seconds
+  - EFFAREA:  Effective area of mirror, including obscuration effects, in cm^2
+  - FIBERDIA: Fiber diameter in arcsec
+
+  flux units = ergs/s/cm^2/A
+  photons/A = flux * EXPTIME * EFFAREA * wavelength / (h*c)
+
+fiberinput in general depends upon source size, seeing, and fiber position
+misalignments.  Default is for for perfectly centered point source.
+--> This is the weak point of this format.
+
+The various forms of throughput affect different types of sources:
+
+                 Object   Sky    Calib
+    EXTINCTION    yes     yes     no
+    FIBERINPUT    yes     no      no
+    THROUGHPUT    yes     yes     yes
+
+Calib = calibration lamps or laser systems.
+
 
 
 PSF Formats
@@ -52,25 +89,10 @@ HDU 3+ : specific to each subformat
 HDU 0 keywords:
   - NPIX_X, NPIX_Y : CCD dimensions in pixels
 
-Optional: extensions and keywords to convert ergs/s/cm^2/A -> photons
---> NOT YET IMPLEMENTED
-
-HDU EXTNAME="THROUGHPUT", binary table with columns:
-  - wavelength[nwave]   Wavelength in Angstroms
-      or loglam[nwave]    or log10(Angstroms)
-  - throughput[nwave]   Telescope, fibers, spectrographs, and CCDs
-  - extinction[nwave]   Atmospheric extinction in mags/airmass
-  - geominput[nwave]    Geometric loss at input of fiber for point source
-
-Keywords
-  - EXPTIME:  Standard exposure time in seconds
-  - EFFAREA:  Effective area of mirror, including obscuration effects, in cm^2
-  - FIBERDIA: Fiber diameter in arcsec
+HDU EXTNAME=THROUGHPUT same as THROUGHPUT HDU which could also appear
+in a separate fits file.
   
-flux units = ergs/s/cm^2/A
-photons/A = flux * EXPTIME * EFFAREA * wavelength / (h*c)
-
-These these keywords aren't available, the PSF can still be used to project
+If throughput isn't available, the PSF can still be used to project
 photons onto a CCD, but not flux in ergs/s/cm^2/A .
 
 Spot Grid PSF

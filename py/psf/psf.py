@@ -239,8 +239,9 @@ class PSF(object):
 
     def xyw(self, ispec=None, copy=False):
         """
-        Utility function to return x, y, and wavelength arrays for a
-        single spectrum in a single call
+        Utility function to return x, y, and wavelength arrays for
+        spectrum number ispec.  Set copy=True to get copies of the
+        arrays instead of references to the originals.
         """
         x = self.x(ispec, copy=copy)
         y = self.y(ispec, copy=copy)
