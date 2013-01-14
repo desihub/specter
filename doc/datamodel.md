@@ -9,8 +9,16 @@ Input spectra
 ### HDU 1 : binary table of spectra ###
 
 Required:
-  - flux[nwave] or flux[nspec, nwave]
+  - flux[nwave] or flux[nspec, nwave], or
   - loglam or wavelength (1D[nwave] or 2D[nspec, nwave])
+  - keyword FLUXUNIT
+    - photons
+    - photons/A
+    - ergs/s/cm^2/A
+    - ergs/s/cm^2/A/arcsec^2
+
+"photons: are treated as photons as observed by the CCD, i.e. all
+efficiencies are already applied.  "flux" is treated as "ergs/s/cm"
 
 Optional:
   Header keyword OBJTYPE, or column objtype[nspec]
@@ -22,10 +30,10 @@ Other user-specific columns may exist and will be ignored by Specter.
 Current implementation: flux is in units of total photons on CCD
 
 Units to support (in progress)
-    photons               - treated as a delta function in wavelength
-    photons/A             - to be integrated over a wavelength range
-    ergs/s/cm2/A          - astronomical objects
-    ergs/s/cm2/A/arcsec2  - sky spectra, calibration lamps/lasers
+    photons                 - treated as a delta function in wavelength
+    photons/A               - to be integrated over a wavelength range
+    ergs/s/cm^2/A           - astronomical objects
+    ergs/s/cm^2/A/arcsec^2  - sky spectra, calibration lamps/lasers
 
 photons = (flux * EXPTIME * EFFAREA * wavelength / (h*c)) * throughput
 

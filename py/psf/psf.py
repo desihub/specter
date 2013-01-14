@@ -88,7 +88,7 @@ class PSF(object):
         Evaluate PSF for spectrum[ispec] at given wavelength(s)
         
         returns xslice, yslice, pixels[iy,ix] such that
-        image[yslice,xslice] += flux*pixels adds the contribution from
+        image[yslice,xslice] += photons*pixels adds the contribution from
         spectrum ispec at that wavelength.
         
         if xmin or ymin are set, the slices are relative to those
@@ -284,15 +284,15 @@ class PSF(object):
     
     #-------------------------------------------------------------------------
     #- Project spectra onto CCD pixels
-    def project(self, flux, wavelength, specmin=0, xr=None, yr=None):
+    def project(self, phot, wavelength, specmin=0, xr=None, yr=None):
         """
         Returns 2D image of spectra projected onto the CCD
 
         Required inputs:
-            flux[nwave] or flux[nspec, nwave] as photons on CCD per bin
+            phot[nwave] or phot[nspec, nwave] as photons on CCD per bin
             wavelength[nwave] or wavelength[nspec, nwave] in Angstroms
                 if wavelength is 1D and spectra is 2D, then wavelength[]
-                applies to all flux[i]
+                applies to all phot[i]
 
         Optional inputs:
             specmin : starting spectrum number
@@ -305,9 +305,9 @@ class PSF(object):
         nx = xr[1] - xr[0]    
         ny = yr[1] - yr[0]    
 
-        #- For convenience, treat flux as a 2D vector
-        flux = N.atleast_2d(flux)
-        nspec, nw = flux.shape
+        #- For convenience, treat phot as a 2D vector
+        phot = N.atleast_2d(phot)
+        nspec, nw = phot.shape
 
         #- Create image to fill
         img = N.zeros( (ny, nx) )
@@ -316,7 +316,7 @@ class PSF(object):
         for i, ispec in enumerate(range(specmin, specmin+nspec)):
             print ispec
             
-            #- 1D wavelength for every spec, or 2D wavelength for 2D flux?
+            #- 1D wavelength for every spec, or 2D wavelength for 2D phot?
             if wavelength.ndim == 2:
                 wspec = wavelength[i]
             else:
@@ -326,17 +326,17 @@ class PSF(object):
             wpsf = self.wavelength(ispec)
             wmin, wmax = wpsf[0], wpsf[-1]
             for j, w in enumerate(wspec):
-                if flux[i,j] > 0.0 and wmin <= w and w <= wmax:
+                if phot[i,j] > 0.0 and wmin <= w and w <= wmax:
                     xx, yy, pix = self.xypix(ispec, w)
                     xx = slice(xx.start-xr[0], xx.stop-xr[0])
                     yy = slice(yy.start-yr[0], yy.stop-yr[0])
-                    img[yy, xx] += pix * flux[i,j]
+                    img[yy, xx] += pix * phot[i,j]
 
         return img
     
     # #-------------------------------------------------------------------------
     # #- Access the projection matrix A
-    # #- pix = A * flux
+    # #- pix = A * phot
     #
     # #- NOTE: these are copied from bbspec PSF classes, used for extracting
     # #-       spectra, which isn't a part of specter (yet).

@@ -64,9 +64,10 @@ class Throughput:
             
         return N.interp(wavelength, self._wave, T)
         
-    def thru(self, wavelength, objtype=ObjType.STAR, airmass=1.0):
+    def photons(self, wavelength, flux, objtype=ObjType.STAR, airmass=1.0):
         """
-        shorthand for throughput(...)
         """
-        return self.throughput(wavelength, objtype=objtype, airmass=airmass)
+        raise NotImplementedError
+        T = self.throughput(wavelength, objtype=objtype, airmass=airmass)
+        pass  ### TODO ###
         
