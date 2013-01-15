@@ -24,7 +24,7 @@ class ObjType:
     SKY    = 'SKY'
     CALIB  = 'CALIB'
 
-def throughput(filename):
+def load_throughput(filename):
     """
     Create Throughput object from FITS file with EXTNAME=THROUGHPUT HDU
     """
@@ -38,7 +38,15 @@ def throughput(filename):
     else:
         raise ValueError, 'throughput must include wavelength or loglam'
         
-    return Throughput(w, thru['throughput'], thru['extinction'], thru['fiberinput'])
+    return Throughput(
+        wave = w,
+        throughput = thru['throughput'],
+        extinction = thru['extinction'],
+        fiberinput = thru['fiberinput'],
+        exptime  = hdr['EXPTIME'],
+        effarea  = hdr['EFFAREA'],
+        fiberdia = hdr['FIBERDIA'],
+        )
 
 class Throughput:
     def __init__(self, wave, throughput, extinction,
@@ -59,8 +67,8 @@ class Throughput:
         
         Optional Inputs
         ---------------
-        fiberinput : float or array; geometric loss from finite sized
-            fiber input.  Default to no loss.
+        fiberinput : float or array; geometric throughput from finite sized
+            fiber input.  Default to no loss = 1.0.
             
             
         Notes
@@ -72,9 +80,9 @@ class Throughput:
         self._thru = N.copy(throughput)
         self._extinction  = N.copy(extinction)
         
-        self.exptime = exptime
-        self.effarea = effarea
-        self.fiberdia = fiberdia
+        self.exptime = float(exptime)
+        self.effarea = float(effarea)
+        self.fiberdia = float(fiberdia)
         
         if fiberinput is not None:
             if isinstance(fiberinput, float):
@@ -83,6 +91,36 @@ class Throughput:
                 self._fiberinput = N.copy(fiberinput)
         else:
             self._fiberinput = N.ones(len(wave))
+        
+    def extinction(self, wavelength):
+        """
+        Return atmospheric extinction [magnitudes/airmass]
+        evaluated at wavelength (float or array)
+        """
+        return N.interp(wavelength, self._wave, self._extinction)
+    
+    def atmospheric_throughput(self, wavelength, airmass=1.0):
+        """
+        Return atmospheric throughput [0 - 1] at given airmass,
+        evaluated at wavelength (float or array)
+        """
+        ext = self.extinction(wavelength)
+        return 10**(-0.4 * airmass * ext)
+        
+    def fiberinput_throughput(self, wavelength):
+        """
+        Return fiber input geometric throughput [0 - 1]
+        evaluated at wavelength (float or array)
+        """
+        return N.interp(wavelength, self._wave, self._fiberinput)
+        
+    def hardware_throughput(self, wavelength):
+        """
+        Return hardware throughput (optics, fiber run, CCD, but
+        not including atmosphere or geometric fiber input losses)
+        evaluated at wavelength (float or array)        
+        """
+        return N.interp(wavelength, self._wave, self._thru, left=0.0, right=0.0)
         
     def __call__(self, wavelength, objtype=ObjType.STAR, airmass=1.0):
         """
@@ -103,7 +141,7 @@ class Throughput:
         else:
             T = self._thru * Tatm * self._fiberinput
             
-        return N.interp(wavelength, self._wave, T)
+        return N.interp(wavelength, self._wave, T, left=0.0, right=0.0)
 
     def thru(self, *args, **kwargs):
         """
@@ -111,7 +149,7 @@ class Throughput:
         """
         return self(*args, **kwargs)
 
-    def photons(self, wavelength, flux, units, \
+    def photons(self, wavelength, flux, units="erg/s/cm^2/A", \
                 objtype="STAR", exptime=None, airmass=1.0):
         """
         Returns photons observed by CCD given input flux vs. wavelength,
@@ -124,12 +162,12 @@ class Throughput:
         units      : units of `flux`
           * Treated as delta functions at each wavelength:
             - "photons"
-            - "ergs/s/cm^2"
+            - "erg/s/cm^2"
           * Treated as function values to be multipled by bin width:
-            - "photons/A"
-            - "photons/A/arcsec^2"
-            - "ergs/s/cm^2/A"
-            - "ergs/s/cm^2/A/arcsec^2"
+            - "photon/A"
+            - "photon/A/arcsec^2"
+            - "erg/s/cm^2/A"
+            - "erg/s/cm^2/A/arcsec^2"
 
         For the per-Angstrom units options ("/A"), the user is responsible for
         providing a fine enough wavelength sampling that multiplying
@@ -152,44 +190,59 @@ class Throughput:
         January 2013
         """
 
+        #- Allow some sloppiness in units
+        units = units.replace("ergs", "erg")
+        units = units.replace("photons", "photon")
+        units = units.replace("**", "^")
+
         #- Flux -> photons conversion constants
-        #-   h [ergs s] * c [m/s] * [1e10 A/m] = [ergs A]
-        h_c = 1.05457168e-27 * 2.99792458e-8  * 1e10
+        #-   h [erg s] * c [m/s] * [1e10 A/m] = [erg A]
+        h_c = 6.62606957e-27 * 2.99792458e8 * 1e10
 
         #- Get default exposure time from Throughput object
         if exptime is None:
             exptime = self.exptime
 
         #- photons * throughput = easy
-        if units == "photons":
+        if units == "photon":
             return flux * self.thru(wavelength, objtype=objtype, airmass=airmass)
 
-        #- photons/A
-        elif units == "photons/A":
-            #- photons/A * width(A) -> photons
-            photons = flux * N.gradient(wavelength)
+        #- photon/A
+        elif units == "photon/A":
+            #- photon/A * width(A) -> photons
+            phot = flux * N.gradient(wavelength)
 
             #- Now multiply by throughput
-            return photons * self.thru(wavelength, objtype=objtype, airmass=airmass)
+            return phot * self.thru(wavelength, objtype=objtype, airmass=airmass)
 
-        #- photons/A/arcsec^2 (e.g. calibration lamp)
-        elif units == "photons/A/arcsec^2":
-            phot = flux * self.thru.fiberdia**2
-            return photons(wavelength, phot, units='photons/A', \
+        #- photon/A/arcsec^2 (e.g. calibration lamp)
+        elif units == "photon/A/arcsec^2":
+            phot = flux * N.pi * self.fiberdia**2 / 4.0
+            return self.photons(wavelength, phot, units='photon/A', \
                            objtype=objtype, exptime=exptime, airmass=airmass)
 
-        #- ergs/s/cm^2/A (e.g. astronomical object)
-        elif units == "ergs/s/cm^2/A":
-            phot = flux * wavelength / h_c              #- photons/s/cm^2/A
-            phot *= thru.effarea                        #- photons/s/A
-            phot *= exptime                             #- photons/A
-            return photons(wavelength, phot, units='photons/A', \
+        #- erg/s/cm^2
+        elif units == "erg/s/cm^2":
+            phot = flux * wavelength / h_c              #- photon/s/cm^2
+            phot *= self.effarea                        #- photon/s
+            phot *= exptime                             #- photon
+            return self.photons(wavelength, phot, units='photon', \
+                           objtype=objtype, exptime=exptime, airmass=airmass)
+            
+        #- erg/s/cm^2/A (e.g. astronomical object)
+        elif units == "erg/s/cm^2/A":
+            phot = flux * wavelength / h_c              #- photon/s/cm^2/A
+            phot *= self.effarea                        #- photon/s/A
+            phot *= exptime                             #- photon/A
+            return self.photons(wavelength, phot, units='photon/A', \
                            objtype=objtype, exptime=exptime, airmass=airmass)
 
-        #- ergs/s/cm^2/A/arcsec^2 (e.g. sky)
-        elif units == "ergs/s/cm^2/A/arcsec^2":
-            f = flux * thru.fiberdia**2 / 4.0
-            return photons(ispec, wavelength, f, units="ergs/s/cm2/A", \
+        #- erg/s/cm^2/A/arcsec^2 (e.g. sky)
+        elif units == "erg/s/cm^2/A/arcsec^2":
+            f = flux * N.pi * self.fiberdia**2 / 4.0
+            return self.photons(wavelength, f, units="erg/s/cm^2/A", \
                            objtype=objtype, exptime=exptime, airmass=airmass)
+        else:
+            raise ValueError, "Unrecognized units " + units
     
         
