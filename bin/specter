@@ -92,7 +92,7 @@ elif 'OBJTYPE' in header:
 #- Convert 1D flux into 2D
 if flux.ndim == 1:
     photons = thru.photons(wavelength, flux, units, objtype=objtype[0])
-    flux = N.tile(photons, psf.nspec).reshape(psf.nspec, len(flux))
+    photons = N.tile(photons, psf.nspec).reshape(psf.nspec, len(flux))
 else:
     photons = N.zeros(flux.shape)
     for i in range(photons.shape[0]):
@@ -103,16 +103,16 @@ photons = photons[opts.specrange]
 if wavelength.ndim == 2:
     wavelength = wavelength[opts.specrange]
 
-#- Trim wavelength range by setting flux=0 outside wavelength range
+#- Trim wavelength range by setting photons=0 outside wavelength range
 wmin, wmax = opts.wavelength
 if wavelength.ndim == 1:
     ii = (wmin <= wavelength) & (wavelength <= wmax)
-    flux = flux[:, ii]
+    photons = photons[:, ii]
     wavelength = wavelength[ii]
 else:
-    #- for 2D, just set flux=0 outside wavelength range
+    #- for 2D, just set photons=0 outside wavelength range
     ii = (wavelength < wmin) | (wmax < wavelength)
-    flux[ii] = 0.0
+    photons[ii] = 0.0
 
 #- Do the projection
 #+ TODO: Add options for simulating xy subregion
