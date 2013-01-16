@@ -80,6 +80,10 @@ class SpotGridPSF(PSF):
         dxx = ((xc * rpix) % rpix - xoffset) / rpix
         dyy = ((yc * rpix) % rpix - yoffset) / rpix
         ccdpix = sincshift(ccdpix, dxx, dyy)
+        
+        #- sinc shift can cause negative ringing, so clip and re-normalize
+        ccdpix = ccdpix.clip(0)
+        ccdpix /= N.sum(ccdpix)
 
         #- Find where the [0,0] pixel goes on the CCD 
         xccd = int(xc - ccdpix.shape[1]/2 + 1)
