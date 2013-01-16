@@ -9,40 +9,52 @@ Input spectra
 ### HDU 1 : binary table of spectra ###
 
 Required:
-  - flux[nwave] or flux[nspec, nwave], or
-  - loglam or wavelength (1D[nwave] or 2D[nspec, nwave])
-  - keyword FLUXUNIT
-    - photons
-    - photons/A
-    - ergs/s/cm^2/A
-    - ergs/s/cm^2/A/arcsec^2
-
-"photons: are treated as photons as observed by the CCD, i.e. all
-efficiencies are already applied.  "flux" is treated as "ergs/s/cm"
+  - flux[nwave] or flux[nspec, nwave]
+  - loglam or wavelength as either 1D[nwave] or 2D[nspec, nwave]
 
 Optional:
-  Header keyword OBJTYPE, or column objtype[nspec]
-    values = CALIB, SKY, other (GAL, QSO, STAR)...
-    Anything other than CALIB or SKY will be treated as an astronomical source
+  - objtype[nspec] column, or header keyword OBJTYPE.  Default 'STAR'.
+    Values = CALIB, SKY, or something else.  Anything other
+    than CALIB or SKY will be treated as an astronomical source.
+    See the Throughput section for a description of how the throughput
+    model is applied differently for various object types.
+      
+Other columns may be present and will be ignored.
+      
+### Other HDUs ###
+      
+If a EXTNAME=THROUGHPUT extension exists, it can be used as the
+throughput model.  Alternately the throughput may be stored in a
+separate file; see the next major section.
+      
+Other HDUs may be present and will be ignored.
 
-Other user-specific columns may exist and will be ignored by Specter.
+### Flux Units ###
 
-Current implementation: flux is in units of total photons on CCD
+If the `flux` column has a TUNITnn keyword, that will be used, otherwise
+keyword FLUXUNIT is an alternative.  Options:
+  * Treated as function values to be multipled by bin width:
+    - erg/s/cm^2/A  (default)
+    - erg/s/cm^2/A/arcsec^2
+    - photon/A
+    - photon/A/arcsec^2
+  * Treated as delta functions at each given wavelength:
+    - photons
+    - erg/s/cm^2
 
-Units to support (in progress)
-    photons                 - treated as a delta function in wavelength
-    photons/A               - to be integrated over a wavelength range
-    ergs/s/cm^2/A           - astronomical objects
-    ergs/s/cm^2/A/arcsec^2  - sky spectra, calibration lamps/lasers
-
-photons = (flux * EXPTIME * EFFAREA * wavelength / (h*c)) * throughput
+For example, an astromical object is typically in units "erg/s/cm^2/A"
+and will be converted to photons using all throughput terms of the
+throughput model.  A sky spectrum may be in "erg/s/cm^2/A/arcsec^2" and
+will be multiplied by the area of the fiber instead of having a
+fiber input geometric loss applied.
 
 
 Throughput
 ==========
-In Progress
 
-HDU EXTNAME=THROUGHPUT, binary table with columns:
+### HDU EXTNAME=THROUGHPUT ###
+
+binary table with columns:
   - wavelength[nwave]   Wavelength in Angstroms
       or loglam[nwave]    or log10(Angstroms)
   - extinction[nwave]   Atmospheric extinction in mags/airmass
@@ -50,29 +62,29 @@ HDU EXTNAME=THROUGHPUT, binary table with columns:
   - throughput[nwave]   Telescope, fibers, spectrographs, and CCDs
   - fiberinput[nwave]   Geometric loss at input of fiber for point source.
 
-TODO: throughput and fiberinput may optinally have dimensions [nfiber, nwave]
-
-Keywords in same HDU EXTNAME=THROUGHPUT
+Required keywords in same HDU EXTNAME=THROUGHPUT (not HDU 0)
   - EXPTIME:  Standard exposure time in seconds
   - EFFAREA:  Effective area of mirror, including obscuration effects, in cm^2
   - FIBERDIA: Fiber diameter in arcsec
 
-  flux units = ergs/s/cm^2/A
-  photons/A = flux * EXPTIME * EFFAREA * wavelength / (h*c)
+Note:
+The throughtput format currently does not support per-fiber throughput.
 
-fiberinput in general depends upon source size, seeing, and fiber position
-misalignments.  Default is for for perfectly centered point source.
---> This is the weak point of this format.
+Note:
+`fiberinput` in general depends upon source size, seeing, and fiber position
+misalignments.  The default is for for perfectly centered point sources.
+The format currently does not support extented objects (the user can mimic
+this though the input spectra provided to Specter.)
 
 The various forms of throughput affect different types of sources:
 
-                 Object   Sky    Calib
+                 OBJECT   SKY    CALIB
     EXTINCTION    yes     yes     no
     FIBERINPUT    yes     no      no
     THROUGHPUT    yes     yes     yes
 
-Calib = calibration lamps or laser systems.
-
+CALIB = calibration lamps or laser systems mounted with the telescope,
+i.e. not experiencing sky absorption.
 
 
 PSF Formats

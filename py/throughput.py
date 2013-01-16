@@ -160,7 +160,7 @@ class Throughput:
         wavelength : input wavelength array in Angstroms
         flux       : input flux or photons; same length as `wavelength`
         units      : units of `flux`
-          * Treated as delta functions at each wavelength:
+          * Treated as delta functions at each given wavelength:
             - "photons"
             - "erg/s/cm^2"
           * Treated as function values to be multipled by bin width:
