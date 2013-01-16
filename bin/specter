@@ -32,7 +32,7 @@ parser.add_option("-l", "--loglam", type="string",
     help="log10(wavelength[A]) range min,max")
 parser.add_option("-r", "--specrange", type="string",
     help="range of spectra to simulate specmin,specmax")
-parser.add_option("-D", "--debug", action="store_true", help="start ipython after running")
+parser.add_option("--debug", action="store_true", help="start ipython after running")
 
 opts, args = parser.parse_args()
 
@@ -53,7 +53,7 @@ header = fitsio.read_header(opts.input, 1)
 #- Expand defaults
 if opts.specrange is not None:
     x = map(int, opts.specrange.split(','))
-    x[1] = min(x[1], psf.nspec)
+    x[1] = min(x[1]+1, psf.nspec)
     opts.specrange = range(x[0], x[1])
 else:
     opts.specrange = range(psf.nspec)
@@ -130,12 +130,12 @@ if opts.noise:
 #+ TODO: Add options to write extra data (ivar, input spectra, etc.)
 fitsio.write(opts.output, img, clobber=True)
 if opts.noise:
-    fitsio.write(opts.output, 1.0/var)
+    fitsio.write(opts.output, 1.0/var, extname='IVAR')
 
 #- Update header with SIMDATA and PREPROC keyword
 fx = fitsio.FITS(opts.output, 'rw')
 fx[0].write_key('SIMDATA', True, 'Simulated image written by specter')
-fx[0].write_key('PREPROC', True, 'Overscan subtraction and gain applied')
+fx[0].write_key('PREPROC', True, 'Preproc done (1/0 = True/False)')
 fx.close()
 
 if opts.debug:
