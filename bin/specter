@@ -12,6 +12,7 @@ import os
 import numpy as N
 import optparse
 from specter.psf import load_psf
+from specter.throughput import load_throughput
 import fitsio
 
 parser = optparse.OptionParser(
@@ -21,6 +22,7 @@ parser = optparse.OptionParser(
 parser.add_option("-i", "--input", type="string",  help="input spectra")
 parser.add_option("-o", "--output", type="string",  help="output image")
 parser.add_option("-p", "--psf", type="string",  help="input PSF")
+parser.add_option("-t", "--throughput", type="string",  help="input throughput file")
 parser.add_option("-n", "--noise", action="store_true", help="add noise")
 parser.add_option("-N", "--readnoise", type="float", default=4.0, help="readout noise [%default]")
 ### parser.add_option("-s", "--sky", type="string",  help="input sky spectra")
@@ -30,6 +32,7 @@ parser.add_option("-l", "--loglam", type="string",
     help="log10(wavelength[A]) range min,max")
 parser.add_option("-r", "--specrange", type="string",
     help="range of spectra to simulate specmin,specmax")
+parser.add_option("--debug", action="store_true", help="start ipython after running")
 
 opts, args = parser.parse_args()
 
@@ -39,12 +42,18 @@ opts, args = parser.parse_args()
 
 #- Load inputs
 psf = load_psf(opts.psf)
+if opts.throughput:
+    thru = load_throughput(opts.throughput)
+else:
+    thru = load_throughput(opts.psf)
+    
 spectra = fitsio.read(opts.input, 1, lower=True).view(N.recarray)
+header = fitsio.read_header(opts.input, 1)
 
 #- Expand defaults
 if opts.specrange is not None:
     x = map(int, opts.specrange.split(','))
-    x[1] = min(x[1], psf.nspec)
+    x[1] = min(x[1]+1, psf.nspec)
     opts.specrange = range(x[0], x[1])
 else:
     opts.specrange = range(psf.nspec)
@@ -61,54 +70,77 @@ else:
     opts.loglam = N.array( [N.min(ll), N.max(ll)] )
     opts.wavelength = 10**opts.loglam
     
-#- ???
-#- Should projection be evaluated on spectral or PSF wavelength grid?
-#- e.g. for arcs it would make sense to evaluate only at spectral resolution
-#- But high-res input spectra we might want to down sample.
-#- Just use opts.wavelength for that?
-#- ???
-    
 #- Get flux and wavelength arrays
 wavelength = spectra['wavelength']
-if 'phot' in spectra.dtype.names:
-    flux = spectra['phot']
+flux = spectra['flux']
+
+#- Determine flux units from TUNITnn or FLUXUNIT keywords
+key = 'TUNIT%d' % (spectra.dtype.names.index('flux')+1, )
+if key in header:
+    units = header[key].strip()
+elif 'FLUXUNIT' in header:
+    units = header['FLUXUNIT'].strip()
 else:
-    flux = spectra['flux']
-    
+    print >> sys.stderr, 'WARNING: using default flux units of erg/s/cm^2/A'
+    units = 'erg/s/cm^2/A'
+
+#- Make array of object types
+if 'objtype' in spectra.dtype.names:
+    objtype = spectra['objtype']
+elif 'OBJTYPE' in header:
+    objtype = N.array( [header['OBJTYPE'].strip(), ] * psf.nspec )
+
+#- Convert 1D flux into 2D
 if flux.ndim == 1:
-    flux = N.tile(flux, psf.nspec).reshape(psf.nspec, len(flux))
+    photons = thru.photons(wavelength, flux, units, objtype=objtype[0])
+    photons = N.tile(photons, psf.nspec).reshape(psf.nspec, len(flux))
+else:
+    photons = N.zeros(flux.shape)
+    for i in range(photons.shape[0]):
+        photons[i] = thru.photons(wavelength, flux[i], units, objtype=objtype[i])
 
 #- Trim to just requested specrange
-flux = flux[opts.specrange]
+photons = photons[opts.specrange]
 if wavelength.ndim == 2:
     wavelength = wavelength[opts.specrange]
 
-#- Trim wavelength range by setting flux=0 outside wavelength range
+#- Trim wavelength range by setting photons=0 outside wavelength range
 wmin, wmax = opts.wavelength
 if wavelength.ndim == 1:
     ii = (wmin <= wavelength) & (wavelength <= wmax)
-    flux = flux[:, ii]
+    photons = photons[:, ii]
     wavelength = wavelength[ii]
 else:
-    #- for 2D, just set flux=0 outside wavelength range
+    #- for 2D, just set photons=0 outside wavelength range
     ii = (wavelength < wmin) | (wmax < wavelength)
-    flux[ii] = 0.0
+    photons[ii] = 0.0
 
 #- Do the projection
 #+ TODO: Add options for simulating xy subregion
-img = psf.project(flux, wavelength, specmin=opts.specrange[0])
+img = psf.project(photons, wavelength, specmin=opts.specrange[0])
 
 #- Add noise
+#+ TODO: Add Gaussian vs. Poisson noise
+#+ TODO: Add integerization and gain
 if opts.noise:
     var = opts.readnoise**2 + img
     img += N.random.normal(scale=N.sqrt(var))
     
 #- Write output
+#+ TODO: Add options to write extra data (ivar, input spectra, etc.)
 fitsio.write(opts.output, img, clobber=True)
 if opts.noise:
-    fitsio.write(opts.output, 1.0/var)
+    fitsio.write(opts.output, 1.0/var, extname='IVAR')
 
-#- Update header with SIMDATA keyword
+#- Update header with SIMDATA and PREPROC keyword
 fx = fitsio.FITS(opts.output, 'rw')
 fx[0].write_key('SIMDATA', True, 'Simulated image written by specter')
+fx[0].write_key('PREPROC', True, 'Preproc done (1/0 = True/False)')
 fx.close()
+
+if opts.debug:
+    #--- DEBUG ---
+    import IPython
+    IPython.embed()
+    #--- DEBUG ---
+    

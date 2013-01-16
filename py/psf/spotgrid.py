@@ -31,6 +31,8 @@ class SpotGridPSF(PSF):
         self._spots = fx['SPOTS'].read()  #- PSF spots
         self._spotx  = fx['SPOTX'].read()   #- X location of spots
         self._spoty  = fx['SPOTY'].read()   #- Y location of spots
+        # self._spotx  = fx['XCCD'].read()   #- X location of spots
+        # self._spoty  = fx['YCCD'].read()   #- Y location of spots
         self._fiberpos = fx['FIBERPOS'].read()  #- Location of fibers on slit
         self._spotpos = fx['SPOTPOS'].read()    #- Slit loc of sampled spots
         self._spotwave = fx['SPOTWAVE'].read()  #- Wavelengths of spots
@@ -78,6 +80,10 @@ class SpotGridPSF(PSF):
         dxx = ((xc * rpix) % rpix - xoffset) / rpix
         dyy = ((yc * rpix) % rpix - yoffset) / rpix
         ccdpix = sincshift(ccdpix, dxx, dyy)
+        
+        #- sinc shift can cause negative ringing, so clip and re-normalize
+        ccdpix = ccdpix.clip(0)
+        ccdpix /= N.sum(ccdpix)
 
         #- Find where the [0,0] pixel goes on the CCD 
         xccd = int(xc - ccdpix.shape[1]/2 + 1)
