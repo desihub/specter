@@ -165,7 +165,6 @@ class Throughput:
             - "erg/s/cm^2"
           * Treated as function values to be multipled by bin width:
             - "photon/A"
-            - "photon/A/arcsec^2"
             - "erg/s/cm^2/A"
             - "erg/s/cm^2/A/arcsec^2"
 
@@ -173,11 +172,18 @@ class Throughput:
         providing a fine enough wavelength sampling that multiplying
         by the bin width is a reasonable approximation of the integration.
 
+        "photon" and "photon/A" are as observed by CCD and are returned
+        without applying throughput terms.
+
         Optional Inputs
         ---------------
         objtype : string, optional; object type for Throuput object.
-            If objtype is not 'SKY' or 'CALIB', it will be treated as an
-            astronomical source with all throughput terms applied.
+            SKY - atmospheric extinction and telescope+instrument throughput
+                    applied, but not fiber input geometric losses.
+            CALIB - telescope+instrument throughtput applied, but not
+                    atmospheric extinction or fiber input geometric losses.
+            Anything else (default) - treated as astronomical object
+                    with all throughput terms applied.
         exptime : float, optional; exposure time, default self.exptime
         airmass : float, optional, default 1.0
 
@@ -193,55 +199,58 @@ class Throughput:
         #- Allow some sloppiness in units
         units = units.replace("ergs", "erg")
         units = units.replace("photons", "photon")
+        units = units.replace("Angstroms", "A")
+        units = units.replace("Angstrom", "A")
         units = units.replace("**", "^")
+
+        #- check if units have numerical scaling prefix
+        #- e.g. "1e-16 erg/s/cm^2/A"
+        try:
+            pre, xunit = units.split()
+            flux = float(pre) * flux
+            units = xunit
+        except:
+            pass
 
         #- Flux -> photons conversion constants
         #-   h [erg s] * c [m/s] * [1e10 A/m] = [erg A]
         h_c = 6.62606957e-27 * 2.99792458e8 * 1e10
 
-        #- Get default exposure time from Throughput object
+        #- Default exposure time
         if exptime is None:
             exptime = self.exptime
 
-        #- photons * throughput = easy
+        #- photons (delta functions at given wavelengths)
         if units == "photon":
-            return flux * self.thru(wavelength, objtype=objtype, airmass=airmass)
+            return flux
 
         #- photon/A
         elif units == "photon/A":
             #- photon/A * width(A) -> photons
             phot = flux * N.gradient(wavelength)
+            return phot
 
-            #- Now multiply by throughput
-            return phot * self.thru(wavelength, objtype=objtype, airmass=airmass)
-
-        #- photon/A/arcsec^2 (e.g. calibration lamp)
-        elif units == "photon/A/arcsec^2":
-            phot = flux * N.pi * self.fiberdia**2 / 4.0
-            return self.photons(wavelength, phot, units='photon/A', \
-                           objtype=objtype, exptime=exptime, airmass=airmass)
-
-        #- erg/s/cm^2
+        #- erg/s/cm^2 (flux delta functions at given wavelengths)
         elif units == "erg/s/cm^2":
             phot = flux * wavelength / h_c              #- photon/s/cm^2
             phot *= self.effarea                        #- photon/s
             phot *= exptime                             #- photon
-            return self.photons(wavelength, phot, units='photon', \
-                           objtype=objtype, exptime=exptime, airmass=airmass)
+            return phot * self.thru(wavelength, objtype=objtype, airmass=airmass)
             
         #- erg/s/cm^2/A (e.g. astronomical object)
         elif units == "erg/s/cm^2/A":
             phot = flux * wavelength / h_c              #- photon/s/cm^2/A
             phot *= self.effarea                        #- photon/s/A
             phot *= exptime                             #- photon/A
-            return self.photons(wavelength, phot, units='photon/A', \
-                           objtype=objtype, exptime=exptime, airmass=airmass)
+            phot *= N.gradient(wavelength)              #- photons
+            return phot * self.thru(wavelength, objtype=objtype, airmass=airmass)
 
         #- erg/s/cm^2/A/arcsec^2 (e.g. sky)
         elif units == "erg/s/cm^2/A/arcsec^2":
-            f = flux * N.pi * self.fiberdia**2 / 4.0
+            f = flux * N.pi * self.fiberdia**2 / 4.0    #- erg/s/cm^2/A
             return self.photons(wavelength, f, units="erg/s/cm^2/A", \
                            objtype=objtype, exptime=exptime, airmass=airmass)
+
         else:
             raise ValueError, "Unrecognized units " + units
     
