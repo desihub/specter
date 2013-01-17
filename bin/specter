@@ -24,7 +24,11 @@ parser.add_option("-o", "--output", type="string",  help="output image")
 parser.add_option("-p", "--psf", type="string",  help="input PSF")
 parser.add_option("-t", "--throughput", type="string",  help="input throughput file")
 parser.add_option("-n", "--noise", action="store_true", help="add noise")
-parser.add_option("-N", "--readnoise", type="float", default=4.0, help="readout noise [%default]")
+parser.add_option("-N", "--readnoise", type="float", default=4.0, help="readout noise in electrons [%default]")
+parser.add_option(      "--randseed", type="int", default=0, help="random number seed")
+parser.add_option("-G", "--gaussnoise", action='store_true', help="Use Gaussian photon shot noise instead of Poisson")
+parser.add_option("-g", "--gain", type="float", default=1.6, help="CCD gain [%default]")
+
 ### parser.add_option("-s", "--sky", type="string",  help="input sky spectra")
 parser.add_option("-w", "--wavelength", type="string",
     help="wavelength range min,max in Angstroms")
@@ -39,6 +43,9 @@ opts, args = parser.parse_args()
 #+ TODO: Test input consistency
 #- required: --input, --output, --psf
 #- exclusive: --wavelength or --loglam or neither, but not both
+
+#- Ensure reproducibility
+N.random.seed(opts.randseed)
 
 #- Load inputs
 psf = load_psf(opts.psf)
@@ -119,24 +126,54 @@ else:
 #+ TODO: Add options for simulating xy subregion
 img = psf.project(photons, wavelength, specmin=opts.specrange[0])
 
-#- Add noise
-#+ TODO: Add Gaussian vs. Poisson noise
-#+ TODO: Add integerization and gain
-if opts.noise:
-    var = opts.readnoise**2 + img
-    img += N.random.normal(scale=N.sqrt(var))
-    
-#- Write output
-#+ TODO: Add options to write extra data (ivar, input spectra, etc.)
-fitsio.write(opts.output, img, clobber=True)
-if opts.noise:
-    fitsio.write(opts.output, 1.0/var, extname='IVAR')
+#- Add shot noise
+var = opts.readnoise**2 + img
+if opts.gaussnoise:
+    opts.noise = True
 
-#- Update header with SIMDATA and PREPROC keyword
+if opts.noise:
+    if opts.gaussnoise:
+        print "Adding only gaussian noise"
+        img += N.random.normal(scale=N.sqrt(var))
+    else:
+        #- photon shot noise (float -> int)
+        img = N.random.poisson(img)
+        
+        #- Convert to ADU, add gaussian read noise, then integerize
+        img /= opts.gain
+        img += N.random.normal(scale=opts.readnoise/opts.gain, size=img.shape)
+        img = (img+0.5).astype(int)
+
+        #- Convert back to photons (back to a float)
+        img = img * opts.gain
+        
+#- Write output
+fitsio.write(opts.output, img, clobber=True)
+
+#- Update header keywords
 fx = fitsio.FITS(opts.output, 'rw')
 fx[0].write_key('SIMDATA', True, 'Simulated image written by specter')
 fx[0].write_key('PREPROC', True, 'Preproc done (1/0 = True/False)')
+fx[0].write_key('GAIN', opts.gain, 'Gain [e-/ADU]')
+fx[0].write_key('RDNOISE', opts.readnoise, 'Read noise [e-]')
+
+if opts.gaussnoise:
+    fx[0].write_key('SIMNOISE', 'Gaussian', 'Gaussian noise (not Poisson)')
+    fx[0].write_key('RDNOISE', opts.readnoise, 'Read noise [e-]')    
+elif opts.noise:
+    fx[0].write_key('SIMNOISE', 'Poisson', 'Poisson photon noise + Gaussian read noise')
+    fx[0].write_key('RDNOISE', opts.readnoise, 'Read noise [e-]')    
+else:
+    fx[0].write_key('SIMNOISE', 'None', 'No noise (cant you tell?)')
+    fx[0].write_key('RDNOISE', 0.0, 'No read noise added')    
+
 fx.close()
+
+#- Add IVAR HDU if noise was added
+if opts.noise:
+    fitsio.write(opts.output, 1.0/var, extname='IVAR')
+
+#+ TODO: Add options to add other types of extra info
 
 if opts.debug:
     #--- DEBUG ---
