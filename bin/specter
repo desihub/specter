@@ -66,6 +66,8 @@ if opts.specrange is not None:
 else:
     opts.specrange = range(psf.nspec)
 
+specmin = opts.specrange[0]
+
 #- Wavelength and loglam are just 2-elements min,max
 if opts.wavelength is not None:
     opts.wavelength = map(float, opts.wavelength.split(','))
@@ -138,14 +140,13 @@ if opts.noise:
         img = img * opts.gain
         
 #- Write output
-fitsio.write(opts.output, img, clobber=True)
+fitsio.write(opts.output, img, clobber=True, extname="CCDIMAGE")
 
 #- Update header keywords
 fx = fitsio.FITS(opts.output, 'rw')
 fx[0].write_key('SIMDATA', True, 'Simulated image written by specter')
 fx[0].write_key('PREPROC', True, 'Preproc done (1/0 = True/False)')
 fx[0].write_key('GAIN', opts.gain, 'Gain [e-/ADU]')
-fx[0].write_key('RDNOISE', opts.readnoise, 'Read noise [e-]')
 
 if opts.gaussnoise:
     fx[0].write_key('SIMNOISE', 'Gaussian', 'Gaussian noise (not Poisson)')
@@ -163,9 +164,36 @@ fx.close()
 if opts.noise:
     fitsio.write(opts.output, 1.0/var, extname='IVAR')
 
-#+ TODO: Add options to add other types of extra info
+#--- Write additional HDUs with extra info about inputs ---
 if opts.extra:
-    pass
+    #- Trim arrays to just those with information    
+    ii = N.where(N.any(photons>0, axis=0))[0]
+    ii = range(ii[0], ii[-1]+1)
+    photons = photons[:, ii]
+    wavelength = wavelength[:, ii]
+    nwave = wavelength.shape[1]
+
+    #- Spectra in photon units
+    a = N.array(zip(photons, wavelength),
+                dtype=[('PHOTONS',     str(photons.dtype), (nwave,)),
+                       ('WAVELENGTH',  str(wavelength.dtype), (nwave,)),
+                       ])
+    hdr = [dict(name='SPECMIN', value=opts.specrange[0], comment="First spectrum index"), ]
+    fitsio.write(opts.output, a, extname='PHOTONS', header=hdr)
+
+    #- X,Y vs. wavelength
+    x = N.zeros(wavelength.shape)
+    y = N.zeros(wavelength.shape)
+    for i in range(wavelength.shape[0]):
+        x[i] = psf.x(ispec=i+opts.specrange[0], wavelength=wavelength[i])
+        y[i] = psf.y(ispec=i+opts.specrange[0], wavelength=wavelength[i])
+    
+    a = N.array(zip(x, y, wavelength),
+                dtype=[('X', str(x.dtype), (nwave,)),
+                       ('Y', str(y.dtype), (nwave,)),
+                       ('WAVELENGTH',  str(wavelength.dtype), (nwave,)),
+                       ])
+    fitsio.write(opts.output, a, extname='XYWAVE', header=hdr)
 
 if opts.debug:
     #--- DEBUG ---
