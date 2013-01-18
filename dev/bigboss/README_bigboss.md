@@ -1,10 +1,11 @@
 specter/dev/bigboss/
+====================
 
 This directory is for *code* related to using specter with BigBOSS.
 It is *not* for data files such as PSFs -- keep this directory lean
 and light so that it doesn't bog down non-BigBOSS users of specter.
 
-=== Example commands for quick reference ===
+### Example commands for quick reference ###
 
 <pre>
 cd $SPECTER_DIR/data/
