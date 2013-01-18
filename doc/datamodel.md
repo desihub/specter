@@ -127,7 +127,7 @@ Optional HDU EXTNAME=THROUGHPUT same as THROUGHPUT HDU which could also appear
 in a separate fits file.
   
 If throughput isn't available, the PSF can still be used to project
-photons onto a CCD, but not flux in ergs/s/cm^2/A .
+photons onto a CCD, but not flux in erg/s/cm^2/A .
 
 Spot Grid PSF
 -------------
