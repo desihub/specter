@@ -11,7 +11,7 @@ Input Spectra
 Required:
   - flux[nwave] or flux[nspec, nwave]
   - header keywords CRVAL1 and CDELT1, or
-    `wave`, `wavelength` or `loglam` column with dimensions matching `flux`
+    'wave', 'wavelength' or 'loglam' column with dimensions matching 'flux'
 
 Optional:
   - objtype[nspec] column, or header keyword OBJTYPE.  Default 'STAR'.
