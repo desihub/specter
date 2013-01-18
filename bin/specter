@@ -58,7 +58,7 @@ else:
     
 spectra = specter.io.read_simspec(opts.input)
 
-#- Expand defaults
+#- Expand specrange = first,last inclusive, i.e. not python slice style
 if opts.specrange is not None:
     x = map(int, opts.specrange.split(','))
     x[1] = min(x[1]+1, psf.nspec)
@@ -66,7 +66,7 @@ if opts.specrange is not None:
 else:
     opts.specrange = range(psf.nspec)
 
-specmin = opts.specrange[0]
+nspec = len(opts.specrange)
 
 #- Wavelength and loglam are just 2-elements min,max
 if opts.wavelength is not None:
@@ -85,19 +85,21 @@ wavelength = spectra['wavelength']
 flux = spectra['flux']
 units = spectra['units']
 
+assert flux.ndim == wavelength.ndim
+
 objtype = spectra['objtype']
-if isinstance(objtype, str):
-    objtype = N.array( [objtype,] * psf.nspec )
+if isinstance(objtype, str) and (flux.ndim == 2):
+    objtype = N.array( [objtype,] * flux.shape[0] )
 
 #- Trim to just requested specrange
-flux = flux[opts.specrange]
 if wavelength.ndim == 2:
+    flux = flux[opts.specrange]
     wavelength = wavelength[opts.specrange]
 
-#- Convert 1D flux into 2D
+#- Convert flux to photons, and 1D -> 2D if needed
 if flux.ndim == 1:
     photons = thru.photons(wavelength, flux, units, objtype=objtype[0])
-    photons = N.tile(photons, psf.nspec).reshape(psf.nspec, len(flux))
+    photons = N.tile(photons, nspec).reshape(nspec, len(flux))
 else:
     photons = N.zeros(flux.shape)
     for i in range(photons.shape[0]):
@@ -198,6 +200,8 @@ if opts.extra:
 if opts.debug:
     #--- DEBUG ---
     import IPython
+    from pylab import *
+    ion()
     IPython.embed()
     #--- DEBUG ---
     
