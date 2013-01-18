@@ -69,9 +69,9 @@ Throughput
 ### HDU EXTNAME=THROUGHPUT ###
 
 binary table with columns:
-  - wavelength[nwave]   Wavelength in Angstroms
-      or loglam[nwave]    or log10(Angstroms)
-  - extinction[nwave]   Atmospheric extinction in mags/airmass
+  - wavelength[nwave]   Wavelength in Angstroms,
+      or loglam[nwave]  for log10(Angstroms)
+  - extinction[nwave]   Atmospheric extinction in mags/airmass;
                         Atm throughput = 10^(0.4 * extinction * airmass)
   - throughput[nwave]   Telescope, fibers, spectrographs, and CCDs
   - fiberinput[nwave]   Geometric loss at input of fiber for point source.
@@ -111,23 +111,23 @@ All PSF files have the same format for HDUs 0-2; additional extensions
 are specific to each subtype and contain whatever information in whatever
 format is needed to express the PSF in that parameterization.
 
-HDU 0 : x[nspec, nwave]             EXTNAME="X"
-HDU 1 : y[nspec, nwave]             EXTNAME="Y"
-HDU 2 : wavelength[nspec, nwave]    EXTNAME="WAVELENGTH", or
-        loglam[nspec, nwave]        EXTNAME="LOGLAM"
-HDU 3+ : specific to each subformat
+    HDU 0 : x[nspec, nwave]             EXTNAME="X"
+    HDU 1 : y[nspec, nwave]             EXTNAME="Y"
+    HDU 2 : wavelength[nspec, nwave]    EXTNAME="WAVELENGTH", or
+            loglam[nspec, nwave]        EXTNAME="LOGLAM"
+    HDU 3+ : specific to each subformat
 
---> Additional extensions should be read by EXTNAME, not by number;
-    the order of these extensions is arbitrary
+Note: Any additional extensions should be read by EXTNAME, not by number;
+      the order of other extensions is arbitrary.
 
 HDU 0 keywords:
   - NPIX_X, NPIX_Y : CCD dimensions in pixels
 
-HDU EXTNAME=THROUGHPUT same as THROUGHPUT HDU which could also appear
+Optional HDU EXTNAME=THROUGHPUT same as THROUGHPUT HDU which could also appear
 in a separate fits file.
   
 If throughput isn't available, the PSF can still be used to project
-photons onto a CCD, but not flux in ergs/s/cm^2/A .
+photons onto a CCD, but not flux in erg/s/cm^2/A .
 
 Spot Grid PSF
 -------------
@@ -140,17 +140,17 @@ The second interpolation dimension is wavelength.
 
 HDU 0-2 : Same as Base PSF: X, Y, wavelength or loglam of traces
 
-HDU SPOTS : spot[i, j, iy, ix]    #- 2D PSF spots
-    NAXIS1 = number of spot samples in the spectrum number dimension
-    NAXIS2 = number of spot samples in the wavelength direction
-    NAXIS3 = size of spot in the CCD y dimension
-    NAXIS4 = size of spot in the CCD x direction
+    HDU SPOTS : spot[i, j, iy, ix]    #- 2D PSF spots
+        NAXIS1 = number of spot samples in the spectrum number dimension
+        NAXIS2 = number of spot samples in the wavelength direction
+        NAXIS3 = size of spot in the CCD y dimension
+        NAXIS4 = size of spot in the CCD x direction
     
-HDU SPOTX : spotx[NAXIS1, NAXIS2]   #- CCD X pixel location of spot pixel[0,0]
-HDU SPOTY : spoty[NAXIS1, NAXIS2]   #- CCD Y pixel location of spot pixel[0,0]
-HDU FIBERPOS : fiberpos[nspec]      #- Slit position of each fiber
-HDU SPOTPOS  : spotpos[NAXIS1]      #- Slit positions where spots are sampled
-HDU SPOTWAVE : spotwave[NAXIS2]     #- Wavelengths where spots are sampled
+    HDU SPOTX : spotx[NAXIS1, NAXIS2]   #- CCD X pixel location of spot pixel[0,0]
+    HDU SPOTY : spoty[NAXIS1, NAXIS2]   #- CCD Y pixel location of spot pixel[0,0]
+    HDU FIBERPOS : fiberpos[nspec]      #- Slit position of each fiber
+    HDU SPOTPOS  : spotpos[NAXIS1]      #- Slit positions where spots are sampled
+    HDU SPOTWAVE : spotwave[NAXIS2]     #- Wavelengths where spots are sampled
 
 spot[i,j] is a 2D PSF spot sampled at slit position spotpos[i] and
 wavelength spotwave[j].  Its center is located on the CCD at
