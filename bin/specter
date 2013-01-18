@@ -11,6 +11,7 @@ import sys
 import os
 import numpy as N
 import optparse
+import specter
 from specter.psf import load_psf
 from specter.throughput import load_throughput
 import fitsio
@@ -28,6 +29,7 @@ parser.add_option("-N", "--readnoise", type="float", default=4.0, help="readout 
 parser.add_option(      "--randseed", type="int", default=0, help="random number seed")
 parser.add_option("-G", "--gaussnoise", action='store_true', help="Use Gaussian photon shot noise instead of Poisson")
 parser.add_option("-g", "--gain", type="float", default=1.6, help="CCD gain [%default]")
+parser.add_option("-x", "--extra", action='store_true', help="Write extra HDUs with input spectra, xyw models")
 
 ### parser.add_option("-s", "--sky", type="string",  help="input sky spectra")
 parser.add_option("-w", "--wavelength", type="string",
@@ -54,8 +56,7 @@ if opts.throughput:
 else:
     thru = load_throughput(opts.psf)
     
-spectra = fitsio.read(opts.input, 1, lower=True).view(N.recarray)
-header = fitsio.read_header(opts.input, 1)
+spectra = specter.io.read_simspec(opts.input)
 
 #- Expand defaults
 if opts.specrange is not None:
@@ -80,22 +81,16 @@ else:
 #- Get flux and wavelength arrays
 wavelength = spectra['wavelength']
 flux = spectra['flux']
+units = spectra['units']
 
-#- Determine flux units from TUNITnn or FLUXUNIT keywords
-key = 'TUNIT%d' % (spectra.dtype.names.index('flux')+1, )
-if key in header:
-    units = header[key].strip()
-elif 'FLUXUNIT' in header:
-    units = header['FLUXUNIT'].strip()
-else:
-    print >> sys.stderr, 'WARNING: using default flux units of erg/s/cm^2/A'
-    units = 'erg/s/cm^2/A'
+objtype = spectra['objtype']
+if isinstance(objtype, str):
+    objtype = N.array( [objtype,] * psf.nspec )
 
-#- Make array of object types
-if 'objtype' in spectra.dtype.names:
-    objtype = spectra['objtype']
-elif 'OBJTYPE' in header:
-    objtype = N.array( [header['OBJTYPE'].strip(), ] * psf.nspec )
+#- Trim to just requested specrange
+flux = flux[opts.specrange]
+if wavelength.ndim == 2:
+    wavelength = wavelength[opts.specrange]
 
 #- Convert 1D flux into 2D
 if flux.ndim == 1:
@@ -104,12 +99,7 @@ if flux.ndim == 1:
 else:
     photons = N.zeros(flux.shape)
     for i in range(photons.shape[0]):
-        photons[i] = thru.photons(wavelength, flux[i], units, objtype=objtype[i])
-
-#- Trim to just requested specrange
-photons = photons[opts.specrange]
-if wavelength.ndim == 2:
-    wavelength = wavelength[opts.specrange]
+        photons[i] = thru.photons(wavelength[i], flux[i], units, objtype=objtype[i])
 
 #- Trim wavelength range by setting photons=0 outside wavelength range
 wmin, wmax = opts.wavelength
@@ -174,6 +164,8 @@ if opts.noise:
     fitsio.write(opts.output, 1.0/var, extname='IVAR')
 
 #+ TODO: Add options to add other types of extra info
+if opts.extra:
+    pass
 
 if opts.debug:
     #--- DEBUG ---
