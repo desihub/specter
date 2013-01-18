@@ -22,7 +22,7 @@ import optparse
 parser = optparse.OptionParser(usage = "%prog [options]")
 parser.add_option("-i", "--indir", type="string",  help="input directory with spots")
 parser.add_option("-o", "--outpsf", type="string",  help="output PSF file")
-# parser.add_option("-t", "--throughput", type="string",  help="input throughput file to embed with PSF")
+parser.add_option("-t", "--throughput", type="string",  help="input throughput file to embed with PSF")
 parser.add_option("-d", "--debug",  help="start ipython prompt when done", action="store_true")
 
 opts, args = parser.parse_args()
@@ -207,6 +207,12 @@ fitsio.write(opts.outpsf, spoty, extname='SPOTY')
 fitsio.write(opts.outpsf, fiberpos, extname='FIBERPOS')
 fitsio.write(opts.outpsf, spotpos, extname='SPOTPOS')
 fitsio.write(opts.outpsf, wavelength, extname='SPOTWAVE')
+
+#- Add pre-computed throughput to PSF if requested
+if opts.throughput:
+    header = fitsio.read_header(opts.throughput, 'THROUGHPUT')
+    data = fitsio.read(opts.throughput, 'THROUGHPUT')
+    fitsio.write(opts.outpsf, data, header=header, extname='THROUGHPUT')
 
 #--- DEBUG ---
 if opts.debug:
