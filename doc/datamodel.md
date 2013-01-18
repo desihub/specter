@@ -1,7 +1,7 @@
 Specter data model
 ==================
 
-Input spectra
+Input Spectra
 =============
 
 ### HDU 0 : blank ###
@@ -10,7 +10,8 @@ Input spectra
 
 Required:
   - flux[nwave] or flux[nspec, nwave]
-  - loglam or wavelength as either 1D[nwave] or 2D[nspec, nwave]
+  - header keywords CRVAL1 and CDELT1, or
+    `wave`, `wavelength` or `loglam` column with dimensions matching `flux`
 
 Optional:
   - objtype[nspec] column, or header keyword OBJTYPE.  Default 'STAR'.
@@ -18,16 +19,29 @@ Optional:
     than CALIB or SKY will be treated as an astronomical source.
     See the Throughput section for a description of how the throughput
     model is applied differently for various object types.
-      
-Other columns may be present and will be ignored.
-      
-### Other HDUs ###
-      
-If a EXTNAME=THROUGHPUT extension exists, it can be used as the
-throughput model.  Alternately the throughput may be stored in a
-separate file; see the next major section.
-      
-Other HDUs may be present and will be ignored.
+
+Other columns and HDUs may be present and will be ignored.
+
+### Wavelength Grid ###
+
+The spectral wavelengths can be specified with either header keywords
+CRVAL1 and CDELT1 and optionally DC-FLAG, or with an arbitrary wavelength
+grid in a `wavelength` or `loglam` column whose dimensions match `flux`.
+DC-FLAG = 0/1 for linear/log10 wavelength spacing; default=0.
+
+e.g. to specify wavelengths [3600, 3601, 3602, ...]:
+
+    CRVAL1  =                 3600 / Reference wavelength in A
+    CDELT1  =                    1 / delta wavelength
+    DC-FLAG =                    0 / Linearly spaced wavelengths
+
+or to specify log10(wavelength) spacing [3.5500, 3.5501, 3.5502, ...]
+
+    CRVAL1  =               3.5500 / Reference log10(Angstroms)
+    CDELT1  =               0.0001 / delta log10(Angstroms)
+    DC-FLAG =                    0 / Log10 spaced wavelengths
+
+The FITS standard also requires CRPIX1 and CTYPE1 but these are ignored.
 
 ### Flux Units ###
 
