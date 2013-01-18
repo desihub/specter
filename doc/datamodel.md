@@ -73,11 +73,11 @@ The readout noise is always Gaussian, but the photon noise could be
 Poisson (default) or Gaussian (if --gaussnoise option was used.)
 
 Header keywords:
-    - SIMDATA = True
-    - PREPROC = True
-    - GAIN    = CCD gain in electrons/ADU
-    - RDNOISE = CCD amplifier readout noise in electrons
-    - SIMNOISE = "Gaussian", "Poisson", or "None"
+  - SIMDATA = True
+  - PREPROC = True
+  - GAIN    = CCD gain in electrons/ADU
+  - RDNOISE = CCD amplifier readout noise in electrons
+  - SIMNOISE = "Gaussian", "Poisson", or "None"
 
 ### HDU 1 IVAR ###
 
