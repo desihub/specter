@@ -86,6 +86,7 @@ flux = spectra['flux']
 units = spectra['units']
 
 assert flux.ndim == wavelength.ndim
+assert flux.shape == wavelength.shape
 
 objtype = spectra['objtype']
 if isinstance(objtype, str) and (flux.ndim == 2):
@@ -99,7 +100,8 @@ if wavelength.ndim == 2:
 #- Convert flux to photons, and 1D -> 2D if needed
 if flux.ndim == 1:
     photons = thru.photons(wavelength, flux, units, objtype=objtype[0])
-    photons = N.tile(photons, nspec).reshape(nspec, len(flux))
+    photons = N.tile(photons, nspec).reshape(nspec, len(photons))
+    wavelength = N.tile(wavelength, nspec).reshape(nspec, len(wavelength))
 else:
     photons = N.zeros(flux.shape)
     for i in range(photons.shape[0]):

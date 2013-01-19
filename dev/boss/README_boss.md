@@ -1,4 +1,5 @@
 specter/dev/boss/
+=================
 
 This directory is for *code* related to using specter with BOSS.
 It is *not* for data files such as PSFs -- keep this directory lean
