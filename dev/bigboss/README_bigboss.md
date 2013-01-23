@@ -8,6 +8,10 @@ and light so that it doesn't bog down non-BigBOSS users of specter.
 ### Example commands for quick reference ###
 
 <pre>
+cd $SPECTER_DIR/data/
+specter -i sky/sky-uves.fits -o blat.fits -r 0,20 -w 7900,8000 --extra \
+    -p bigboss/designs/20120827difdet/bbpsf-I.fits
+    
 cd $SPECTER_DIR/data/bigboss/designs/20120827difdet/
 $SPECTER_DIR/dev/bigboss/spots2psf.py \
     -i /data/bigboss/sim/spots/BB_SPEC_20120827difdet/Blue/ \
