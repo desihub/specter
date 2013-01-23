@@ -122,39 +122,32 @@ else:
 #+ TODO: Add options for simulating xy subregion
 
 #- Non parallel
-from time import time
-t0 = time()
-imgx = psf.project(photons, wavelength, specmin=opts.specrange[0])
-print time() - t0
+### imgx = psf.project(photons, wavelength, specmin=opts.specrange[0])
 
-#- Parallel
-t0 = time()
+#--- Parallel projection ---
 import multiprocessing as MP
+
+#- Wrapper function for parallel map; accepts dictionary with parameters
 def project(args):
     psf = args['psf']
     return psf.project(args['photons'], args['wavelength'], args['specmin'])
     
-args = list()
+#- Setup list of arguments
+arglist = list()
 n = (len(opts.specrange)+1)/MP.cpu_count()
 for i in range(0, len(opts.specrange), n):
-    args.append(dict(psf=psf, photons=photons[i:i+n],
+    arglist.append(dict(psf=psf, photons=photons[i:i+n],
                      wavelength=wavelength[i:i+n],
                      specmin=opts.specrange[i]))
 
+#- Parallel map to run project(arglist[0]), project(arglist[1]), etc.
 pool = MP.Pool(MP.cpu_count())
-images = pool.map(project, args)
-print time() - t0
+images = pool.map(project, arglist)
 
-#- Add up the individual images
+#- Add the individual images
 img = reduce(N.add, images)
 
-#--- DEBUG ---
-import IPython
-IPython.embed()
-sys.exit(1)
-#--- DEBUG ---
-
-#- Alternate parallel method
+#- Alternate parallel method; maybe has less overhead
 """
 Create input queue
 Create output queue
