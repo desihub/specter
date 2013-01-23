@@ -120,7 +120,55 @@ else:
 
 #- Do the projection
 #+ TODO: Add options for simulating xy subregion
-img = psf.project(photons, wavelength, specmin=opts.specrange[0])
+
+#- Non parallel
+from time import time
+t0 = time()
+imgx = psf.project(photons, wavelength, specmin=opts.specrange[0])
+print time() - t0
+
+#- Parallel
+t0 = time()
+import multiprocessing as MP
+def project(args):
+    psf = args['psf']
+    return psf.project(args['photons'], args['wavelength'], args['specmin'])
+    
+args = list()
+n = (len(opts.specrange)+1)/MP.cpu_count()
+for i in range(0, len(opts.specrange), n):
+    args.append(dict(psf=psf, photons=photons[i:i+n],
+                     wavelength=wavelength[i:i+n],
+                     specmin=opts.specrange[i]))
+
+pool = MP.Pool(MP.cpu_count())
+images = pool.map(project, args)
+print time() - t0
+
+#- Add up the individual images
+img = reduce(N.add, images)
+
+#--- DEBUG ---
+import IPython
+IPython.embed()
+sys.exit(1)
+#--- DEBUG ---
+
+#- Alternate parallel method
+"""
+Create input queue
+Create output queue
+define function to
+  - get (photons, wavelength, specmin) from input queue
+  - process that
+  - put resulting image on outut queue
+  
+put 8 sets of (photons, wavelength, specmin) into input queue
+start 8 processes with the input, output queues
+wait for them to finish
+get 8 images off the output queue
+add them
+"""
 
 #- Add shot noise
 var = opts.readnoise**2 + img
