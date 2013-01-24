@@ -11,6 +11,8 @@ import sys
 import os
 import numpy as N
 import optparse
+import multiprocessing as MP
+
 import specter
 from specter.psf import load_psf
 from specter.throughput import load_throughput
@@ -30,6 +32,7 @@ parser.add_option(      "--randseed", type="int", default=0, help="random number
 parser.add_option("-G", "--gaussnoise", action='store_true', help="Use Gaussian photon shot noise instead of Poisson")
 parser.add_option("-g", "--gain", type="float", default=1.6, help="CCD gain [%default]")
 parser.add_option("-x", "--extra", action='store_true', help="Write extra HDUs with input spectra, xyw models")
+parser.add_option(      "--numcores", type="int", default=MP.cpu_count(), help="number of CPU cores to use [%default]")
 
 ### parser.add_option("-s", "--sky", type="string",  help="input sky spectra")
 parser.add_option("-w", "--wavelength", type="string",
@@ -45,6 +48,11 @@ opts, args = parser.parse_args()
 #+ TODO: Test input consistency
 #- required: --input, --output, --psf
 #- exclusive: --wavelength or --loglam or neither, but not both
+
+if opts.numcores < 1 or opts.numcores > MP.cpu_count():
+    print >> sys.stderr, "WARNING: overriding numcores %d -> %d" % \
+        (opts.numcores, MP.cpu_count())
+    opts.numcores = MP.cpu_count()
 
 #- Ensure reproducibility
 N.random.seed(opts.randseed)
@@ -121,31 +129,29 @@ else:
 #- Do the projection
 #+ TODO: Add options for simulating xy subregion
 
-#- Non parallel
-### imgx = psf.project(photons, wavelength, specmin=opts.specrange[0])
-
-#--- Parallel projection ---
-import multiprocessing as MP
-
-#- Wrapper function for parallel map; accepts dictionary with parameters
-def project(args):
-    psf = args['psf']
-    return psf.project(args['photons'], args['wavelength'], args['specmin'])
+#- Project spectra onto the CCD
+if opts.numcores == 1:
+    img = psf.project(photons, wavelength, specmin=opts.specrange[0])
+else:
+    #- Wrapper function for parallel map; accepts dictionary with parameters
+    def project(args):
+        psf = args['psf']
+        return psf.project(args['photons'], args['wavelength'], args['specmin'])
     
-#- Setup list of arguments
-arglist = list()
-n = (len(opts.specrange)+1)/MP.cpu_count()
-for i in range(0, len(opts.specrange), n):
-    arglist.append(dict(psf=psf, photons=photons[i:i+n],
-                     wavelength=wavelength[i:i+n],
-                     specmin=opts.specrange[i]))
+    #- Setup list of arguments
+    arglist = list()
+    n = max(1, (len(opts.specrange)+1)/opts.numcores)
+    for i in range(0, len(opts.specrange), n):
+        arglist.append(dict(psf=psf, photons=photons[i:i+n],
+                         wavelength=wavelength[i:i+n],
+                         specmin=opts.specrange[i]))
 
-#- Parallel map to run project(arglist[0]), project(arglist[1]), etc.
-pool = MP.Pool(MP.cpu_count())
-images = pool.map(project, arglist)
+    #- Parallel map to run project(arglist[0]), project(arglist[1]), etc.
+    pool = MP.Pool(opts.numcores)
+    images = pool.map(project, arglist)
 
-#- Add the individual images
-img = reduce(N.add, images)
+    #- Add the individual images
+    img = reduce(N.add, images)
 
 #- Alternate parallel method; maybe has less overhead
 """
@@ -225,18 +231,21 @@ if opts.extra:
                        ])
     hdr = [dict(name='SPECMIN', value=opts.specrange[0], comment="First spectrum index"), ]
     fitsio.write(opts.output, a, extname='PHOTONS', header=hdr)
-
-    #- X,Y vs. wavelength
-    x = N.zeros(wavelength.shape)
-    y = N.zeros(wavelength.shape)
-    for i in range(wavelength.shape[0]):
-        x[i] = psf.x(ispec=i+opts.specrange[0], wavelength=wavelength[i])
-        y[i] = psf.y(ispec=i+opts.specrange[0], wavelength=wavelength[i])
     
-    a = N.array(zip(x, y, wavelength),
-                dtype=[('X', str(x.dtype), (nwave,)),
-                       ('Y', str(y.dtype), (nwave,)),
-                       ('WAVELENGTH',  str(wavelength.dtype), (nwave,)),
+    #- X,Y vs. wavelength
+    yy = N.arange(psf.npix_y)
+    y = N.tile(yy, nspec).reshape(nspec, psf.npix_y)
+    x = N.zeros(y.shape)
+    w = N.zeros(y.shape)
+    
+    for i in range(nspec):
+        w[i] = psf.wavelength(ispec=i+opts.specrange[0], y=yy)
+        x[i] = psf.x(ispec=i+opts.specrange[0], wavelength=w[i])
+    
+    a = N.array(zip(x, y, w),
+                dtype=[('X', str(x.dtype), (psf.npix_y,)),
+                       ('Y', str(y.dtype), (psf.npix_y,)),
+                       ('WAVELENGTH',  str(wavelength.dtype), (psf.npix_y,)),
                        ])
     fitsio.write(opts.output, a, extname='XYWAVE', header=hdr)
 
