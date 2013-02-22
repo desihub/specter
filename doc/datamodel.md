@@ -4,16 +4,24 @@ Specter Data Model
 Input Spectra
 =============
 
+Input spectra are supported in two formats based upon either a binary
+table with 2D columns, or multi HDU images.
+
+Input Spectra: Binary Table
+---------------------------
+
 ### HDU 0 : blank ###
 
 ### HDU 1 : binary table of spectra ###
 
 Required:
-  - flux[nwave] or flux[nspec, nwave]
+
+  - flux[nwave] or flux[nspec, nwave] column
   - header keywords CRVAL1 and CDELT1, or
     `wave`, `wavelength` or `loglam` column with dimensions matching `flux`
 
 Optional:
+
   - objtype[nspec] column, or header keyword OBJTYPE.  Default 'STAR'.
     Values = CALIB, SKY, or something else.  Anything other
     than CALIB or SKY will be treated as an astronomical source.
@@ -22,31 +30,39 @@ Optional:
 
 Other columns and HDUs may be present and will be ignored.
 
-### Wavelength Grid ###
 
-The spectral wavelengths can be specified with either header keywords
-CRVAL1 and CDELT1 and optionally DC-FLAG, or with an arbitrary wavelength
-grid in a `wavelength` or `loglam` column whose dimensions match `flux`.
-DC-FLAG = 0/1 for linear/log10 wavelength spacing; default=0.
+Input Spectra: Image HDU
+------------------------
 
-e.g. to specify wavelengths [3600, 3601, 3602, ...]:
+HDU 0 image : flux[nspec, nflux]
 
-    CRVAL1  =                 3600 / Reference wavelength in A
-    CDELT1  =                    1 / delta wavelength
-    DC-FLAG =                    0 / Linearly spaced wavelengths
+  - FLUXUNIT keyword defines flux units
 
-or to specify log10(wavelength) spacing [3.5500, 3.5501, 3.5502, ...]
+Wavelength grid defined by one of these:
 
-    CRVAL1  =               3.5500 / Reference log10(Angstroms)
-    CDELT1  =               0.0001 / delta log10(Angstroms)
-    DC-FLAG =                    0 / Log10 spaced wavelengths
+  - HDU 0 keywords CRVAL1 and CDELT1 with optional DC-FLAG log/linear flag
+  - HDU EXTNAME='WAVELENGTH' image with wavelength grid in Angstroms
+    - wavelength[nflux] or wavelength[nspec, nflux]
+  - HDU EXTNAME='LOGLAM' image with wavelength grid in log10(Angstroms)
+    - loglam[nflux] or loglam[nspec, nflux]
+  
+Object type defined by one of these:
 
-The FITS standard also requires CRPIX1 and CTYPE1 but these are ignored.
+  - HDU 0 keyword OBJTYPE (if all objects are the same)
+  - HDU EXTNAME='TARGETINFO' binary table
+    - OBJTYPE column required
+    - other columns are user-specific and will be ignored
 
-### Flux Units ###
+Flux Units
+----------
 
-If the `flux` column has a TUNITnn keyword, that will be used, otherwise
-keyword FLUXUNIT is an alternative.  Options:
+Flux unts are specified to by one of the following:
+
+  - TUNITnn keyword for binary table `flux` column
+  - FLUXUNIT keyword
+
+Options are:
+
   * Treated as function values to be multipled by bin width:
     - erg/s/cm^2/A  (default)
     - erg/s/cm^2/A/arcsec^2
@@ -62,6 +78,27 @@ throughput model.  A sky spectrum may be in "erg/s/cm^2/A/arcsec^2" and
 will be multiplied by the area of the fiber instead of having a
 fiber input geometric loss applied.
 
+Wavelength Grid
+---------------
+
+If the wavelength grid is not specified by a binary table column or
+an image HDU, it may be specified by header keywords CRVAL1 and CDELT1
+and optionally DC-FLAG (0/1 for linear/log10, default=linear=0).
+
+e.g. to specify wavelengths [3600, 3601, 3602, ...]:
+
+    CRVAL1  =                 3600 / Reference wavelength in Angstroms
+    CDELT1  =                    1 / delta wavelength
+    DC-FLAG =                    0 / Linearly spaced wavelengths (default)
+
+or to specify log10(wavelength) spacing [3.5500, 3.5501, 3.5502, ...]
+
+    CRVAL1  =               3.5500 / Reference log10(Angstroms)
+    CDELT1  =               0.0001 / delta log10(Angstroms)
+    DC-FLAG =                    1 / Log10 spaced wavelengths
+
+The FITS standard also requires CRPIX1 and CTYPE1 but these are ignored.
+
 
 Output Image
 ============
@@ -73,6 +110,7 @@ The readout noise is always Gaussian, but the photon noise could be
 Poisson (default) or Gaussian (if --gaussnoise option was used.)
 
 Header keywords:
+
   - SIMDATA = True
   - PREPROC = True
   - GAIN    = CCD gain in electrons/ADU
@@ -91,6 +129,7 @@ Optional HDU with binary table giving the photon spectra projected onto
 the CCD after all throughputs were applied.  Extraction code should
 produce this before any calibrations.  There is one row per spectrum,
 with columns:
+
   - PHOTONS[nwave]
   - WAVELENGTH[nwave]
 
@@ -98,6 +137,7 @@ with columns:
 
 Optional HDU with x,y vs. wavelength of spectral traces on CCD.
 There is one row per spectrum, with columns:
+
   - X[nwave]
   - Y[nwave]
   - WAVELENGTH[nwave]
@@ -109,6 +149,7 @@ Throughput
 ### HDU EXTNAME=THROUGHPUT ###
 
 binary table with columns:
+
   - wavelength[nwave]   Wavelength in Angstroms,
       or loglam[nwave]  for log10(Angstroms)
   - extinction[nwave]   Atmospheric extinction in mags/airmass;
@@ -117,6 +158,7 @@ binary table with columns:
   - fiberinput[nwave]   Geometric loss at input of fiber for point source.
 
 Required keywords in same HDU EXTNAME=THROUGHPUT (not HDU 0)
+
   - EXPTIME:  Standard exposure time in seconds
   - EFFAREA:  Effective area of mirror, including obscuration effects, in cm^2
   - FIBERDIA: Fiber diameter in arcsec
@@ -161,7 +203,8 @@ Note: Any additional extensions should be read by EXTNAME, not by number;
       the order of other extensions is arbitrary.
 
 HDU 0 keywords:
-  - NPIX_X, NPIX_Y : CCD dimensions in pixels
+
+  - NPIX\_X, NPIX\_Y : CCD dimensions in pixels
 
 Optional HDU EXTNAME=THROUGHPUT same as THROUGHPUT HDU which could also appear
 in a separate fits file.
