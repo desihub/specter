@@ -237,6 +237,13 @@ class Throughput:
             phot *= exptime                             #- photon
             return phot * self.thru(wavelength, objtype=objtype, airmass=airmass)
             
+        elif units == "erg/s/cm^2/arcsec^2":
+            phot = flux * wavelength / h_c              #- photon/s/cm^2/arcsec^2
+            phot *= self.effarea                        #- photon/s/arcsec^2
+            phot *= exptime                             #- photon/arcsec^2
+            phot *= N.pi * self.fiberdia**2 / 4.0       #- photon
+            return phot * self.thru(wavelength, objtype=objtype, airmass=airmass)
+            
         #- erg/s/cm^2/A (e.g. astronomical object)
         elif units == "erg/s/cm^2/A":
             phot = flux * wavelength / h_c              #- photon/s/cm^2/A

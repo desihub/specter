@@ -71,6 +71,7 @@ Options are:
   * Treated as delta functions at each given wavelength:
     - photons
     - erg/s/cm^2
+    - erg/s/cm^2/arcsec^2
 
 For example, an astromical object is typically in units "erg/s/cm^2/A"
 and will be converted to photons using all throughput terms of the

@@ -10,6 +10,39 @@ import fitsio
 import numpy as N
 
 def read_simspec(filename):
+    fx = fitsio.FITS(filename)
+    is_image = fx[0].has_data()
+    fx.close()
+    
+    if is_image:
+        return read_simspec_image(filename)
+    else:
+        return read_simspec_table(filename)
+
+def read_simspec_image(filename):
+    fx = fitsio.FITS(filename)
+    flux = fx[0].read()
+    header = fx[0].read_header()
+    if 'wavelength' in fx.hdu_map:
+        w = fx['WAVELENGTH'].read()
+    elif 'loglam' in fx.hdu_map:
+        w = 10**fx['loglam'].read()
+    else:
+        nwave = spectra.flux.shape[-1]
+        w = header['CRVAL1'] + N.arange(nwave) * header['CDELT1']
+        if 'LOGLAM' in header and header['LOGLAM']:
+            w = 10**w
+
+    #- Convert wavelength to 2D if needed
+    if flux.ndim == 2 and w.ndim == 1:
+        nspec, nwave = flux.shape
+        w = N.tile(w, nspec).reshape(nspec, nwave)
+        
+    #- Get object type (CALIB, SKY, etc.)
+    return dict(flux=flux, wavelength=w,
+                units=header['FLUXUNIT'], objtype=header['OBJTYPE'])
+
+def read_simspec_table(filename):
     """
     Read an input simulated spectrum file, parse the various format
     options, and return a standardized spectrum dictionary for use.
