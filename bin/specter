@@ -23,6 +23,7 @@ parser = optparse.OptionParser(
     epilog = "See $SPECTER_DIR/doc/datamodel.md for input format details"
     )
 parser.add_option("-i", "--input", type="string",  help="input spectra")
+parser.add_option("-I", "--image", type="string",  help="input image to add photons to")
 parser.add_option("-o", "--output", type="string",  help="output image")
 parser.add_option("-p", "--psf", type="string",  help="input PSF")
 parser.add_option("-t", "--throughput", type="string",  help="input throughput file")
@@ -169,6 +170,11 @@ get 8 images off the output queue
 add them
 """
 
+#- Read imput image
+if opts.image:
+    input_image = fitsio.read(opts.image)
+    opts.readnoise = 0.0   #- Don't doubly add readnoise
+
 #- Add shot noise
 var = opts.readnoise**2 + img
 if opts.gaussnoise:
@@ -183,12 +189,18 @@ if opts.noise:
         img = N.random.poisson(img)
         
         #- Convert to ADU, add gaussian read noise, then integerize
-        img /= opts.gain
-        img += N.random.normal(scale=opts.readnoise/opts.gain, size=img.shape)
-        img = (img+0.5).astype(int)
+        if opts.readnoise > 0:
+            img /= opts.gain
+            img += N.random.normal(scale=opts.readnoise/opts.gain, size=img.shape)
+            img = (img+0.5).astype(int)
 
         #- Convert back to photons (back to a float)
         img = img * opts.gain
+
+#- Add input image
+#- TODO: support images which aren't exactly the same shape
+if opts.image:
+    img += input_image
         
 #- Write output
 fitsio.write(opts.output, img, clobber=True, extname="CCDIMAGE")
@@ -212,6 +224,7 @@ else:
 fx.close()
 
 #- Add IVAR HDU if noise was added
+#- TODO: combine with IVAR from previous images
 if opts.noise:
     fitsio.write(opts.output, 1.0/var, extname='IVAR')
 
