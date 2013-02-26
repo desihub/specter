@@ -197,6 +197,7 @@ class Throughput:
         """
 
         #- Allow some sloppiness in units
+        units = units.strip()  #- FITS pads short strings with spaces (!)
         units = units.replace("ergs", "erg")
         units = units.replace("photons", "photon")
         units = units.replace("Angstroms", "A")
