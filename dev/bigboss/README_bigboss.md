@@ -19,6 +19,12 @@ specter -i calib/arc/arc_lines.fits -o img-arc.fits \
     -I boss/dark-r1-00124292.fits \
     -r 0,20 -w 7900,8000 \
     -p bigboss/designs/20120827difdet/bbpsf-I.fits
+
+#- BBspecsim ELG grid
+cd $SPECTER_DIR/data/
+specter -i bigboss/bbspecsim/elg_grid.fits.gz -o blat.fits \
+    -r 0,20 -w 7900,8000 \
+    -p bigboss/designs/20120827difdet/bbpsf-I.fits
     
 #- Sky
 cd $SPECTER_DIR/data/
