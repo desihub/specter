@@ -11,18 +11,31 @@ import sys
 import os
 import numpy as N
 import optparse
+import multiprocessing as MP
+
+import specter
 from specter.psf import load_psf
+from specter.throughput import load_throughput
 import fitsio
 
+#- Parse options
 parser = optparse.OptionParser(
     usage = "%prog [options]",
     epilog = "See $SPECTER_DIR/doc/datamodel.md for input format details"
     )
 parser.add_option("-i", "--input", type="string",  help="input spectra")
+parser.add_option("-I", "--image", type="string",  help="input image to add photons to")
 parser.add_option("-o", "--output", type="string",  help="output image")
 parser.add_option("-p", "--psf", type="string",  help="input PSF")
+parser.add_option("-t", "--throughput", type="string",  help="input throughput file")
 parser.add_option("-n", "--noise", action="store_true", help="add noise")
-parser.add_option("-N", "--readnoise", type="float", default=4.0, help="readout noise [%default]")
+parser.add_option("-N", "--readnoise", type="float", default=4.0, help="readout noise in electrons [%default]")
+parser.add_option(      "--randseed", type="int", default=0, help="random number seed")
+parser.add_option("-G", "--gaussnoise", action='store_true', help="Use Gaussian photon shot noise instead of Poisson")
+parser.add_option("-g", "--gain", type="float", default=1.6, help="CCD gain [%default]")
+parser.add_option("-x", "--extra", action='store_true', help="Write extra HDUs with input spectra, xyw models")
+parser.add_option(      "--numcores", type="int", default=MP.cpu_count(), help="number of CPU cores to use [%default]")
+
 ### parser.add_option("-s", "--sky", type="string",  help="input sky spectra")
 parser.add_option("-w", "--wavelength", type="string",
     help="wavelength range min,max in Angstroms")
@@ -30,6 +43,7 @@ parser.add_option("-l", "--loglam", type="string",
     help="log10(wavelength[A]) range min,max")
 parser.add_option("-r", "--specrange", type="string",
     help="range of spectra to simulate specmin,specmax")
+parser.add_option("--debug", action="store_true", help="start ipython after running")
 
 opts, args = parser.parse_args()
 
@@ -37,17 +51,32 @@ opts, args = parser.parse_args()
 #- required: --input, --output, --psf
 #- exclusive: --wavelength or --loglam or neither, but not both
 
+if opts.numcores < 1 or opts.numcores > MP.cpu_count():
+    print >> sys.stderr, "WARNING: overriding numcores %d -> %d" % \
+        (opts.numcores, MP.cpu_count())
+    opts.numcores = MP.cpu_count()
+
+#- Ensure reproducibility
+N.random.seed(opts.randseed)
+
 #- Load inputs
 psf = load_psf(opts.psf)
-spectra = fitsio.read(opts.input, 1, lower=True).view(N.recarray)
+if opts.throughput:
+    thru = load_throughput(opts.throughput)
+else:
+    thru = load_throughput(opts.psf)
+    
+spectra = specter.io.read_simspec(opts.input)
 
-#- Expand defaults
+#- Expand specrange = first,last inclusive, i.e. not python slice style
 if opts.specrange is not None:
     x = map(int, opts.specrange.split(','))
-    x[1] = min(x[1], psf.nspec)
+    x[1] = min(x[1]+1, psf.nspec)
     opts.specrange = range(x[0], x[1])
 else:
     opts.specrange = range(psf.nspec)
+
+nspec = len(opts.specrange)
 
 #- Wavelength and loglam are just 2-elements min,max
 if opts.wavelength is not None:
@@ -61,54 +90,230 @@ else:
     opts.loglam = N.array( [N.min(ll), N.max(ll)] )
     opts.wavelength = 10**opts.loglam
     
-#- ???
-#- Should projection be evaluated on spectral or PSF wavelength grid?
-#- e.g. for arcs it would make sense to evaluate only at spectral resolution
-#- But high-res input spectra we might want to down sample.
-#- Just use opts.wavelength for that?
-#- ???
-    
 #- Get flux and wavelength arrays
 wavelength = spectra['wavelength']
-if 'phot' in spectra.dtype.names:
-    flux = spectra['phot']
-else:
-    flux = spectra['flux']
-    
-if flux.ndim == 1:
-    flux = N.tile(flux, psf.nspec).reshape(psf.nspec, len(flux))
+flux = spectra['flux']
+units = spectra['units']
+
+assert flux.ndim == wavelength.ndim
+assert flux.shape == wavelength.shape
+
+objtype = spectra['objtype']
+if isinstance(objtype, str) and (flux.ndim == 2):
+    objtype = N.array( [objtype,] * flux.shape[0] )
 
 #- Trim to just requested specrange
-flux = flux[opts.specrange]
 if wavelength.ndim == 2:
+    flux = flux[opts.specrange]
     wavelength = wavelength[opts.specrange]
 
-#- Trim wavelength range by setting flux=0 outside wavelength range
+#- Convert flux to photons, and 1D -> 2D if needed
+if flux.ndim == 1:
+    photons = thru.photons(wavelength, flux, units, objtype=objtype[0])
+    photons = N.tile(photons, nspec).reshape(nspec, len(photons))
+    wavelength = N.tile(wavelength, nspec).reshape(nspec, len(wavelength))
+else:
+    photons = N.zeros(flux.shape)
+    for i in range(photons.shape[0]):
+        photons[i] = thru.photons(wavelength[i], flux[i], units, objtype=objtype[i])
+
+#- Trim wavelength range by setting photons=0 outside wavelength range
 wmin, wmax = opts.wavelength
 if wavelength.ndim == 1:
     ii = (wmin <= wavelength) & (wavelength <= wmax)
-    flux = flux[:, ii]
+    photons = photons[:, ii]
     wavelength = wavelength[ii]
 else:
-    #- for 2D, just set flux=0 outside wavelength range
+    #- for 2D, just set photons=0 outside wavelength range
     ii = (wavelength < wmin) | (wmax < wavelength)
-    flux[ii] = 0.0
+    photons[ii] = 0.0
 
 #- Do the projection
 #+ TODO: Add options for simulating xy subregion
-img = psf.project(flux, wavelength, specmin=opts.specrange[0])
 
-#- Add noise
-if opts.noise:
-    var = opts.readnoise**2 + img
-    img += N.random.normal(scale=N.sqrt(var))
+#- Project spectra onto the CCD
+print "Projecting spectra onto CCD"
+if opts.numcores == 1:
+    img = psf.project(photons, wavelength, specmin=opts.specrange[0])
+else:
+    #- Parallel version uses function passed to parallel map
+    #- Input dictionary provides parameters
+    def project(args):
+        psf = args['psf']
+        return psf.project(args['photons'], args['wavelength'], args['specmin'])
     
-#- Write output
-fitsio.write(opts.output, img, clobber=True)
-if opts.noise:
-    fitsio.write(opts.output, 1.0/var)
+    #- Setup list of dictionaries with arguments
+    arglist = list()
+    n = max(1, (len(opts.specrange)+1)/opts.numcores)
+    for i in range(0, len(opts.specrange), n):
+        arglist.append(dict(psf=psf, photons=photons[i:i+n],
+                         wavelength=wavelength[i:i+n],
+                         specmin=opts.specrange[i]))
 
-#- Update header with SIMDATA keyword
+    #- Parallel map to run project(arglist[0]), project(arglist[1]), etc.
+    pool = MP.Pool(opts.numcores)
+    images = pool.map(project, arglist)
+
+    #- Add the individual images
+    img = reduce(N.add, images)
+
+#- Alternate parallel method; maybe has less overhead
+"""
+Create input queue
+Create output queue
+define function to
+  - get (photons, wavelength, specmin) from input queue
+  - process that
+  - put resulting image on outut queue
+  
+put 8 sets of (photons, wavelength, specmin) into input queue
+start 8 processes with the input, output queues
+wait for them to finish
+get 8 images off the output queue
+add them
+"""
+
+#- Read imput image
+if opts.image:
+    print "Loading input image"
+    fx = fitsio.FITS(opts.image)
+    input_image = fx[0].read()
+    opts.readnoise = 0.0   #- Assume input image already has read noise
+
+    #- Read inverse variance or derive from image
+    if 'IVAR' in fx.hdu_map:
+        input_var = 1.0/fx['IVAR'].read()
+    elif len(fx) > 1:
+        input_var = 1.0/fx[1].read()
+    else:            
+        #- Assume sparse image of mostly noise; 68.27% is outside
+        #- of +/- 1 sigma so 15.865% is below 1 sigma downward
+        sigma = N.median(input_input) - N.percentile(input_image, 15.865)
+        input_var = sigma**2
+        input_readnoise = sigma
+
+    #- Read or derive read noise
+    hdr = fx[0].read_header()
+    if 'RDNOISE' in hdr:
+        input_readnoise = hdr['RDNOISE']
+    else:
+        #- Per amp read-noise:
+        amp_noise = list()
+        for i in range(10):
+            key = 'RDNOISE%d' % i
+            if key in hdr:
+                amp_noise.append(hdr[key])
+        if len(amp_noise) > 0:
+            input_readnoise = N.mean(amp_noise)
+        else:
+            input_readnoise = N.sqrt(N.median(input_var))
+            
+    fx.close()  #- close input image file
+
+#- Variance to add to new image
+var = opts.readnoise**2 + img
+if opts.gaussnoise:
+    opts.noise = True
+
+if opts.noise:
+    print "Adding noise"
+    if opts.gaussnoise:
+        print "Adding Gaussian (not Poisson) noise"
+        img += N.random.normal(scale=N.sqrt(var))
+    else:
+        #- photon shot noise (float -> int)
+        img = N.random.poisson(img)
+        
+        #- Convert to ADU, add gaussian read noise, then integerize
+        adu = img/opts.gain
+        if opts.readnoise > 0:
+            adu += N.random.normal(scale=opts.readnoise/opts.gain, size=img.shape)
+                    
+        adu = (adu+0.5).astype(int)  #- Integerize ADU
+        img = adu * opts.gain        #- back to photons (and back to float)
+
+#- Add to input image
+if opts.image:
+    if img.shape == input_image.shape:
+        img += input_image
+        var += input_var
+    else:
+        ny = min(input_image.shape[0], img.shape[0])
+        nx = min(input_image.shape[1], img.shape[1])
+        img[0:ny, 0:nx] += input_image[0:ny, 0:nx]
+        var[0:ny, 0:nx] += input_var[0:ny, 0:nx]
+    
+#- Decide what to write for read noise
+if opts.image:
+    output_readnoise = input_readnoise
+elif opts.noise:
+    output_readnoise = opts.readnoise
+else:
+    output_readnoise = 0.0
+        
+#- Write output
+print "Writing", opts.output
+fitsio.write(opts.output, img, clobber=True, extname="CCDIMAGE")
+
+#- Update header keywords
 fx = fitsio.FITS(opts.output, 'rw')
-fx[0].write_key('SIMDATA', True, 'Simulated image written by specter')
+fx[0].write_key('SIMDATA', True, 'Simulated image written by Specter')
+fx[0].write_key('PREPROC', True, 'Preproc done (1/0 = True/False)')
+fx[0].write_key('GAIN', opts.gain, 'Gain [e-/ADU]')
+fx[0].write_key('RDNOISE', output_readnoise, 'Read noise [e-]')    
+
+if opts.gaussnoise:
+    fx[0].write_key('SIMNOISE', 'Gaussian', 'Gaussian noise (not Poisson)')
+elif opts.noise:
+    fx[0].write_key('SIMNOISE', 'Poisson', 'Poisson photon noise + Gaussian read noise')
+else:
+    fx[0].write_key('SIMNOISE', 'None', "No noise (can't you tell?)")
+
 fx.close()
+
+#- Add IVAR HDU if noise was added
+if opts.noise:
+    fitsio.write(opts.output, 1.0/var, extname='IVAR')
+
+#--- Write additional HDUs with extra info about inputs ---
+if opts.extra:
+    #- Trim arrays to just those with information    
+    ii = N.where(N.any(photons>0, axis=0))[0]
+    ii = range(ii[0], ii[-1]+1)
+    photons = photons[:, ii]
+    wavelength = wavelength[:, ii]
+    nwave = wavelength.shape[1]
+
+    #- Spectra in photon units
+    a = N.array(zip(photons, wavelength),
+                dtype=[('PHOTONS',     str(photons.dtype), (nwave,)),
+                       ('WAVELENGTH',  str(wavelength.dtype), (nwave,)),
+                       ])
+    hdr = [dict(name='SPECMIN', value=opts.specrange[0], comment="First spectrum index"), ]
+    fitsio.write(opts.output, a, extname='PHOTONS', header=hdr)
+    
+    #- X,Y vs. wavelength
+    yy = N.arange(psf.npix_y)
+    y = N.tile(yy, nspec).reshape(nspec, psf.npix_y)
+    x = N.zeros(y.shape)
+    w = N.zeros(y.shape)
+    
+    for i in range(nspec):
+        w[i] = psf.wavelength(ispec=i+opts.specrange[0], y=yy)
+        x[i] = psf.x(ispec=i+opts.specrange[0], wavelength=w[i])
+    
+    a = N.array(zip(x, y, w),
+                dtype=[('X', str(x.dtype), (psf.npix_y,)),
+                       ('Y', str(y.dtype), (psf.npix_y,)),
+                       ('WAVELENGTH',  str(wavelength.dtype), (psf.npix_y,)),
+                       ])
+    fitsio.write(opts.output, a, extname='XYWAVE', header=hdr)
+
+if opts.debug:
+    #--- DEBUG ---
+    import IPython
+    from pylab import *
+    ion()
+    IPython.embed()
+    #--- DEBUG ---
+    

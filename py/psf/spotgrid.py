@@ -11,7 +11,7 @@ import os
 import numpy as N
 import fitsio
 from specter.psf import PSF
-from specter.util import LinearInterp2D, rebin
+from specter.util import LinearInterp2D, rebin, sincshift
 
 class SpotGridPSF(PSF):
     """
@@ -31,6 +31,8 @@ class SpotGridPSF(PSF):
         self._spots = fx['SPOTS'].read()  #- PSF spots
         self._spotx  = fx['SPOTX'].read()   #- X location of spots
         self._spoty  = fx['SPOTY'].read()   #- Y location of spots
+        # self._spotx  = fx['XCCD'].read()   #- X location of spots
+        # self._spoty  = fx['YCCD'].read()   #- Y location of spots
         self._fiberpos = fx['FIBERPOS'].read()  #- Location of fibers on slit
         self._spotpos = fx['SPOTPOS'].read()    #- Slit loc of sampled spots
         self._spotwave = fx['SPOTWAVE'].read()  #- Wavelengths of spots
@@ -49,12 +51,12 @@ class SpotGridPSF(PSF):
         
         fx.close()
         
-    def xypix(self, ispec, wavelength):
+    def _xypix(self, ispec, wavelength):
         """
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
         """
         
-        #- x,y of spot[0,0], referenced to center of CCD
+        #- x,y of spot on CCD
         p, w = self._fiberpos[ispec], wavelength
         xc = self._fx(p, w)
         yc = self._fy(p, w)
@@ -72,32 +74,20 @@ class SpotGridPSF(PSF):
         A = N.zeros(shape=(pix.shape[0]+rpix, pix.shape[1]+rpix))
         A[yoffset:yoffset+ny, xoffset:xoffset+nx] = pix
         ccdpix = rebin(A, rpix)
-
-        #- TODO: Could do sub-pixel sinc shifting, but that is slow
+        
+        #- Fractional high-res pixel offset
+        #- This can be slow; is it really necessary?
+        dxx = ((xc * rpix) % rpix - xoffset) / rpix
+        dyy = ((yc * rpix) % rpix - yoffset) / rpix
+        ccdpix = sincshift(ccdpix, dxx, dyy)
+        
+        #- sinc shift can cause negative ringing, so clip and re-normalize
+        ccdpix = ccdpix.clip(0)
+        ccdpix /= N.sum(ccdpix)
 
         #- Find where the [0,0] pixel goes on the CCD 
         xccd = int(xc - ccdpix.shape[1]/2 + 1)
         yccd = int(yc - ccdpix.shape[0]/2 + 1)
-        
-        #- Check if completely off the edge in any direction
-        if (xccd > self.npix_x) or (xccd+ccdpix.shape[1] < 0) or \
-           (yccd > self.npix_y) or (yccd+ccdpix.shape[0] < 0):
-            return slice(0,0), slice(0,0), N.zeros(0)
-            
-        #- Check if partially off edge
-        if xccd < 0:
-            ccdpix = ccdpix[:, -xccd:]
-            xccd = 0
-        elif xccd + ccdpix.shape[1] > self.npix_x:
-            dx = xccd + ccdpix.shape[1] - self.npix_x
-            ccdpix = ccdpix[:, -dx]
-
-        if yccd < 0:
-            ccdpix = ccdpix[-yccd:, ]
-            yccd = 0
-        elif yccd + ccdpix.shape[0] > self.npix_y:
-            dy = yccd + ccdpix.shape[0] - self.npix_y
-            ccdpix = ccdpix[-dy, :]
         
         xx = slice(xccd, xccd+ccdpix.shape[1])
         yy = slice(yccd, yccd+ccdpix.shape[0])

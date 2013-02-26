@@ -1,5 +1,5 @@
-Copyright (c) 2012, Regents of the University of California
-and the individual contributors.
+Copyright (c) 2012, Regents of the University of California,
+Stephen Bailey, and the other individual contributors.
 
 All rights reserved.
 

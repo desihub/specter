@@ -11,3 +11,4 @@ xslice, yslice, pixels[ny,nx] = PSF.xypix(ispec, wavelength)
 
 to describe how a given spectrum ispec and wavelength project onto the CCD.
 """
+import specter.io

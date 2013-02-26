@@ -21,11 +21,11 @@ class PSF(object):
     Base class for 2D PSFs
     
     Subclasses need to extend __init__ to load format-specific items
-    from the input fits file and implement xypix(ispec, wavelength)
+    from the input fits file and implement _xypix(ispec, wavelength)
     to return xslice, yslice, pixels[y,x] for the PSF evaluated at
     spectrum ispec at the given wavelength.  All interactions with PSF
     classes should be via the methods defined here, allowing
-    interchangeable use of different PSF models
+    interchangeable use of different PSF models.
     """
     def __init__(self, filename):
         """
@@ -73,19 +73,63 @@ class PSF(object):
         also see xypix(ispec, wavelength)
         """
         return self.xypix(ispec, wavelength)[2]
-        
-    def xypix(self, ispec, wavelength):
+
+    def _xypix(self, ispec):
         """
-        Evaluate PSF for spectrum[ispec] at given wavelength
-        
-        returns xslice, yslice, pixels[iy,ix] such that
-        image[yslice,xslice] += flux*pixels adds the contribution from
-        spectrum ispec at that wavelength.
-        
-        Subclasses of PSF should implement this function for their
-        specific model -- it is NOT implemented for the PSF base class.
+        Subclasses of PSF should implement this to return
+        xslice, yslice, pixels[iy,ix] for their particular
+        models.  Don't worry about edge effects -- PSF.xypix
+        will take care of that.
         """
         raise NotImplementedError
+        
+    def xypix(self, ispec, wavelength, xmin=0, xmax=None, ymin=0, ymax=None):
+        """
+        Evaluate PSF for spectrum[ispec] at given wavelength(s)
+        
+        returns xslice, yslice, pixels[iy,ix] such that
+        image[yslice,xslice] += photons*pixels adds the contribution from
+        spectrum ispec at that wavelength.
+        
+        if xmin or ymin are set, the slices are relative to those
+        minima (useful for simulating subimages)
+        """
+        
+        xx, yy, ccdpix = self._xypix(ispec, wavelength)
+        xlo, xhi = xx.start, xx.stop
+        ylo, yhi = yy.start, yy.stop
+
+        if xmax is None:
+            xmax = self.npix_x
+        if ymax is None:
+            ymax = self.npix_y
+        
+        #- Check if completely off the edge in any direction
+        if (xlo >= xmax) or (xhi <= xmin) or \
+           (ylo >= ymax) or (yhi < ymin):
+            return slice(0,0), slice(0,0), N.zeros(0)
+            
+        #- Check if partially off edge
+        if xlo < xmin:
+            ccdpix = ccdpix[:, -xlo:]
+            xlo = xmin
+        elif xhi > xmax:
+            dx = xmax - xlo
+            ccdpix = ccdpix[:, 0:dx]
+            xhi = xmax
+
+        if ylo < ymin:
+            ccdpix = ccdpix[-ylo:, ]
+            ylo = ymin
+        elif yhi > ymax:
+            dy = ymax - ylo
+            ccdpix = ccdpix[0:dy, :]
+            yhi = ymax
+        
+        xx = slice(xlo-xmin, xhi-xmin)
+        yy = slice(ylo-ymin, yhi-ymin)
+        
+        return xx, yy, ccdpix
 
     def xyrange(self, spec_range, wave_range, dx=8, dy=8):
         """
@@ -195,8 +239,9 @@ class PSF(object):
 
     def xyw(self, ispec=None, copy=False):
         """
-        Utility function to return x, y, and wavelength arrays for a
-        single spectrum in a single call
+        Utility function to return x, y, and wavelength arrays for
+        spectrum number ispec.  Set copy=True to get copies of the
+        arrays instead of references to the originals.
         """
         x = self.x(ispec, copy=copy)
         y = self.y(ispec, copy=copy)
@@ -239,15 +284,15 @@ class PSF(object):
     
     #-------------------------------------------------------------------------
     #- Project spectra onto CCD pixels
-    def project(self, flux, wavelength, specmin=0, xr=None, yr=None):
+    def project(self, phot, wavelength, specmin=0, xr=None, yr=None):
         """
         Returns 2D image of spectra projected onto the CCD
 
         Required inputs:
-            flux[nwave] or flux[nspec, nwave] as photons on CCD per bin
+            phot[nwave] or phot[nspec, nwave] as photons on CCD per bin
             wavelength[nwave] or wavelength[nspec, nwave] in Angstroms
                 if wavelength is 1D and spectra is 2D, then wavelength[]
-                applies to all flux[i]
+                applies to all phot[i]
 
         Optional inputs:
             specmin : starting spectrum number
@@ -260,9 +305,9 @@ class PSF(object):
         nx = xr[1] - xr[0]    
         ny = yr[1] - yr[0]    
 
-        #- For convenience, treat flux as a 2D vector
-        flux = N.atleast_2d(flux)
-        nspec, nw = flux.shape
+        #- For convenience, treat phot as a 2D vector
+        phot = N.atleast_2d(phot)
+        nspec, nw = phot.shape
 
         #- Create image to fill
         img = N.zeros( (ny, nx) )
@@ -271,7 +316,7 @@ class PSF(object):
         for i, ispec in enumerate(range(specmin, specmin+nspec)):
             print ispec
             
-            #- 1D wavelength for every spec, or 2D wavelength for 2D flux?
+            #- 1D wavelength for every spec, or 2D wavelength for 2D phot?
             if wavelength.ndim == 2:
                 wspec = wavelength[i]
             else:
@@ -281,17 +326,17 @@ class PSF(object):
             wpsf = self.wavelength(ispec)
             wmin, wmax = wpsf[0], wpsf[-1]
             for j, w in enumerate(wspec):
-                if flux[i,j] > 0.0 and wmin <= w and w <= wmax:
+                if phot[i,j] > 0.0 and wmin <= w and w <= wmax:
                     xx, yy, pix = self.xypix(ispec, w)
                     xx = slice(xx.start-xr[0], xx.stop-xr[0])
                     yy = slice(yy.start-yr[0], yy.stop-yr[0])
-                    img[yy, xx] += pix * flux[i,j]
+                    img[yy, xx] += pix * phot[i,j]
 
         return img
     
     # #-------------------------------------------------------------------------
     # #- Access the projection matrix A
-    # #- pix = A * flux
+    # #- pix = A * phot
     #
     # #- NOTE: these are copied from bbspec PSF classes, used for extracting
     # #-       spectra, which isn't a part of specter (yet).
