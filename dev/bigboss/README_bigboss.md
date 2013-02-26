@@ -13,8 +13,11 @@ cd $SPECTER_DIR/data/
 specter -i calib/arc/arc_continuum.fits -o blat.fits \
     -r 0,20 -w 7900,8000 --extra \
     -p bigboss/designs/20120827difdet/bbpsf-I.fits
-specter -i calib/arc/arc_lines.fits -I blat.fits -o foo.fits \
-    -r 0,20 -w 7900,8000 --extra \
+    
+    
+specter -i calib/arc/arc_lines.fits -o img-arc.fits \
+    -I boss/dark-r1-00124292.fits \
+    -r 0,20 -w 7900,8000 \
     -p bigboss/designs/20120827difdet/bbpsf-I.fits
     
 #- Sky

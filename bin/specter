@@ -18,6 +18,7 @@ from specter.psf import load_psf
 from specter.throughput import load_throughput
 import fitsio
 
+#- Parse options
 parser = optparse.OptionParser(
     usage = "%prog [options]",
     epilog = "See $SPECTER_DIR/doc/datamodel.md for input format details"
@@ -131,15 +132,17 @@ else:
 #+ TODO: Add options for simulating xy subregion
 
 #- Project spectra onto the CCD
+print "Projecting spectra onto CCD"
 if opts.numcores == 1:
     img = psf.project(photons, wavelength, specmin=opts.specrange[0])
 else:
-    #- Wrapper function for parallel map; accepts dictionary with parameters
+    #- Parallel version uses function passed to parallel map
+    #- Input dictionary provides parameters
     def project(args):
         psf = args['psf']
         return psf.project(args['photons'], args['wavelength'], args['specmin'])
     
-    #- Setup list of arguments
+    #- Setup list of dictionaries with arguments
     arglist = list()
     n = max(1, (len(opts.specrange)+1)/opts.numcores)
     for i in range(0, len(opts.specrange), n):
@@ -172,59 +175,103 @@ add them
 
 #- Read imput image
 if opts.image:
-    input_image = fitsio.read(opts.image)
-    opts.readnoise = 0.0   #- Don't doubly add readnoise
+    print "Loading input image"
+    fx = fitsio.FITS(opts.image)
+    input_image = fx[0].read()
+    opts.readnoise = 0.0   #- Assume input image already has read noise
 
-#- Add shot noise
+    #- Read inverse variance or derive from image
+    if 'IVAR' in fx.hdu_map:
+        input_var = 1.0/fx['IVAR'].read()
+    elif len(fx) > 1:
+        input_var = 1.0/fx[1].read()
+    else:            
+        #- Assume sparse image of mostly noise; 68.27% is outside
+        #- of +/- 1 sigma so 15.865% is below 1 sigma downward
+        sigma = N.median(input_input) - N.percentile(input_image, 15.865)
+        input_var = sigma**2
+        input_readnoise = sigma
+
+    #- Read or derive read noise
+    hdr = fx[0].read_header()
+    if 'RDNOISE' in hdr:
+        input_readnoise = hdr['RDNOISE']
+    else:
+        #- Per amp read-noise:
+        amp_noise = list()
+        for i in range(10):
+            key = 'RDNOISE%d' % i
+            if key in hdr:
+                amp_noise.append(hdr[key])
+        if len(amp_noise) > 0:
+            input_readnoise = N.mean(amp_noise)
+        else:
+            input_readnoise = N.sqrt(N.median(input_var))
+            
+    fx.close()  #- close input image file
+
+#- Variance to add to new image
 var = opts.readnoise**2 + img
 if opts.gaussnoise:
     opts.noise = True
 
 if opts.noise:
+    print "Adding noise"
     if opts.gaussnoise:
-        print "Adding only gaussian noise"
+        print "Adding Gaussian (not Poisson) noise"
         img += N.random.normal(scale=N.sqrt(var))
     else:
         #- photon shot noise (float -> int)
         img = N.random.poisson(img)
         
         #- Convert to ADU, add gaussian read noise, then integerize
+        adu = img/opts.gain
         if opts.readnoise > 0:
-            img /= opts.gain
-            img += N.random.normal(scale=opts.readnoise/opts.gain, size=img.shape)
-            img = (img+0.5).astype(int)
+            adu += N.random.normal(scale=opts.readnoise/opts.gain, size=img.shape)
+                    
+        adu = (adu+0.5).astype(int)  #- Integerize ADU
+        img = adu * opts.gain        #- back to photons (and back to float)
 
-        #- Convert back to photons (back to a float)
-        img = img * opts.gain
-
-#- Add input image
-#- TODO: support images which aren't exactly the same shape
+#- Add to input image
 if opts.image:
-    img += input_image
+    if img.shape == input_image.shape:
+        img += input_image
+        var += input_var
+    else:
+        ny = min(input_image.shape[0], img.shape[0])
+        nx = min(input_image.shape[1], img.shape[1])
+        img[0:ny, 0:nx] += input_image[0:ny, 0:nx]
+        var[0:ny, 0:nx] += input_var[0:ny, 0:nx]
+    
+#- Decide what to write for read noise
+if opts.image:
+    output_readnoise = input_readnoise
+elif opts.noise:
+    output_readnoise = opts.readnoise
+else:
+    output_readnoise = 0.0
         
 #- Write output
+print "Writing", opts.output
 fitsio.write(opts.output, img, clobber=True, extname="CCDIMAGE")
 
 #- Update header keywords
 fx = fitsio.FITS(opts.output, 'rw')
-fx[0].write_key('SIMDATA', True, 'Simulated image written by specter')
+fx[0].write_key('SIMDATA', True, 'Simulated image written by Specter')
 fx[0].write_key('PREPROC', True, 'Preproc done (1/0 = True/False)')
 fx[0].write_key('GAIN', opts.gain, 'Gain [e-/ADU]')
+fx[0].write_key('RDNOISE', output_readnoise, 'Read noise [e-]')    
 
 if opts.gaussnoise:
     fx[0].write_key('SIMNOISE', 'Gaussian', 'Gaussian noise (not Poisson)')
-    fx[0].write_key('RDNOISE', opts.readnoise, 'Read noise [e-]')    
 elif opts.noise:
     fx[0].write_key('SIMNOISE', 'Poisson', 'Poisson photon noise + Gaussian read noise')
-    fx[0].write_key('RDNOISE', opts.readnoise, 'Read noise [e-]')    
 else:
-    fx[0].write_key('SIMNOISE', 'None', 'No noise (cant you tell?)')
-    fx[0].write_key('RDNOISE', 0.0, 'No read noise added')    
+    fx[0].write_key('SIMNOISE', 'None', "No noise (can't you tell?)")
 
 fx.close()
 
 #- Add IVAR HDU if noise was added
-#- TODO: combine with IVAR from previous images
 if opts.noise:
     fitsio.write(opts.output, 1.0/var, extname='IVAR')
 
