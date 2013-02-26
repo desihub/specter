@@ -1,65 +1,66 @@
 Specter Data Model
 ==================
 
-Input Spectra
-=============
+Input Spectra Format
+====================
 
-Input spectra are supported in two formats based upon either a binary
-table with 2D columns, or multi HDU images.
+Input spectra in FITS format are supported as either image or binary
+table HDUs.  The wavelength grid, object type, and flux units are
+specified by additional columns, images, and keywords.  Details below.
 
 Input Spectra: Binary Table
 ---------------------------
 
-### HDU 0 : blank ###
+### HDU 0 : ignored ###
 
-### HDU 1 : binary table of spectra ###
+### HDU 1 : Binary table of spectra ###
 
 Required:
 
-  - flux[nwave] or flux[nspec, nwave] column
-  - header keywords CRVAL1 and CDELT1, or
-    `wave`, `wavelength` or `loglam` column with dimensions matching `flux`
+  * `flux[nwave]` or `flux[nspec, nwave]` column
+  * Wavelength grid:
+    - header keywords CRVAL1 and CDELT1, or
+    - `wave`, `wavelength` or `loglam` column with dimensions matching `flux`
 
 Optional:
 
-  - objtype[nspec] column, or header keyword OBJTYPE.  Default 'STAR'.
-    Values = CALIB, SKY, or something else.  Anything other
-    than CALIB or SKY will be treated as an astronomical source.
-    See the Throughput section for a description of how the throughput
-    model is applied differently for various object types.
-
+  * `objtype[nspec]` column, or header keyword OBJTYPE.  Default 'STAR'
+    See below for details on OBJTYPE.
+  * `FLUXUNIT` header keyword (see below)
+  
 Other columns and HDUs may be present and will be ignored.
 
 
 Input Spectra: Image HDU
 ------------------------
 
-HDU 0 image : flux[nspec, nflux]
+HDU 0 image : `flux[nspec, nflux]`
 
-  - FLUXUNIT keyword defines flux units
+  * `FLUXUNIT` header keyword (see below)
 
 Wavelength grid defined by one of these:
 
-  - HDU 0 keywords CRVAL1 and CDELT1 with optional DC-FLAG log/linear flag
-  - HDU EXTNAME='WAVELENGTH' image with wavelength grid in Angstroms
-    - wavelength[nflux] or wavelength[nspec, nflux]
-  - HDU EXTNAME='LOGLAM' image with wavelength grid in log10(Angstroms)
-    - loglam[nflux] or loglam[nspec, nflux]
+  * HDU 0 keywords `CRVAL1` and `CDELT1` with optional `LOGLAM` flag
+    (see below)
+  * HDU `EXTNAME='WAVELENGTH'` image with wavelength grid in Angstroms
+    - `wavelength[nflux]` or `wavelength[nspec, nflux]`
+  * HDU `EXTNAME='LOGLAM'` image with wavelength grid in log10(Angstroms)
+    - `loglam[nflux]` or `loglam[nspec, nflux]`
   
 Object type defined by one of these:
 
-  - HDU 0 keyword OBJTYPE (if all objects are the same)
-  - HDU EXTNAME='TARGETINFO' binary table
-    - OBJTYPE column required
+  * HDU 0 keyword `OBJTYPE` (if all objects are the same)
+  * HDU `EXTNAME='TARGETINFO'` binary table
+    - `OBJTYPE` column required
     - other columns are user-specific and will be ignored
 
 Flux Units
 ----------
 
-Flux unts are specified to by one of the following:
+Flux unts are specified by one of the following:
 
-  - TUNITnn keyword for binary table `flux` column
-  - FLUXUNIT keyword
+  * `TUNITnn` keyword for binary table `flux` column
+  * `FLUXUNIT` keyword in same HDU as image/table with `flux`
 
 Options are:
 
@@ -83,26 +84,43 @@ Wavelength Grid
 ---------------
 
 If the wavelength grid is not specified by a binary table column or
-an image HDU, it may be specified by header keywords CRVAL1 and CDELT1
-and optionally DC-FLAG (0/1 for linear/log10, default=linear=0).
+an image HDU, it may be specified by header keywords `CRVAL1` and `CDELT1`
+and optionally `LOGLAM` (0/1 for linear/log10, default=linear=0).
 
 e.g. to specify wavelengths [3600, 3601, 3602, ...]:
 
     CRVAL1  =                 3600 / Reference wavelength in Angstroms
     CDELT1  =                    1 / delta wavelength
-    DC-FLAG =                    0 / Linearly spaced wavelengths (default)
 
 or to specify log10(wavelength) spacing [3.5500, 3.5501, 3.5502, ...]
 
     CRVAL1  =               3.5500 / Reference log10(Angstroms)
     CDELT1  =               0.0001 / delta log10(Angstroms)
-    DC-FLAG =                    1 / Log10 spaced wavelengths
+    LOGLAM  =                    1 / Log10 spaced wavelengths
 
-The FITS standard also requires CRPIX1 and CTYPE1 but these are ignored.
+The FITS standard also requires `CRPIX1` and `CTYPE1` but these are ignored.
+
+Object Type
+-----------
+
+The default object type is "STAR" (astronomical point source), but
+other options may be given by either
+
+  * `OBJTYPE` header keyword, or
+  * `objtype[nspec]` column of binary table format
+
+Options:
+
+  * SKY : Geometric losses of input fiber size are not applied
+  * CALIB : Calibration sources such as arc or flat lamps, or tuneable
+    laser systems.  Atmospheric extinction is not applied, nor are
+    geometric losses of input fiber size.
+  * STAR or anything else: treated as an astromical object with all
+    sources of throughput loss applied.  
 
 
-Output Image
-============
+Output Image Format
+===================
 
 ### HDU 0 CCDIMAGE ###
 
@@ -126,6 +144,10 @@ Poisson).
 
 ### HDU 2 PHOTONS ###
 
+*NOTE* : The format of this HDU will likely change to match the format
+of input spectra (`flux` plus `FLUXUNIT` keyword instead of `PHOTONS`).
+This has not yet been implemented.
+
 Optional HDU with binary table giving the photon spectra projected onto
 the CCD after all throughputs were applied.  Extraction code should
 produce this before any calibrations.  There is one row per spectrum,
@@ -144,30 +166,30 @@ There is one row per spectrum, with columns:
   - WAVELENGTH[nwave]
 
 
-Throughput
-==========
+Throughput Format
+=================
 
 ### HDU EXTNAME=THROUGHPUT ###
 
 binary table with columns:
 
-  - wavelength[nwave]   Wavelength in Angstroms,
-      or loglam[nwave]  for log10(Angstroms)
-  - extinction[nwave]   Atmospheric extinction in mags/airmass;
-                        Atm throughput = 10^(0.4 * extinction * airmass)
-  - throughput[nwave]   Telescope, fibers, spectrographs, and CCDs
-  - fiberinput[nwave]   Geometric loss at input of fiber for point source.
+  - `wavelength[nwave]`   Wavelength in Angstroms,
+      or `loglam[nwave]`  for log10(Angstroms)
+  - `extinction[nwave]`   Atmospheric extinction in mags/airmass;
+                          Atm throughput = 10^(0.4 * extinction * airmass)
+  - `throughput[nwave]`   Telescope, fibers, spectrographs, and CCDs
+  - `fiberinput[nwave]`   Geometric loss at input of fiber for point source.
 
-Required keywords in same HDU EXTNAME=THROUGHPUT (not HDU 0)
+Required keywords in same HDU `EXTNAME=THROUGHPUT` (not HDU 0)
 
-  - EXPTIME:  Standard exposure time in seconds
-  - EFFAREA:  Effective area of mirror, including obscuration effects, in cm^2
-  - FIBERDIA: Fiber diameter in arcsec
+  - `EXPTIME`:  Standard exposure time in seconds
+  - `EFFAREA`:  Effective area of mirror, including obscuration effects, in cm^2
+  - `FIBERDIA`: Fiber diameter in arcsec
 
-Note:
+*Note*:
 The throughtput format currently does not support per-fiber throughput.
 
-Note:
+*Note*:
 `fiberinput` in general depends upon source size, seeing, and fiber position
 misalignments.  The default is for for perfectly centered point sources.
 The format currently does not support extented objects (the user can mimic
@@ -207,8 +229,9 @@ HDU 0 keywords:
 
   - NPIX\_X, NPIX\_Y : CCD dimensions in pixels
 
-Optional HDU EXTNAME=THROUGHPUT same as THROUGHPUT HDU which could also appear
-in a separate fits file.
+Optional HDU EXTNAME=THROUGHPUT in the same format as described above.
+i.e. the throughput may be kept in a separate FITS file, or bundled with the
+instrument PSF for convenience.
   
 If throughput isn't available, the PSF can still be used to project
 photons onto a CCD, but not flux in erg/s/cm^2/A .
@@ -236,9 +259,21 @@ HDU 0-2 : Same as Base PSF: X, Y, wavelength or loglam of traces
     HDU SPOTPOS  : spotpos[NAXIS1]      #- Slit positions where spots are sampled
     HDU SPOTWAVE : spotwave[NAXIS2]     #- Wavelengths where spots are sampled
 
-spot[i,j] is a 2D PSF spot sampled at slit position spotpos[i] and
-wavelength spotwave[j].  Its center is located on the CCD at
-spotx[i,j], spoty[i,j].
+`spot[i,j]` is a 2D PSF spot sampled at slit position `spotpos[i]` and
+wavelength `spotwave[j]`.  Its center is located on the CCD at
+`spotx[i,j], spoty[i,j]`.
+
+Other PSF Formats
+-----------------
+
+Specter grew out of "bbspec" which includes PSF formats for:
+
+  * 2D rotated asymmetric Gaussian
+  * Pixelized PCA expansion
+  * Gauss-Hermite polynomials
+
+These are structurally compatible with Specter PSFs but haven't been
+ported yet.
 
 
 
