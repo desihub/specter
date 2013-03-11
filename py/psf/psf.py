@@ -143,25 +143,31 @@ class PSF(object):
         specmin, specmax = spec_range
         wavemin, wavemax = wave_range
 
-        #- Assume smallest x comes from specmin, and largest x from specmax
-        xmin = N.min( self.x(specmin) )
-        xmax = N.max( self.x(specmax) )
-
-        #- Smallest/largest y could come from any spectrum
-        yy = self._y[specmin:specmax+1]
-        ww = self._wavelength[specmin:specmax+1]
-        yy = yy[ N.where( (wavemin <= ww) & (ww <= wavemax) ) ]
-        ymin = N.min(yy)
-        ymax = N.max(yy)
-
-        #- Make them integers
-        xmin, xmax, ymin, ymax = map(int, map(round, (xmin, xmax, ymin, ymax)))
+        #- Find the spectra with the smallest/largest y centroids
+        ispec_ymin = specmin + N.argmin(self.y(None, wavemin)[specmin:specmax+1])
+        ispec_ymax = specmin + N.argmax(self.y(None, wavemax)[specmin:specmax+1])
         
-        #- Add borders, watching out for boundaries
-        xmin = max(xmin-dx, 0)
-        xmax = min(xmax+dx, self.npix_x)
-        ymin = max(ymin-dy, 0)
-        ymax = min(ymax+dy, self.npix_y)
+        #- Return w where x is min or max within wmin < w < wmax
+        def find_minmax(w, x, wmin, wmax, findmin=True):
+            ii = (wmin <= w) & (w <= wmax)
+            ww, xx = w[ii], x[ii]
+            if findmin:
+                return ww[ N.argmin(xx) ]
+            else:
+                return ww[ N.argmax(xx) ]
+        
+        #- Now for x
+        w = self.wavelength(specmin)
+        x = self.x(specmin)
+        wxmin = find_minmax(w, x, wavemin, wavemax, findmin=True)
+        w = self.wavelength(specmax)
+        x = self.x(specmax)
+        wxmax = find_minmax(w, x, wavemin, wavemax, findmin=False)
+        
+        xmin = self.xypix(specmin, wxmin)[0].start
+        xmax = self.xypix(specmax, wxmax)[0].stop
+        ymin = self.xypix(ispec_ymin, wavemin)[1].start
+        ymax = self.xypix(ispec_ymax, wavemax)[1].stop
         
         return (xmin, xmax, ymin, ymax)
     

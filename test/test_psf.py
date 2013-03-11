@@ -242,7 +242,6 @@ class TestPSF(unittest.TestCase):
         for w in wave_range:
             for i in spec_range:
                 xx, yy, pix = self.psf.xypix(i, w)
-                # print i, w, xx, yy
                 self.assertGreaterEqual(xx.start, xmin)
                 self.assertLessEqual(xx.stop, xmax)
                 self.assertGreaterEqual(yy.start, ymin)
