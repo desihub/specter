@@ -64,7 +64,6 @@ class TestPSF(unittest.TestCase):
                 pix = self.psf.pix(i, w)
                 self.assertEquals(pix.ndim, 2)  
 
-    ### @unittest.skip("BROKEN")
     def test_xypix(self):
         ww = self.psf.wavelength()
         wtest = list()
@@ -116,12 +115,12 @@ class TestPSF(unittest.TestCase):
         img = self.psf.project(phot, ww, verbose=False)
         self.assertEquals(img.shape, (self.psf.npix_y, self.psf.npix_x))
 
-    ### @unittest.skip("BROKEN")
     def test_project22(self):
-        ww = self.psf.wavelength(0)[0:10]
-        ww = N.tile(ww, 5).reshape(5, len(ww))
-        phot = N.random.uniform(0,100,len(ww))
-        phot = N.tile(phot, 5).reshape(5, len(ww))
+        nw = 10
+        ww = self.psf.wavelength(0)[0:nw]
+        ww = N.tile(ww, 5).reshape(5, nw)
+        phot = N.random.uniform(0,100,nw)
+        phot = N.tile(phot, 5).reshape(5, nw)
         img = self.psf.project(phot, ww, verbose=False)
         self.assertEquals(img.shape, (self.psf.npix_y, self.psf.npix_x))
     
@@ -183,7 +182,6 @@ class TestPSF(unittest.TestCase):
         x = self.psf.x(None, w)
         self.assertEqual(x.shape, (self.psf.nspec, len(w)))
 
-    ### @unittest.skip("BROKEN")        
     def test_y(self):
         #- Grid of y positions
         y = self.psf.y()
@@ -232,8 +230,6 @@ class TestPSF(unittest.TestCase):
         self.assertTrue(N.all(xyw[1] == y))
         self.assertTrue(N.all(xyw[2] == w))
     
-    #- BROKEN
-    ### @unittest.skip("BROKEN")
     def test_xyrange(self):
         ww = self.psf.wavelength(0)[0:10]
         wave_range = [N.min(ww), N.max(ww)]
