@@ -133,10 +133,28 @@ class TestPSF(unittest.TestCase):
             i = self.psf.nspec
             img = self.psf.project(phot, ww, specmin=i, verbose=False)
 
-    #- Needs psf.xyrange to work first
-    @unittest.skip("Skipping")
     def test_project_xyrange(self):
-        self.assertTrue(True)
+        nspec = 5
+        nw = 10
+        ww = self.psf.wavelength(0)[0:nw]
+        wave_range = (ww[0], ww[-1])
+        phot = N.random.uniform(0,100,nw)               #- 1D
+        phot = N.tile(phot, nspec).reshape(nspec, nw)   #- 2D
+        
+        spec_range = (0, nspec-1)
+        wave_range = (ww[0], ww[-1])
+        
+        xmin, xmax, ymin, ymax = self.psf.xyrange(spec_range, wave_range)        
+        img = self.psf.project(phot, ww, verbose=False)
+        subimg = self.psf.project(phot, ww, xr=(xmin,xmax), yr=(ymin,ymax), verbose=False)
+
+        #- Does subimage match corresponding range for full image?
+        self.assertTrue(N.all(subimg == img[ymin:ymax, xmin:xmax]))
+        
+        #- Clear subimage region and test that everything is 0
+        img[ymin:ymax, xmin:xmax] = 0.0
+        self.assertTrue(N.all(img == 0.0))
+        
 
     def test_shift_xy(self):
         dx, dy = 0.1, 0.2

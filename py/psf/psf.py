@@ -131,14 +131,13 @@ class PSF(object):
         
         return xx, yy, ccdpix
 
-    def xyrange(self, spec_range, wave_range, dx=8, dy=8):
+    def xyrange(self, spec_range, wave_range):
         """
         Return recommended range of pixels which cover these spectra/fluxes:
         (xmin, xmax, ymin, ymax)
         
         spec_range = indices specmin,specmax inclusive (not python style)
         wave_range = wavelength range wavemin,wavemax inclusive
-        dx, dy = amount of extra overlap
         """
         specmin, specmax = spec_range
         wavemin, wavemax = wave_range
@@ -147,28 +146,29 @@ class PSF(object):
         ispec_ymin = specmin + N.argmin(self.y(None, wavemin)[specmin:specmax+1])
         ispec_ymax = specmin + N.argmax(self.y(None, wavemax)[specmin:specmax+1])
         
-        #- Return w where x is min or max within wmin < w < wmax
-        def find_minmax(w, x, wmin, wmax, findmin=True):
-            ii = (wmin <= w) & (w <= wmax)
-            ww, xx = w[ii], x[ii]
-            if findmin:
-                return ww[ N.argmin(xx) ]
-            else:
-                return ww[ N.argmax(xx) ]
-        
-        #- Now for x
+        #- Now for wavelength where x = min(x), while staying on CCD
+        #- and within wavlength range
         w = self.wavelength(specmin)
         x = self.x(specmin)
-        wxmin = find_minmax(w, x, wavemin, wavemax, findmin=True)
+        y = self.y(specmin)
+        ii = (0 <= y) & (y < self.npix_y) & (wavemin <= w) & (w <= wavemax)
+        ww, xx = w[ii], x[ii]
+        wxmin = ww[ N.argmin(xx) ]
+
+        #- and wavelength where x = max(x)
         w = self.wavelength(specmax)
         x = self.x(specmax)
-        wxmax = find_minmax(w, x, wavemin, wavemax, findmin=False)
-        
+        y = self.y(specmax)
+        ii = (0 <= y) & (y < self.npix_y) & (wavemin <= w) & (w <= wavemax)
+        ww, xx = w[ii], x[ii]
+        wxmax = ww[ N.argmax(xx) ]
+                
+        #- pixel ranges on CCD
         xmin = self.xypix(specmin, wxmin)[0].start
         xmax = self.xypix(specmax, wxmax)[0].stop
         ymin = self.xypix(ispec_ymin, wavemin)[1].start
         ymax = self.xypix(ispec_ymax, wavemax)[1].stop
-        
+                        
         return (xmin, xmax, ymin, ymax)
     
     #-------------------------------------------------------------------------
