@@ -107,7 +107,7 @@ class PSF(object):
         #- Check if completely off the edge in any direction
         if (xlo >= xmax) or (xhi <= xmin) or \
            (ylo >= ymax) or (yhi < ymin):
-            return slice(0,0), slice(0,0), N.zeros(0)
+            return slice(0,0), slice(0,0), N.zeros( (0,0) )
             
         #- Check if partially off edge
         if xlo < xmin:

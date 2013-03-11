@@ -74,7 +74,7 @@ class SpotGridPSF(PSF):
         A = N.zeros(shape=(pix.shape[0]+rpix, pix.shape[1]+rpix))
         A[yoffset:yoffset+ny, xoffset:xoffset+nx] = pix
         ccdpix = rebin(A, rpix)
-        
+                
         #- Fractional high-res pixel offset
         #- This can be slow; is it really necessary?
         dxx = ((xc * rpix) % rpix - xoffset) / rpix

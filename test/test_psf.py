@@ -73,6 +73,7 @@ class TestPSF(unittest.TestCase):
         wtest.append(N.min(ww[:, -1]))
         wtest.append(N.max(ww[:, -1]))
         wtest.append(N.mean(wtest))
+        wtest.append(N.min(ww)-100)
         
         for i in (0, self.psf.nspec/2, self.psf.nspec-1):
             for w in wtest:
