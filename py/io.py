@@ -28,7 +28,7 @@ def read_simspec_image(filename):
     elif 'loglam' in fx.hdu_map:
         w = 10**fx['loglam'].read()
     else:
-        nwave = spectra.flux.shape[-1]
+        nwave = flux.shape[-1]
         w = header['CRVAL1'] + N.arange(nwave) * header['CDELT1']
         if 'LOGLAM' in header and header['LOGLAM']:
             w = 10**w

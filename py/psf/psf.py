@@ -200,12 +200,12 @@ class PSF(object):
             else:
                 result = N.interp(wavelength, self._wavelength[ispec], self._x[ispec])
                 
-        if copy:
+        if copy and isinstance(result, N.ndarray):
             return N.copy(result)
         else:
             return result
 
-    def y(self, ispec=None, wavelength=None, copy=True):
+    def y(self, ispec=None, wavelength=None, copy=False):
         """
         Return CCD Y centroid of spectrum ispec at given wavelength(s).
         wavelength can be None, scalar, or a vector
@@ -224,7 +224,7 @@ class PSF(object):
             else:
                 result = N.interp(wavelength, self._wavelength[ispec], self._y[ispec])
 
-        if copy:
+        if copy and isinstance(result, N.ndarray):
             return N.copy(result)
         else:
             return result
@@ -284,7 +284,7 @@ class PSF(object):
     
     #-------------------------------------------------------------------------
     #- Project spectra onto CCD pixels
-    def project(self, phot, wavelength, specmin=0, xr=None, yr=None):
+    def project(self, phot, wavelength, specmin=0, xr=None, yr=None, verbose=True):
         """
         Returns 2D image of spectra projected onto the CCD
 
@@ -314,7 +314,8 @@ class PSF(object):
 
         #- Loop over spectra and wavelengths
         for i, ispec in enumerate(range(specmin, specmin+nspec)):
-            print ispec
+            if verbose:
+                print ispec
             
             #- 1D wavelength for every spec, or 2D wavelength for 2D phot?
             if wavelength.ndim == 2:

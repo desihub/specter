@@ -36,4 +36,7 @@ fitsio.write(outfile, spoty[0::5, 0::5], header=spotyhdr)
 
 fitsio.write(outfile, fiberpos, header=fposhdr)
 fitsio.write(outfile, spotpos[0::5], header=sposhdr)
+fitsio.write(outfile, spotwave[0::5], header=swavehdr)
+
+fitsio.write(outfile, throughput, header=thruhdr)
 
