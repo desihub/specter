@@ -107,7 +107,7 @@ class PSF(object):
         #- Check if completely off the edge in any direction
         if (xlo >= xmax) or (xhi <= xmin) or \
            (ylo >= ymax) or (yhi < ymin):
-            return slice(0,0), slice(0,0), N.zeros(0)
+            return slice(0,0), slice(0,0), N.zeros( (0,0) )
             
         #- Check if partially off edge
         if xlo < xmin:
@@ -131,38 +131,44 @@ class PSF(object):
         
         return xx, yy, ccdpix
 
-    def xyrange(self, spec_range, wave_range, dx=8, dy=8):
+    def xyrange(self, spec_range, wave_range):
         """
         Return recommended range of pixels which cover these spectra/fluxes:
         (xmin, xmax, ymin, ymax)
         
         spec_range = indices specmin,specmax inclusive (not python style)
         wave_range = wavelength range wavemin,wavemax inclusive
-        dx, dy = amount of extra overlap
         """
         specmin, specmax = spec_range
         wavemin, wavemax = wave_range
 
-        #- Assume smallest x comes from specmin, and largest x from specmax
-        xmin = N.min( self.x(specmin) )
-        xmax = N.max( self.x(specmax) )
-
-        #- Smallest/largest y could come from any spectrum
-        yy = self._y[specmin:specmax+1]
-        ww = self._wavelength[specmin:specmax+1]
-        yy = yy[ N.where( (wavemin <= ww) & (ww <= wavemax) ) ]
-        ymin = N.min(yy)
-        ymax = N.max(yy)
-
-        #- Make them integers
-        xmin, xmax, ymin, ymax = map(int, map(round, (xmin, xmax, ymin, ymax)))
+        #- Find the spectra with the smallest/largest y centroids
+        ispec_ymin = specmin + N.argmin(self.y(None, wavemin)[specmin:specmax+1])
+        ispec_ymax = specmin + N.argmax(self.y(None, wavemax)[specmin:specmax+1])
         
-        #- Add borders, watching out for boundaries
-        xmin = max(xmin-dx, 0)
-        xmax = min(xmax+dx, self.npix_x)
-        ymin = max(ymin-dy, 0)
-        ymax = min(ymax+dy, self.npix_y)
-        
+        #- Now for wavelength where x = min(x), while staying on CCD
+        #- and within wavlength range
+        w = self.wavelength(specmin)
+        x = self.x(specmin)
+        y = self.y(specmin)
+        ii = (0 <= y) & (y < self.npix_y) & (wavemin <= w) & (w <= wavemax)
+        ww, xx = w[ii], x[ii]
+        wxmin = ww[ N.argmin(xx) ]
+
+        #- and wavelength where x = max(x)
+        w = self.wavelength(specmax)
+        x = self.x(specmax)
+        y = self.y(specmax)
+        ii = (0 <= y) & (y < self.npix_y) & (wavemin <= w) & (w <= wavemax)
+        ww, xx = w[ii], x[ii]
+        wxmax = ww[ N.argmax(xx) ]
+                
+        #- pixel ranges on CCD
+        xmin = self.xypix(specmin, wxmin)[0].start
+        xmax = self.xypix(specmax, wxmax)[0].stop
+        ymin = self.xypix(ispec_ymin, wavemin)[1].start
+        ymax = self.xypix(ispec_ymax, wavemax)[1].stop
+                        
         return (xmin, xmax, ymin, ymax)
     
     #-------------------------------------------------------------------------
@@ -200,12 +206,12 @@ class PSF(object):
             else:
                 result = N.interp(wavelength, self._wavelength[ispec], self._x[ispec])
                 
-        if copy:
+        if copy and isinstance(result, N.ndarray):
             return N.copy(result)
         else:
             return result
 
-    def y(self, ispec=None, wavelength=None, copy=True):
+    def y(self, ispec=None, wavelength=None, copy=False):
         """
         Return CCD Y centroid of spectrum ispec at given wavelength(s).
         wavelength can be None, scalar, or a vector
@@ -224,7 +230,7 @@ class PSF(object):
             else:
                 result = N.interp(wavelength, self._wavelength[ispec], self._y[ispec])
 
-        if copy:
+        if copy and isinstance(result, N.ndarray):
             return N.copy(result)
         else:
             return result
@@ -284,7 +290,7 @@ class PSF(object):
     
     #-------------------------------------------------------------------------
     #- Project spectra onto CCD pixels
-    def project(self, phot, wavelength, specmin=0, xr=None, yr=None):
+    def project(self, phot, wavelength, specmin=0, xr=None, yr=None, verbose=True):
         """
         Returns 2D image of spectra projected onto the CCD
 
@@ -314,7 +320,8 @@ class PSF(object):
 
         #- Loop over spectra and wavelengths
         for i, ispec in enumerate(range(specmin, specmin+nspec)):
-            print ispec
+            if verbose:
+                print ispec
             
             #- 1D wavelength for every spec, or 2D wavelength for 2D phot?
             if wavelength.ndim == 2:

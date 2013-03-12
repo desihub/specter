@@ -231,6 +231,14 @@ class Throughput:
             phot = flux * N.gradient(wavelength)
             return phot
 
+        #- photon/A/arcsec^2
+        elif units == "photon/A/arcsec^2":
+            #- photon/A/arcsec^2 * width(A) -> photons/arcsec^2
+            phot = flux * N.gradient(wavelength)
+            #- multiply by area to get final photons
+            phot *= self.effarea
+            return phot
+
         #- erg/s/cm^2 (flux delta functions at given wavelengths)
         elif units == "erg/s/cm^2":
             phot = flux * wavelength / h_c              #- photon/s/cm^2
