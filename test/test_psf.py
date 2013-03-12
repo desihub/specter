@@ -253,10 +253,26 @@ class TestPSF(unittest.TestCase):
         wave_range = [N.min(ww), N.max(ww)]
         spec_range = [0,10]
         xmin,xmax,ymin,ymax = self.psf.xyrange(spec_range, wave_range)
-        # print xmin,xmax,ymin,ymax
-        for w in wave_range:
-            for i in spec_range:
+
+        #- Test all wavelengths for first and last spectrum
+        for i in spec_range:
+            for w in ww:
                 xx, yy, pix = self.psf.xypix(i, w)
+                if pix.shape == (0,0):  #- off edge of CCD
+                    continue
+                    
+                self.assertGreaterEqual(xx.start, xmin)
+                self.assertLessEqual(xx.stop, xmax)
+                self.assertGreaterEqual(yy.start, ymin)
+                self.assertLessEqual(yy.stop, ymax)
+
+        #- Test all spectra for min and max wavelengths
+        for i in range(spec_range[0], spec_range[-1]+1):
+            for w in wave_range:
+                xx, yy, pix = self.psf.xypix(i, w)
+                if pix.shape == (0,0):  #- off edge of CCD
+                    continue
+                    
                 self.assertGreaterEqual(xx.start, xmin)
                 self.assertLessEqual(xx.stop, xmax)
                 self.assertGreaterEqual(yy.start, ymin)
