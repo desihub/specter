@@ -72,7 +72,7 @@ def read_simspec_table(filename):
             w = 10**w
 
     #- Convert wavelength to 2D if needed
-    if spectra.flux.ndim == 2:
+    if spectra.flux.ndim == 2 and w.ndim == 1:
         nspec, nwave = spectra.flux.shape
         w = N.tile(w, nspec).reshape(nspec, nwave)
         
