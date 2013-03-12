@@ -1,55 +1,59 @@
 #!/usr/bin/env python
 
 """
-Test PSF classes
+Unit tests for PSF classes.
 """
 
 import sys
 import os
 import numpy as N
 from specter.psf import load_psf
-
 import unittest
 
 class TestPSF(unittest.TestCase):
-    # def setUp(self):
-    #     self.indir = os.environ['SPECTER_DIR'] + '/test/data'
-    #     self.psf = load_psf(self.indir + "/psf-pix.fits")
+    """
+    Wrapper for testing any PSF class
+    """
 
     def wrap_wave_test(self, fn):
-        #- Unspecified y -> array with nwave elements
+        """Test wavelength or loglam"""
+        #- Scalar ispec + Unspecified y -> array with nwave elements
         tmp = fn(0, None)
         self.assertTrue(len(tmp) == self.psf.nwave)
         
-        #- Specified fiber and y -> float
+        #- Scalar ispec and scalar y -> float
         tmp = fn(0, y=0)
         self.assertTrue(isinstance(tmp, float))
 
-        #- Arbitrary
+        #- Scalar ispec + y array -> wave array
         yy = N.linspace(0, self.psf.nwave)
         tmp = fn(0, y=yy)
         self.assertTrue(len(tmp) == len(yy))
         
-        #- Full loglam grid
+        #- Unspecified ispec and unspecified y : full wave/loglam grid
         self.assertTrue(fn().shape == (self.psf.nspec, self.psf.nwave))
         
         #- ispec >= nspec should raise an error
         with self.assertRaises(IndexError):
             fn(self.psf.nspec)
 
+    #- Test psf.loglam() options
     def test_loglam(self):
         self.wrap_wave_test(self.psf.loglam)
 
+    #- Test psf.wavelength() options
     def test_wavelength(self):
         self.wrap_wave_test(self.psf.wavelength)
         
+    #- Make sure that dimensions are set
     def test_dimensions(self):
         self.assertTrue(self.psf.npix_x > 0)
         self.assertTrue(self.psf.npix_y > 0)
         self.assertTrue(self.psf.nspec > 0)
         self.assertTrue(self.psf.nwave > 0)
         
-    ### @unittest.skip("BROKEN")
+    #- Get PSF pixel image at several locations;
+    #- Just test that we get a 2D array back
     def test_pix(self):
         ww = self.psf.wavelength()
         wtest = list()
@@ -64,6 +68,8 @@ class TestPSF(unittest.TestCase):
                 pix = self.psf.pix(i, w)
                 self.assertEquals(pix.ndim, 2)  
 
+    #- Get PSF pixel image and where to put it on the CCD
+    #- Confirm that image size matches ranges
     def test_xypix(self):
         ww = self.psf.wavelength()
         wtest = list()
@@ -81,6 +87,8 @@ class TestPSF(unittest.TestCase):
                 msg = "%s != %s at (i=%d, w=%.1f)" % (str(pix.shape), str(shape), i, w)
                 self.assertEqual(pix.shape, shape, msg)
                 
+    #- Test psf.xypix() using CCD pixel xmin/xmax, ymin/ymax options
+    #- Doesn't test every possibility
     def test_xypix_range(self):
         w = N.mean(self.psf.wavelength())
         i = self.psf.nspec/2
@@ -101,13 +109,14 @@ class TestPSF(unittest.TestCase):
         self.assertTrue(xx.start == 0)
         self.assertTrue(yy.start == 0)
         
-        
+    #- Test projection of 1D spectrum with 1D wavelength vector
     def test_project11(self):
         ww = self.psf.wavelength(0)[0:10]
         phot = N.random.uniform(0,100,len(ww))
         img = self.psf.project(phot, ww, verbose=False)
         self.assertEquals(img.shape, (self.psf.npix_y, self.psf.npix_x))
     
+    #- Test projection of 2D spectrum with shared 1D wavelength vector
     def test_project12(self):
         ww = self.psf.wavelength(0)[0:10]
         phot = N.random.uniform(0,100,len(ww))
@@ -115,6 +124,7 @@ class TestPSF(unittest.TestCase):
         img = self.psf.project(phot, ww, verbose=False)
         self.assertEquals(img.shape, (self.psf.npix_y, self.psf.npix_x))
 
+    #- Test projection of 2D spectrum with 2D wavelength vector
     def test_project22(self):
         nw = 10
         ww = self.psf.wavelength(0)[0:nw]
@@ -124,15 +134,19 @@ class TestPSF(unittest.TestCase):
         img = self.psf.project(phot, ww, verbose=False)
         self.assertEquals(img.shape, (self.psf.npix_y, self.psf.npix_x))
     
+    #- Test projection starting at specmin != 0
     def test_project_specmin(self):
         ww = self.psf.wavelength(0)[0:10]
         phot = N.random.uniform(0,100,len(ww))
         img = self.psf.project(phot, ww, specmin=1, verbose=False)
         self.assertEquals(img.shape, (self.psf.npix_y, self.psf.npix_x))
+        
+        #- specmin >= nspec should raise an error
         with self.assertRaises(IndexError):
             i = self.psf.nspec
             img = self.psf.project(phot, ww, specmin=i, verbose=False)
 
+    #- Test projecting to a subgrid of CCD pixels
     def test_project_xyrange(self):
         nspec = 5
         nw = 10
@@ -155,7 +169,7 @@ class TestPSF(unittest.TestCase):
         img[ymin:ymax, xmin:xmax] = 0.0
         self.assertTrue(N.all(img == 0.0))
         
-
+    #- Test shift of PSF xy solution
     def test_shift_xy(self):
         dx, dy = 0.1, 0.2
         x0 = self.psf.x(0).copy()
@@ -164,11 +178,7 @@ class TestPSF(unittest.TestCase):
         self.assertTrue(N.all(self.psf.x(0) == x0+dx))
         self.assertTrue(N.all(self.psf.y(0) == y0+dy))
     
-    def wrap_xy_test(self, xyfn):
-        w = self.psf.wavelength(0)[0:10]
-        x = xyfn(0, w)
-        self.assertEqual(x.shape, w.shape)
-    
+    #- Test multiple options for getting x centroid
     def test_x(self):
         #- Grid of x positions
         x = self.psf.x()
@@ -200,6 +210,7 @@ class TestPSF(unittest.TestCase):
         x = self.psf.x(None, w)
         self.assertEqual(x.shape, (self.psf.nspec, len(w)))
 
+    #- Test multiple options for getting y centroid
     def test_y(self):
         #- Grid of y positions
         y = self.psf.y()
@@ -232,6 +243,7 @@ class TestPSF(unittest.TestCase):
         y = self.psf.y(None, w)
         self.assertEqual(y.shape, (self.psf.nspec, len(w)))
         
+    #- Test getting x and y at the same time
     def test_xy(self):
         x = self.psf.x(0)
         y = self.psf.y(0)
@@ -239,6 +251,7 @@ class TestPSF(unittest.TestCase):
         self.assertTrue(N.all(xy[0] == x))
         self.assertTrue(N.all(xy[1] == y))
         
+    #- Test getting x and y and wavelength at the same time
     def test_xyw(self):
         x = self.psf.x(0)
         y = self.psf.y(0)
@@ -248,6 +261,7 @@ class TestPSF(unittest.TestCase):
         self.assertTrue(N.all(xyw[1] == y))
         self.assertTrue(N.all(xyw[2] == w))
     
+    #- Test getting xy pixel range where spectra would project
     def test_xyrange(self):
         ww = self.psf.wavelength(0)[0:10]
         wave_range = [N.min(ww), N.max(ww)]
@@ -278,17 +292,25 @@ class TestPSF(unittest.TestCase):
                 self.assertGreaterEqual(yy.start, ymin)
                 self.assertLessEqual(yy.stop, ymax)
             
+#- Test Pixellated PSF format
 class TestPixPSF(TestPSF):
     def setUp(self):
         self.indir = os.environ['SPECTER_DIR'] + '/test/data'
         self.psf = load_psf(self.indir + "/psf-pix.fits")
 
+#- Test SpotGrid PSF format
 class TestSpotPSF(TestPSF):
     def setUp(self):
         self.indir = os.environ['SPECTER_DIR'] + '/test/data'
         self.psf = load_psf(self.indir + "/psf-spot.fits")
 
 if __name__ == '__main__':
+    
+    if 'SPECTER_DIR' not in os.environ:
+        print >> sys.stderr, "Please set SPECTER_DIR environment variable to point to"
+        print >> sys.stderr, "your top level Specter directory."
+        sys.exit(1)
+    
     # unittest.main()           
     s1 = unittest.defaultTestLoader.loadTestsFromTestCase(TestPixPSF)
     s2 = unittest.defaultTestLoader.loadTestsFromTestCase(TestSpotPSF)

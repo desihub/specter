@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Test specter file formats
+Test specter throughput file format
 """
 
 import os

@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 """
-Test specter file formats
+Test Specter file formats.  Loop over example files and just make sure
+that we can read them.
 """
 
 import os
