@@ -32,6 +32,9 @@ def read_simspec_image(filename):
         w = header['CRVAL1'] + N.arange(nwave) * header['CDELT1']
         if 'LOGLAM' in header and header['LOGLAM']:
             w = 10**w
+        #- DC-FLAG is deprecated, but still support it
+        elif 'DC-FLAG' in header and header['DC-FLAG']:
+            w = 10**w
 
     #- Convert wavelength to 2D if needed
     if flux.ndim == 2 and w.ndim == 1:
@@ -68,7 +71,10 @@ def read_simspec_table(filename):
     else:
         nwave = spectra.flux.shape[-1]
         w = header['CRVAL1'] + N.arange(nwave) * header['CDELT1']
-        if header['DC-FLAG'] > 0:
+        if 'LOGLAM' in header and header['LOGLAM']:
+            w = 10**w
+        #- DC-FLAG is deprecated, but still support it
+        elif 'DC-FLAG' in header and header['DC-FLAG']:
             w = 10**w
 
     #- Convert wavelength to 2D if needed
