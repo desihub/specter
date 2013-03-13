@@ -7,8 +7,10 @@ Unit tests for PSF classes.
 import sys
 import os
 import numpy as N
-from specter.psf import load_psf
 import unittest
+
+from specter.psf import load_psf
+from specter.test import test_data_dir
 
 class TestPSF(unittest.TestCase):
     """
@@ -291,26 +293,19 @@ class TestPSF(unittest.TestCase):
                 self.assertLessEqual(xx.stop, xmax)
                 self.assertGreaterEqual(yy.start, ymin)
                 self.assertLessEqual(yy.stop, ymax)
-            
+
 #- Test Pixellated PSF format
 class TestPixPSF(TestPSF):
     def setUp(self):
-        self.indir = os.environ['SPECTER_DIR'] + '/test/data'
-        self.psf = load_psf(self.indir + "/psf-pix.fits")
+        self.psf = load_psf(test_data_dir() + "/psf-pix.fits")
 
 #- Test SpotGrid PSF format
 class TestSpotPSF(TestPSF):
     def setUp(self):
-        self.indir = os.environ['SPECTER_DIR'] + '/test/data'
-        self.psf = load_psf(self.indir + "/psf-spot.fits")
+        self.psf = load_psf(test_data_dir() + "/psf-spot.fits")
 
 if __name__ == '__main__':
-    
-    if 'SPECTER_DIR' not in os.environ:
-        print >> sys.stderr, "Please set SPECTER_DIR environment variable to point to"
-        print >> sys.stderr, "your top level Specter directory."
-        sys.exit(1)
-    
+        
     # unittest.main()           
     s1 = unittest.defaultTestLoader.loadTestsFromTestCase(TestPixPSF)
     s2 = unittest.defaultTestLoader.loadTestsFromTestCase(TestSpotPSF)

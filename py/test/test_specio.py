@@ -8,13 +8,14 @@ that we can read them.
 import os
 from os.path import basename
 from glob import glob
-import specter.io
 import unittest
+
+import specter.io
+from specter.test import test_data_dir
 
 class TestSpecIO(unittest.TestCase):
     def setUp(self):
-        indir = os.environ['SPECTER_DIR'] + '/test/data'
-        self.specfiles = sorted(glob(indir+'/spec-*.fits'))
+        self.specfiles = sorted(glob(test_data_dir()+'/spec-*.fits'))
         
     def test_files(self):
         wipeout = None

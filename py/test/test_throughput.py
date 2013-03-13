@@ -6,13 +6,14 @@ Test specter throughput file format
 
 import os
 import numpy as N
-from specter.throughput import load_throughput
 import unittest
 
-class TestSpecIO(unittest.TestCase):
+from specter.throughput import load_throughput
+from specter.test import test_data_dir
+
+class TestThroughput(unittest.TestCase):
     def setUp(self):
-        indir = os.environ['SPECTER_DIR'] + '/test/data'
-        self.thru = load_throughput(indir+'/throughput.fits')
+        self.thru = load_throughput(test_data_dir()+'/throughput.fits')
         self.w = N.arange(5000, 9000, 1)
         self.flux = N.random.uniform(0,1, size=self.w.shape) * 1e-17
         self.photflux = N.random.uniform(0,1, size=self.w.shape)
@@ -123,6 +124,6 @@ class TestSpecIO(unittest.TestCase):
             
 if __name__ == '__main__':
     unittest.main()            
-    # suite = unittest.TestLoader().loadTestsFromTestCase(TestSpecIO)
+    # suite = unittest.TestLoader().loadTestsFromTestCase(TestThroughputIO)
     # unittest.TextTestRunner(verbosity=2).run(suite)
         
