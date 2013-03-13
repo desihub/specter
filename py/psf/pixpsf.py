@@ -12,7 +12,7 @@ import fitsio
 from specter.psf import PSF
 from specter.util import sincshift
 
-#- Turn of complex -> real warnings in sinc interpolation
+#- Turn off complex -> real warnings in sinc interpolation
 import warnings 
 try:
 	warnings.simplefilter("ignore", N.ComplexWarning)

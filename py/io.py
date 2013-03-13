@@ -28,7 +28,7 @@ def read_simspec_image(filename):
     elif 'loglam' in fx.hdu_map:
         w = 10**fx['loglam'].read()
     else:
-        nwave = spectra.flux.shape[-1]
+        nwave = flux.shape[-1]
         w = header['CRVAL1'] + N.arange(nwave) * header['CDELT1']
         if 'LOGLAM' in header and header['LOGLAM']:
             w = 10**w
@@ -38,9 +38,15 @@ def read_simspec_image(filename):
         nspec, nwave = flux.shape
         w = N.tile(w, nspec).reshape(nspec, nwave)
         
+    #- Get object type or use default
+    if 'OBJTYPE' in header:
+        objtype = header['OBJTYPE']
+    else:
+        objtype = 'STAR'
+        
     #- Get object type (CALIB, SKY, etc.)
     return dict(flux=flux, wavelength=w,
-                units=header['FLUXUNIT'], objtype=header['OBJTYPE'])
+                units=header['FLUXUNIT'], objtype=objtype)
 
 def read_simspec_table(filename):
     """
@@ -66,7 +72,7 @@ def read_simspec_table(filename):
             w = 10**w
 
     #- Convert wavelength to 2D if needed
-    if spectra.flux.ndim == 2:
+    if spectra.flux.ndim == 2 and w.ndim == 1:
         nspec, nwave = spectra.flux.shape
         w = N.tile(w, nspec).reshape(nspec, nwave)
         

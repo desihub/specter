@@ -197,6 +197,7 @@ class Throughput:
         """
 
         #- Allow some sloppiness in units
+        units = units.strip()  #- FITS pads short strings with spaces (!)
         units = units.replace("ergs", "erg")
         units = units.replace("photons", "photon")
         units = units.replace("Angstroms", "A")
@@ -228,6 +229,14 @@ class Throughput:
         elif units == "photon/A":
             #- photon/A * width(A) -> photons
             phot = flux * N.gradient(wavelength)
+            return phot
+
+        #- photon/A/arcsec^2
+        elif units == "photon/A/arcsec^2":
+            #- photon/A/arcsec^2 * width(A) -> photons/arcsec^2
+            phot = flux * N.gradient(wavelength)
+            #- multiply by area to get final photons
+            phot *= self.effarea
             return phot
 
         #- erg/s/cm^2 (flux delta functions at given wavelengths)

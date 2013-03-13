@@ -14,21 +14,23 @@ specter -i calib/arc/arc_continuum.fits -o blat.fits \
     -r 0,20 -w 7900,8000 --extra \
     -p bigboss/designs/20120827difdet/bbpsf-I.fits
     
-    
 specter -i calib/arc/arc_lines.fits -o img-arc.fits \
-    -I boss/dark-r1-00124292.fits \
-    -r 0,20 -w 7900,8000 \
+    -I dark/boss/dark-900-r1-00124292.fits \
+    -r 0,20 --noise \
     -p bigboss/designs/20120827difdet/bbpsf-I.fits
 
 #- BBspecsim ELG grid
 cd $SPECTER_DIR/data/
 specter -i bigboss/bbspecsim/elg_grid.fits.gz -o blat.fits \
-    -r 0,20 -w 7900,8000 \
+    -r 300,325 -w 8200,8575 \
     -p bigboss/designs/20120827difdet/bbpsf-I.fits
     
 #- Sky
 cd $SPECTER_DIR/data/
-specter -i sky/sky-uves.fits -o blat.fits -r 0,20 -w 7900,8000 --extra \
+specter -i sky/sky-uves.fits -o img-sky.fits \
+    -r 0,49 -w 8300,8700 \
+    --noise \
+    -I dark/boss/dark-900-r1-00124292.fits \
     -p bigboss/designs/20120827difdet/bbpsf-I.fits
         
 cd $SPECTER_DIR/data/bigboss/designs/20120827difdet/
