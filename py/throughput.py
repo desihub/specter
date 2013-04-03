@@ -215,7 +215,7 @@ class Throughput:
 
         #- Flux -> photons conversion constants
         #-   h [erg s] * c [m/s] * [1e10 A/m] = [erg A]
-        h_c = 6.62606957e-27 * 2.99792458e8 * 1e10
+        hc = 6.62606957e-27 * 2.99792458e8 * 1e10
 
         #- Default exposure time
         if exptime is None:
@@ -241,13 +241,13 @@ class Throughput:
 
         #- erg/s/cm^2 (flux delta functions at given wavelengths)
         elif units == "erg/s/cm^2":
-            phot = flux * wavelength / h_c              #- photon/s/cm^2
+            phot = flux * wavelength / hc              #- photon/s/cm^2
             phot *= self.effarea                        #- photon/s
             phot *= exptime                             #- photon
             return phot * self.thru(wavelength, objtype=objtype, airmass=airmass)
             
         elif units == "erg/s/cm^2/arcsec^2":
-            phot = flux * wavelength / h_c              #- photon/s/cm^2/arcsec^2
+            phot = flux * wavelength / hc              #- photon/s/cm^2/arcsec^2
             phot *= self.effarea                        #- photon/s/arcsec^2
             phot *= exptime                             #- photon/arcsec^2
             phot *= N.pi * self.fiberdia**2 / 4.0       #- photon
@@ -255,7 +255,7 @@ class Throughput:
             
         #- erg/s/cm^2/A (e.g. astronomical object)
         elif units == "erg/s/cm^2/A":
-            phot = flux * wavelength / h_c              #- photon/s/cm^2/A
+            phot = flux * wavelength / hc              #- photon/s/cm^2/A
             phot *= self.effarea                        #- photon/s/A
             phot *= exptime                             #- photon/A
             phot *= N.gradient(wavelength)              #- photons

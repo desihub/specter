@@ -10,6 +10,13 @@ import fitsio
 import numpy as N
 
 def read_simspec(filename):
+    """
+    Read an input simulated spectrum file, parse the various format
+    options, and return a standardized spectrum dictionary for use.
+    
+    Returns a dictionary with keys flux, wavelength, units, objtype
+    """
+    
     fx = fitsio.FITS(filename)
     is_image = fx[0].has_data()
     fx.close()
@@ -20,6 +27,11 @@ def read_simspec(filename):
         return read_simspec_table(filename)
 
 def read_simspec_image(filename):
+    """
+    Read an input simulated spectrum file formatted in multi-HDU FITS images.
+    
+    Returns a dictionary with keys flux, wavelength, units, objtype
+    """
     fx = fitsio.FITS(filename)
     flux = fx[0].read()
     header = fx[0].read_header()
@@ -53,8 +65,7 @@ def read_simspec_image(filename):
 
 def read_simspec_table(filename):
     """
-    Read an input simulated spectrum file, parse the various format
-    options, and return a standardized spectrum dictionary for use.
+    Read an input simulated spectrum file formatted as a FITS binary table.
     
     Returns a dictionary with keys flux, wavelength, units, objtype
     """
