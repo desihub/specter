@@ -5,9 +5,11 @@ Stephen Bailey
 Fall 2012
 """
 
+import math
 import numpy as N
 import scipy.signal
 from scipy.special import legendre
+from scipy.sparse import spdiags
 
 class LegendreFit(object):
     """
@@ -154,6 +156,37 @@ def sincshift(image, dx, dy, sincrad=10, dampfac=3.25):
     kernel = N.outer(sincy, sincx)
     newimage = scipy.signal.convolve2d(image, kernel, mode='same')
     return newimage
+from scipy.special import erf
+
+def gaussint(x, mean=0.0, sigma=1.0):
+    """
+    Return integral from -inf to x of normalized Gaussian with mean and sigma
+    """
+    z = (x - mean) / (math.sqrt(2) * sigma)
+    return (erf(z) + 1.0) / 2.0
+    
+def gausspix(x, mean=0.0, sigma=1.0):
+    """
+    Return Gaussian(mean,sigma) integrated over unit width pixels centered at x[].
+    """
+    edges = N.concatenate( (x-0.5, x[-1:]+0.5))
+    integrals = gaussint(edges, mean=mean, sigma=sigma)
+    return integrals[1:] - integrals[0:-1]
+    
+def weighted_solve(A, b, w):
+    """
+    Solve `A x = b` with weights `w` on `b`
+    Returns x, inverseCovarance(x)
+    """
+    assert len(b) == len(w)
+    
+    n = len(b)
+    W = spdiags(w, [0,], n, n)
+    y = A.T.dot(W.dot(b))
+    iCov = A.T.dot(W.dot(A))
+    x = N.linalg.lstsq(iCov, y)[0]
+    return x, iCov
+
 
 #- Integrals
 # def trapz(x, xp, yp):
