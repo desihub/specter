@@ -14,6 +14,11 @@ Stephen Bailey, Fall 2012
 
 import numpy as N
 ### import scipy.sparse
+from scipy.ndimage import center_of_mass
+from numpy.polynomial import legendre
+import scipy.optimize
+
+from specter.util import gausspix
 import fitsio
 
 class PSF(object):
@@ -60,7 +65,72 @@ class PSF(object):
         else:
             self._loglam = fx[2].read()
             self._wavelength = 10**self._loglam
+            
+        #- Cache some ranges
+        self._wmin = self._wavelength.min()
+        self._wmax = self._wavelength.max()
+            
+        #- self._xsigma will be filled only if needed
+        self._xsigma = None
         
+    #-------------------------------------------------------------------------
+    #- Cross dispersion width for row-by-row extractions
+    
+    #- TODO: could be 1/3 faster if legfit was done in wavelength instead of
+    #- w -> y -> ynorm
+    def xsigma(self, ispec, wavelength):
+        """
+        Return Gaussian sigma of PSF spot in cross-dispersion direction.
+        
+        ispec : spectrum index
+        wavelength : scalar or vector wavelength(s) to evaluate spot width
+        
+        The first time this is called for a spectrum, the PSF is sampled
+        at 20 wavelengths and the variation is fit with a 5th order
+        Legendre polynomial and the coefficients are cached.
+        The actual value (and subsequent calls) use these cached
+        Legendre fits to interpolate the sigma value.  If this is not
+        fast enough and/or accurate enough, PSF subtypes may override
+        this function to provide a more accurate xsigma measurement.
+        """
+
+        #- If xsigma hasn't been called for ispec yet, fit xsigma vs.
+        #- wavelength with a Legendre polynomial and cache the coefficients
+        #- for future use.
+
+        #- First call for any spectrum
+        if self._xsigma is None:
+            self._xsigma = [None,] * self.nspec
+            
+        #- First call for this spectrum
+        if self._xsigma[ispec] is None:
+            yy = N.linspace(10, self.npix_y-10, 20)
+            ww = self.wavelength(ispec, y=yy)
+            xsig = list()  #- xsigma vs. wavelength array to fill
+            for w in ww:
+                xspot = self.pix(ispec, w).sum(axis=0)
+                xspot /= N.sum(xspot)       #- normalize for edge cases
+                xx = N.arange(len(xspot))
+                mean, sigma = scipy.optimize.curve_fit(gausspix, xx, xspot)[0]
+                xsig.append(sigma)
+            
+            #- Fit Legendre polynomial and cache coefficients
+            ### ynorm = 2.0*(yy / self.npix_y) - 1.0
+            wnorm = 2.0*(ww - self._wmin) / (self._wmax-self._wmin) - 1.0
+            self._xsigma[ispec] = legendre.legfit(wnorm, xsig, 5)
+
+        #--- DEBUG ---
+        # import IPython
+        # IPython.embed()
+        #--- DEBUG ---
+
+        #- Use cached Legendre fit to interpolate xsigma at wavelength(s)
+        ## y = self.y(ispec, wavelength)
+        ## ynorm = 2.0*(y / self.npix_y) - 1.0
+        wnorm = 2.0*(wavelength - self._wmin) / (self._wmax-self._wmin) - 1.0
+        return legendre.legval(wnorm, self._xsigma[ispec])
+            
+
     #-------------------------------------------------------------------------
     #- Evaluate the PSF into pixels
     
@@ -74,7 +144,7 @@ class PSF(object):
         """
         return self.xypix(ispec, wavelength)[2]
 
-    def _xypix(self, ispec):
+    def _xypix(self, ispec, wavelength):
         """
         Subclasses of PSF should implement this to return
         xslice, yslice, pixels[iy,ix] for their particular
