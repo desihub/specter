@@ -34,7 +34,7 @@ class TestUtil(unittest.TestCase):
         #- Test fit for other ranges
         x = N.linspace(0.0, 10.0)
         y = fit(x)
-        self.assertTrue(len(x) == len(y))  #- no very stringent...
+        self.assertTrue(len(x) == len(y))  #- not very stringent...
         
     def test_gaussX(self):
         #- Gaussian integration

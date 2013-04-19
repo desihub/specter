@@ -15,7 +15,7 @@ Stephen Bailey, Fall 2012
 import numpy as N
 ### import scipy.sparse
 from scipy.ndimage import center_of_mass
-from numpy.polynomial import legendre
+from numpy.polynomial.legendre import Legendre
 import scipy.optimize
 
 from specter.util import gausspix
@@ -74,16 +74,11 @@ class PSF(object):
         self._xsigma = None
         self._ysigma = None
 
-    #- Utility function to map wavelength -> [-1, 1] for Legendre fits
-    def _wnorm(self, w):
-        return 2.0*(w - self._wmin) / (self._wmax-self._wmin) - 1.0
-        
     #- Utility function to fit spot sigma vs. wavelength
     def _fit_spot_sigma(self, ispec, axis=0, npoly=5):
         """
         Fit the cross-sectional Gaussian sigma of PSF spots vs. wavelength.
-        Return legendre coefficients to be used with legendre.legval()
-        to predict sigma vs. wavelength.  Units are pixels.
+        Return callable Legendre object.
         
         Inputs:
             ispec : spectrum number
@@ -92,8 +87,7 @@ class PSF(object):
             npoly : order of Legendre poly to fit to sigma vs. wavelength
             
         Returns:
-            Legendre coefficients for sigma vs. wavelength; use with
-            numpy.polynomial.legendre.legval(psf._wnorm(w), c)
+            legfit such that legfit(w) returns fit at wavelengths w
         """
         
         if type(axis) is not int:
@@ -118,9 +112,9 @@ class PSF(object):
             xsig.append(sigma)
         
         #- Fit Legendre polynomial and return coefficients
-        legendre_coeff = legendre.legfit(self._wnorm(ww), xsig, npoly)
+        legfit = Legendre.fit(ww, xsig, npoly, domain=(self._wmin, self._wmax))
                 
-        return legendre_coeff
+        return legfit
 
     #-------------------------------------------------------------------------
     #- Cross dispersion width for row-by-row extractions
@@ -150,7 +144,7 @@ class PSF(object):
             self._xsigma[ispec] = self._fit_spot_sigma(ispec, axis=0, npoly=5)
 
         #- Use cached Legendre fit to interpolate xsigma at wavelength(s)
-        return legendre.legval(self._wnorm(wavelength), self._xsigma[ispec])
+        return self._xsigma[ispec](wavelength)
 
     #-------------------------------------------------------------------------
     #- Cross dispersion width for row-by-row extractions
@@ -176,8 +170,7 @@ class PSF(object):
             self._ysigma[ispec] = self._fit_spot_sigma(ispec, axis=1, npoly=5)
 
         #- Use cached Legendre fit to interpolate xsigma at wavelength(s)
-        sigma_pix = legendre.legval(self._wnorm(wavelength), self._ysigma[ispec])
-        return sigma_pix        
+        return self._ysigma[ispec](wavelength)
 
     #-------------------------------------------------------------------------
     #- Cross dispersion width for row-by-row extractions
