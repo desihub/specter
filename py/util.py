@@ -11,67 +11,6 @@ import scipy.signal
 from scipy.special import legendre
 from scipy.sparse import spdiags
 
-class LegendreFit(object):
-    """
-    Interpolation by fitting Legendre polynomials
-    
-    Code which uses this should use numpy.polynomial.legendre instead
-    """
-    def __init__(self, x, y, order=7, xmin=None, xmax=None):
-        """
-        Return a function which fits y(x) using Legendre polynomials
-        
-        Inputs:
-            x : array of x coordinates
-            y : array of y coordinates
-            order : legendre polynomial order
-            xmin, xmax : ranges to use for legendre [-1,1] mapping
-            
-        Returned object has the following member variables:
-            self.order    : input order
-            self.legendre : list of callable legendre functions
-            self.coeff    : fitted coefficients
-        """
-        #- Basic setup of array sizes, min and max
-        assert len(x) == len(y)
-        self.order = order
-
-        self.xmin = xmin if xmin is not None else N.min(x)
-        self.xmax = xmax if xmax is not None else N.max(x)
-        self.dx = float(self.xmax - self.xmin)
-
-        #- map x to range [-1,1]
-        tx = self.tx(x)
-
-        #- Legendre fit [Does this exist in scipy somewhere?]
-        A = N.zeros( (len(x), order) )
-        self.legendre = list()
-        for i in range(order):
-            self.legendre.append(legendre(i))
-            A[:, i] = self.legendre[i](tx)
-        
-        self.coeff = N.linalg.lstsq(A, y)[0]
-        
-        #- Build up function to call later when evaluating
-        self._fx = float(self.coeff[0]) * self.legendre[0]
-        for i in range(1, self.order):
-            self._fx += float(self.coeff[i]) * self.legendre[i]
-
-    def tx(self, x):
-        """
-        Return x mapped to [xmin,xmax] -> [-1,1]
-        """
-        return 2.0*(x - self.xmin) / self.dx - 1.0
-
-    def __call__(self, x):
-        """
-        Evaluate legendre polynomial fit at x (scalar or vector)
-        """
-
-        tx = self.tx(x)
-        return self._fx(tx)
-        
-
 #- 2D Linear interpolator
 class LinearInterp2D(object):
     """
