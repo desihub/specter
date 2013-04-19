@@ -15,6 +15,7 @@ def test_data_dir():
 from specter.test.test_psf import TestPixPSF, TestSpotPSF
 from specter.test.test_specio import TestSpecIO
 from specter.test.test_throughput import TestThroughput
+from specter.test.test_util import TestUtil
 
 def test():
     """
@@ -28,6 +29,7 @@ def test():
     tests.append(load(TestSpotPSF))
     tests.append(load(TestSpecIO))
     tests.append(load(TestThroughput))
+    tests.append(load(TestUtil))
     suite = unittest.TestSuite(tests)
     unittest.TextTestRunner(verbosity=2).run(suite)
     
