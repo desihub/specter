@@ -187,12 +187,49 @@ def weighted_solve(A, b, w):
     x = N.linalg.lstsq(iCov, y)[0]
     return x, iCov
 
-
-#- Integrals
-# def trapz(x, xp, yp):
-#     """
-#     Given a function yp[] sampled at values xp[], return an array of
-#     size len(xedges)-1 integating yp(xp) between the values given in x
-#     using trapezoidal integration.
-#     """
-#     raise NotImplementedError
+#- Resampling a function (e.g. a spectrum)
+def resample(x, y, edges=None, xnew=None):
+    """
+    Given a function y[] sampled at values x[], return an array of
+    size len(edges)-1 integating y(x) between the values given in edges[]
+    using trapezoidal integration.
+    
+    Alternately, supply xnew instead of edges, and it will do what you
+    probably mean: create bins by splitting the difference between each
+    of the xnew and extending by half a bin on each edge.
+    """
+    if xnew is not None and edges is not None:
+        raise ValueError("Cannot give both edges and xnew")
+    if xnew is None and edges is None:
+        raise ValueError("Must give either edges or xnew but not both")
+    
+    if xnew is not None:
+        dx = N.diff(xnew)
+        xlo = xnew[0] - dx[0]/2.0
+        xhi = xnew[-1] + dx[-1]/2.0
+        edges = N.concatenate( ([xlo,], xnew[0:-1]+dx/2.0, [xhi,]) )
+        return resample(x, y, edges=edges)
+    
+    yedge = N.interp(edges, x, y)
+    binsize = N.diff(edges)
+    result = list()
+    for i in range(len(edges)-1):
+        ii = (edges[i] < x) & (x < edges[i+1])
+        xx = N.concatenate( (edges[i:i+1], x[ii], edges[i+1:i+2]) )
+        yy = N.concatenate( (yedge[i:i+1], y[ii], yedge[i+1:i+2]) )
+        result.append( N.trapz(yy, xx) / binsize[i] )
+        
+    return N.array(result)
+    
+    
+        
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
