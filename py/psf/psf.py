@@ -70,20 +70,67 @@ class PSF(object):
         self._wmin = self._wavelength.min()
         self._wmax = self._wavelength.max()
             
-        #- self._xsigma will be filled only if needed
+        #- Filled only if needed
         self._xsigma = None
+        self._ysigma = None
+
+    #- Utility function to map wavelength -> [-1, 1] for Legendre fits
+    def _wnorm(self, w):
+        return 2.0*(w - self._wmin) / (self._wmax-self._wmin) - 1.0
         
+    #- Utility function to fit spot sigma vs. wavelength
+    def _fit_spot_sigma(self, ispec, axis=0, npoly=5):
+        """
+        Fit the cross-sectional Gaussian sigma of PSF spots vs. wavelength.
+        Return legendre coefficients to be used with legendre.legval()
+        to predict sigma vs. wavelength.  Units are pixels.
+        
+        Inputs:
+            ispec : spectrum number
+            axis  : 0 or 'x' for cross dispersion sigma;
+                    1 or 'y' or 'w' for wavelength dispersion
+            npoly : order of Legendre poly to fit to sigma vs. wavelength
+            
+        Returns:
+            Legendre coefficients for sigma vs. wavelength; use with
+            numpy.polynomial.legendre.legval(psf._wnorm(w), c)
+        """
+        
+        if type(axis) is not int:
+            if axis in ('x', 'X'):
+                axis = 0
+            elif axis in ('y', 'Y', 'w', 'W'):
+                axis = 1
+            else:
+                raise ValueError("Unknown axis type "+str(axis))
+                
+        if axis not in (0,1):
+            raise ValueError("axis must be 0, 'x', 1, 'y', or 'w'")
+            
+        yy = N.linspace(10, self.npix_y-10, 20)
+        ww = self.wavelength(ispec, y=yy)
+        xsig = list()  #- sigma vs. wavelength array to fill
+        for w in ww:
+            xspot = self.pix(ispec, w).sum(axis=axis)
+            xspot /= N.sum(xspot)       #- normalize for edge cases
+            xx = N.arange(len(xspot))
+            mean, sigma = scipy.optimize.curve_fit(gausspix, xx, xspot)[0]
+            xsig.append(sigma)
+        
+        #- Fit Legendre polynomial and return coefficients
+        legendre_coeff = legendre.legfit(self._wnorm(ww), xsig, npoly)
+                
+        return legendre_coeff
+
     #-------------------------------------------------------------------------
     #- Cross dispersion width for row-by-row extractions
-    
-    #- TODO: could be 1/3 faster if legfit was done in wavelength instead of
-    #- w -> y -> ynorm
     def xsigma(self, ispec, wavelength):
         """
-        Return Gaussian sigma of PSF spot in cross-dispersion direction.
+        Return Gaussian sigma of PSF spot in cross-dispersion direction
+        in CCD pixel units.
         
         ispec : spectrum index
-        wavelength : scalar or vector wavelength(s) to evaluate spot width
+        wavelength : scalar or vector wavelength(s) to evaluate spot sigmas
         
         The first time this is called for a spectrum, the PSF is sampled
         at 20 wavelengths and the variation is fit with a 5th order
@@ -94,42 +141,60 @@ class PSF(object):
         this function to provide a more accurate xsigma measurement.
         """
 
-        #- If xsigma hasn't been called for ispec yet, fit xsigma vs.
-        #- wavelength with a Legendre polynomial and cache the coefficients
-        #- for future use.
-
-        #- First call for any spectrum
+        #- First call for any spectrum: setup array to cache coefficients
         if self._xsigma is None:
             self._xsigma = [None,] * self.nspec
             
-        #- First call for this spectrum
+        #- First call for this spectrum: calculate coefficients & cache
         if self._xsigma[ispec] is None:
-            yy = N.linspace(10, self.npix_y-10, 20)
-            ww = self.wavelength(ispec, y=yy)
-            xsig = list()  #- xsigma vs. wavelength array to fill
-            for w in ww:
-                xspot = self.pix(ispec, w).sum(axis=0)
-                xspot /= N.sum(xspot)       #- normalize for edge cases
-                xx = N.arange(len(xspot))
-                mean, sigma = scipy.optimize.curve_fit(gausspix, xx, xspot)[0]
-                xsig.append(sigma)
-            
-            #- Fit Legendre polynomial and cache coefficients
-            ### ynorm = 2.0*(yy / self.npix_y) - 1.0
-            wnorm = 2.0*(ww - self._wmin) / (self._wmax-self._wmin) - 1.0
-            self._xsigma[ispec] = legendre.legfit(wnorm, xsig, 5)
-
-        #--- DEBUG ---
-        # import IPython
-        # IPython.embed()
-        #--- DEBUG ---
+            self._xsigma[ispec] = self._fit_spot_sigma(ispec, axis=0, npoly=5)
 
         #- Use cached Legendre fit to interpolate xsigma at wavelength(s)
-        ## y = self.y(ispec, wavelength)
-        ## ynorm = 2.0*(y / self.npix_y) - 1.0
-        wnorm = 2.0*(wavelength - self._wmin) / (self._wmax-self._wmin) - 1.0
-        return legendre.legval(wnorm, self._xsigma[ispec])
+        return legendre.legval(self._wnorm(wavelength), self._xsigma[ispec])
+
+    #-------------------------------------------------------------------------
+    #- Cross dispersion width for row-by-row extractions
+    def ysigma(self, ispec, wavelength):
+        """
+        Return Gaussian sigma of PSF spot in wavelength-dispersion direction
+        in units of pixels.
+        
+        Also see wdisp(...) which returns sigmas in units of Angstroms.
+        
+        ispec : spectrum index
+        wavelength : scalar or vector wavelength(s) to evaluate spot sigmas
+        
+        See notes in xsigma(...) about caching of Legendre fit coefficients.
+        """
+
+        #- First call for any spectrum: setup array to cache coefficients
+        if self._ysigma is None:
+            self._ysigma = [None,] * self.nspec
             
+        #- First call for this spectrum: calculate coefficients & cache
+        if self._ysigma[ispec] is None:
+            self._ysigma[ispec] = self._fit_spot_sigma(ispec, axis=1, npoly=5)
+
+        #- Use cached Legendre fit to interpolate xsigma at wavelength(s)
+        sigma_pix = legendre.legval(self._wnorm(wavelength), self._ysigma[ispec])
+        return sigma_pix        
+
+    #-------------------------------------------------------------------------
+    #- Cross dispersion width for row-by-row extractions
+    def wdisp(self, ispec, wavelength):
+        """
+        Return Gaussian sigma of PSF spot in wavelength-dispersion direction
+        in units of Angstroms.
+        
+        Also see ysigma(...) which returns sigmas in units of pixels.
+        
+        ispec : spectrum index
+        wavelength : scalar or vector wavelength(s) to evaluate spot sigmas
+        
+        See notes in xsigma(...) about caching of Legendre fit coefficients.
+        """
+        sigma_pix = self.ysigma(ispec, wavelength)
+        return self.angstroms_per_pixel(ispec, wavelength) * sigma_pix        
 
     #-------------------------------------------------------------------------
     #- Evaluate the PSF into pixels
@@ -357,6 +422,15 @@ class PSF(object):
             return N.copy(result)
         else:
             return result
+    
+    def angstroms_per_pixel(self, ispec, wavelength):
+        """
+        Return CCD pixel width in Angstroms for spectrum ispec at given
+        wavlength(s).  Wavelength may be scalar or array.
+        """
+        ww = self.wavelength(ispec, y=N.arange(self.npix_y))
+        dw = N.gradient( ww )
+        return N.interp(wavelength, ww, dw)
     
     #-------------------------------------------------------------------------
     #- Project spectra onto CCD pixels

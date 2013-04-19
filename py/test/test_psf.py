@@ -76,6 +76,28 @@ class TestPSF(unittest.TestCase):
             xsig = self.psf.xsigma(ispec, ww[i])
             self.assertTrue(xsig == xsig1[i])
         
+    #- Test wdisp
+    def test_wdisp(self):
+        yy = (20, self.psf.npix_y/2, self.psf.npix_y-20)
+        for ispec in (0, self.psf.nspec/2, self.psf.nspec-1):
+            ww = self.psf.wavelength(ispec, y=yy)
+            #- Get wdisp for several wavelengths at once
+            xsig1 = self.psf.wdisp(ispec, ww)
+            self.assertTrue(len(xsig1) == len(ww))
+            self.assertTrue(N.min(xsig1) > 0.0)                
+            
+            #- Call it again to make sure cached results agree
+            xsig2 = self.psf.wdisp(ispec, ww)
+            self.assertTrue(N.all(xsig1 == xsig2))
+            
+        #- Make sure it works for single wavelengths too
+        ispec = 0
+        ww = self.psf.wavelength(ispec, y=yy)
+        xsig1 = self.psf.wdisp(ispec, ww)
+        for i in range(len(ww)):
+            xsig = self.psf.wdisp(ispec, ww[i])
+            self.assertTrue(xsig == xsig1[i])
+        
     #- Get PSF pixel image at several locations;
     #- Just test that we get a 2D array back
     def test_pix(self):
