@@ -136,6 +136,8 @@ def resample(x, y, edges=None, xnew=None):
     Alternately, supply xnew instead of edges, and it will do what you
     probably mean: create bins by splitting the difference between each
     of the xnew and extending by half a bin on each edge.
+    
+    xnew or edges outside the range of x get 0.0
     """
     if xnew is not None and edges is not None:
         raise ValueError("Cannot give both edges and xnew")
@@ -151,14 +153,17 @@ def resample(x, y, edges=None, xnew=None):
     
     yedge = N.interp(edges, x, y)
     binsize = N.diff(edges)
-    result = list()
+    result = N.zeros(len(edges)-1)
+    iedge = N.searchsorted(x, edges)
     for i in range(len(edges)-1):
-        ii = (edges[i] < x) & (x < edges[i+1])
-        xx = N.concatenate( (edges[i:i+1], x[ii], edges[i+1:i+2]) )
-        yy = N.concatenate( (yedge[i:i+1], y[ii], yedge[i+1:i+2]) )
-        result.append( N.trapz(yy, xx) / binsize[i] )
+        ### ii = N.where( (edges[i] < x) & (x < edges[i+1]) )[0]
+        ilo, ihi = iedge[i], iedge[i+1]
+        xx = N.concatenate( (edges[i:i+1], x[ilo:ihi], edges[i+1:i+2]) )
+        yy = N.concatenate( (yedge[i:i+1], y[ilo:ihi], yedge[i+1:i+2]) )
+        result[i] = N.trapz(yy, xx) / binsize[i]
         
-    return N.array(result)
+    return result
+
     
     
         
