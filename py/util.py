@@ -72,7 +72,8 @@ def rebin(pix, n):
 def _sincfunc(x, dx, dampfac=3.25):
     """sinc helper function for sincshift()"""
     if dx != 0.0:
-        return N.exp( -((x+dx)/dampfac)**2 ) * N.sin( N.pi*(x+dx) ) / (N.pi * (x+dx))
+        xx = (x+dx)*N.pi  #- cache shifted array for 30% faster evals
+        return N.exp( -(xx/(dampfac*N.pi))**2 ) * N.sin(xx) / xx
     else:
         xx = N.zeros(len(x))
         xx[len(x)/2] = 1.0
@@ -82,7 +83,7 @@ def sincshift(image, dx, dy, sincrad=10, dampfac=3.25):
     """
     Return image shifted by dx, dy using sinc interpolation
     """
-    s = N.arange(-sincrad, sincrad+1)
+    s = N.arange(-sincrad, sincrad+1.0)
     sincx = _sincfunc(s, -dx, dampfac=dampfac)
 
     #- If we're shifting just in x, do faster 1D convolution with wraparound
@@ -95,8 +96,8 @@ def sincshift(image, dx, dy, sincrad=10, dampfac=3.25):
     kernel = N.outer(sincy, sincx)
     newimage = scipy.signal.convolve2d(image, kernel, mode='same')
     return newimage
-from scipy.special import erf
 
+from scipy.special import erf
 def gaussint(x, mean=0.0, sigma=1.0):
     """
     Return integral from -inf to x of normalized Gaussian with mean and sigma
