@@ -10,6 +10,7 @@ import numpy as N
 import scipy.signal
 from scipy.special import legendre
 from scipy.sparse import spdiags
+from scipy.signal import convolve, convolve2d
 
 #- 2D Linear interpolator
 class LinearInterp2D(object):
@@ -81,20 +82,35 @@ def _sincfunc(x, dx, dampfac=3.25):
 
 def sincshift(image, dx, dy, sincrad=10, dampfac=3.25):
     """
-    Return image shifted by dx, dy using sinc interpolation
+    Return image shifted by dx, dy using sinc interpolation.
+    
+    For speed, do each dimension independently which can introduce edge
+    effects.  Also see sincshift2d().
+    """
+    s = N.arange(-sincrad, sincrad+1.0)
+    imgshape = image.shape
+
+    if abs(dx) > 1e-6:
+        sincx = _sincfunc(s, -dx, dampfac=dampfac)
+        image = convolve(image.ravel(), sincx, mode='same')
+        image = image.reshape(imgshape)
+
+    if abs(dy) > 1e-6:
+        sincy = _sincfunc(s, -dy, dampfac=dampfac)
+        image = convolve(image.T.ravel(), sincy, mode='same')
+        image = image.reshape(imgshape).T
+
+    return image
+
+def sincshift2d(image, dx, dy, sincrad=10, dampfac=3.25):
+    """
+    Return image shifted by dx, dy using full 2D sinc interpolation
     """
     s = N.arange(-sincrad, sincrad+1.0)
     sincx = _sincfunc(s, -dx, dampfac=dampfac)
-
-    #- If we're shifting just in x, do faster 1D convolution with wraparound
-    #- WARNING: can introduce edge effects if image isn't nearly 0 at edge
-    if abs(dy) < 1e-6:
-        newimage = scipy.signal.convolve(image.ravel(), sincx, mode='same')
-        return newimage.reshape(image.shape)
-
     sincy = _sincfunc(s, -dy, dampfac=dampfac)
     kernel = N.outer(sincy, sincx)
-    newimage = scipy.signal.convolve2d(image, kernel, mode='same')
+    newimage = convolve2d(image, kernel, mode='same')
     return newimage
 
 from scipy.special import erf
