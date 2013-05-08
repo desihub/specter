@@ -155,11 +155,16 @@ def resample(x, y, edges=None, xnew=None):
     of the xnew and extending by half a bin on each edge.
     
     xnew or edges outside the range of x get 0.0
+    
+    x must be sorted in increasing order
     """
     if xnew is not None and edges is not None:
         raise ValueError("Cannot give both edges and xnew")
     if xnew is None and edges is None:
         raise ValueError("Must give either edges or xnew but not both")
+    
+    if N.any(N.diff(x) < 0.0):
+        raise ValueError("Input x must be sorted in increasing order")
     
     if xnew is not None:
         dx = N.diff(xnew)
