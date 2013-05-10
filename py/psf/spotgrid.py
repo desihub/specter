@@ -11,7 +11,7 @@ import os
 import numpy as N
 import fitsio
 from specter.psf import PSF
-from specter.util import LinearInterp2D, rebin, sincshift
+from specter.util import LinearInterp2D, rebin_image, sincshift
 
 class SpotGridPSF(PSF):
     """
@@ -73,7 +73,7 @@ class SpotGridPSF(PSF):
         ny, nx = pix.shape
         A = N.zeros(shape=(pix.shape[0]+rpix, pix.shape[1]+rpix))
         A[yoffset:yoffset+ny, xoffset:xoffset+nx] = pix
-        ccdpix = rebin(A, rpix)
+        ccdpix = rebin_image(A, rpix)
                 
         #- Fractional high-res pixel offset
         #- This can be slow; is it really necessary?
