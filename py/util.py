@@ -56,17 +56,17 @@ def psfbias(pix1, pix2):
     """
     return 1.0 - N.sum(pix1*pix2) / N.sum(pix1*pix1)
 
-def rebin(pix, n):
+def rebin_image(image, n):
     """
     rebin 2D array pix into bins of size n x n
     
     New binsize must be evenly divisible into original pix image
     """
-    assert pix.shape[0] % n == 0
-    assert pix.shape[1] % n == 0
+    assert image.shape[0] % n == 0
+    assert image.shape[1] % n == 0
     
-    s = pix.shape[0]//n, n, pix.shape[1]//n, n
-    return pix.reshape(s).sum(-1).sum(1)
+    s = image.shape[0]//n, n, image.shape[1]//n, n
+    return image.reshape(s).sum(-1).sum(1)
 
     
 #- Utility functions for sinc shifting pixelated PSFs
@@ -143,49 +143,67 @@ def weighted_solve(A, b, w):
     x = N.linalg.lstsq(iCov, y)[0]
     return x, iCov
 
-#- Resampling a function (e.g. a spectrum)
-def resample(x, y, edges=None, xnew=None):
+def trapz(edges, xp, yp):
     """
-    Given a function y[] sampled at values x[], return an array of
-    size len(edges)-1 integating y(x) between the values given in edges[]
-    using trapezoidal integration.
+    Perform trapezoidal integration between edges using sampled function
+    yp vs. xp.  Returns array of length len(edges)-1.
+        
+    Input xp array must be sorted in ascending order.
     
-    Alternately, supply xnew instead of edges, and it will do what you
-    probably mean: create bins by splitting the difference between each
-    of the xnew and extending by half a bin on each edge.
-    
-    xnew or edges outside the range of x get 0.0
-    
-    x must be sorted in increasing order
+    See also numpy.trapz, which integrates a single array
     """
-    if xnew is not None and edges is not None:
-        raise ValueError("Cannot give both edges and xnew")
-    if xnew is None and edges is None:
-        raise ValueError("Must give either edges or xnew but not both")
-    
-    if N.any(N.diff(x) < 0.0):
+    if N.any(N.diff(xp) < 0.0):
         raise ValueError("Input x must be sorted in increasing order")
     
-    if xnew is not None:
-        dx = N.diff(xnew)
-        xlo = xnew[0] - dx[0]/2.0
-        xhi = xnew[-1] + dx[-1]/2.0
-        edges = N.concatenate( ([xlo,], xnew[0:-1]+dx/2.0, [xhi,]) )
-        return resample(x, y, edges=edges)
-    
-    yedge = N.interp(edges, x, y)
-    binsize = N.diff(edges)
+    if len(xp) != len(yp):
+        raise ValueError("xp and yp must have same length")
+
+    yedge = N.interp(edges, xp, yp)
     result = N.zeros(len(edges)-1)
-    iedge = N.searchsorted(x, edges)
+    iedge = N.searchsorted(xp, edges)
     for i in range(len(edges)-1):
-        ### ii = N.where( (edges[i] < x) & (x < edges[i+1]) )[0]
         ilo, ihi = iedge[i], iedge[i+1]
-        xx = N.concatenate( (edges[i:i+1], x[ilo:ihi], edges[i+1:i+2]) )
-        yy = N.concatenate( (yedge[i:i+1], y[ilo:ihi], yedge[i+1:i+2]) )
-        result[i] = N.trapz(yy, xx) / binsize[i]
+        xx = N.concatenate( (edges[i:i+1], xp[ilo:ihi], edges[i+1:i+2]) )
+        yy = N.concatenate( (yedge[i:i+1], yp[ilo:ihi], yedge[i+1:i+2]) )
+        result[i] = N.trapz(yy, xx)
         
     return result
+    
+def model_function(x, y):
+    """
+    Find the function p(x) which integrates to y over each bin.
+    
+    Current implementation uses linear trapz interpolation between points.
+    
+    TODO: Refactor this name and interface.  Document underlying math.
+    TODO: Replace with quadratic spline instead of linear.
+    """
+    nx = len(x)
+    B = N.ones((3, nx)) * 0.75  #- B[1] = 0.75 for all entries
+    B[0,1] = B[2, -2] = 0.25
+    B[0,0] = B[-1,-1] = 0.0     #- doesn't really matter; unused
+    dx1 = x[1:] - x[0:-1]
+    dx2 = x[2:] - x[0:-2]
+    # for i in range(1, nx-1):
+    #     B[0,i+1] = 0.25*dx1[i]/dx2[i-1]
+    #     B[2,i-1] = 0.25*dx1[i-1]/dx2[i-1]    
+    B[0,2:nx] = 0.25 * dx1[1:nx-1] / dx2[0:nx-2]
+    B[2,0:nx-2] = 0.25 * dx1[0:nx-2] / dx2[0:nx-2]
+        
+    p = scipy.linalg.solve_banded((1,1), B, y)
+    return p
 
+def get_bin_edges(bin_centers):
+    """
+    Given a sorted array of bin centers, return array of bin edges
+    
+    edge[0] = center[0]
+    edge[-1] = center[-1]
+    edge[i] = 0.5*(center[i-1] + center[i]) for 0 < i < len(center)-1
+    """
+    mid = 0.5*(bin_centers[0:-1] + bin_centers[1:])
+    return N.concatenate( (bin_centers[0:1], mid, bin_centers[-1:]) )
+    
     
     
         

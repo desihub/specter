@@ -15,6 +15,7 @@ import sys
 import os
 import numpy as N
 import fitsio
+import scipy.linalg
 from specter import util
 
 #- ObjType enum
@@ -275,14 +276,24 @@ class Throughput:
         objtype and airmass.
         """
 
+        #- Find function which integrates to each bin flux
+        y = util.model_function(wavelength, flux)
+        
         #- Apply throughput, sampling at both input wavelengths and
         #- at native throughput wavelengths.
         ww = N.concatenate( (wavelength, self._wave) )
-        yflux = N.interp(ww, wavelength, flux)
-        yflux *= self.thru(ww, objtype=objtype, airmass=airmass)
+        yflux = N.interp(ww, wavelength, y)
+        t = self.thru(ww, objtype=objtype, airmass=airmass)
+        yflux *= t
+        
+        #- HACK: Only apply throughput to positive fluxes
+        # ii = N.where(yflux>0)
+        # yflux[ii] *= t[ii]
         
         #- Resample back to input wavelength binning
+        edges = util.get_bin_edges(wavelength)
+        binwidths = N.diff(edges)
         ii = N.argsort(ww)
-        binnedflux = util.resample(ww[ii], yflux[ii], xnew=wavelength)
+        binnedflux = util.trapz(edges, ww[ii], yflux[ii]) / binwidths
         return binnedflux
 
