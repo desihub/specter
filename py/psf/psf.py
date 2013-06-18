@@ -478,6 +478,16 @@ class PSF(object):
 
         return img
     
+    #- Convenience functions
+    
+    @property
+    def wmin(self):
+        return self._wmin
+
+    @property
+    def wmax(self):
+        return self._wmax
+    
     # #-------------------------------------------------------------------------
     # #- Access the projection matrix A
     # #- pix = A * phot

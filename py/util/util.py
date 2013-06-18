@@ -54,7 +54,7 @@ def psfbias(pix1, pix2):
     """
     Return bias from extracting true PSF with pix1 using PSF with pix2
     """
-    return 1.0 - N.sum(pix1*pix2) / N.sum(pix1*pix1)
+    return 1.0 - N.sum(pix1*pix2) / N.sqrt(N.sum(pix1*pix1) * N.sum(pix2*pix2))
 
 def rebin_image(image, n):
     """
@@ -204,7 +204,18 @@ def get_bin_edges(bin_centers):
     mid = 0.5*(bin_centers[0:-1] + bin_centers[1:])
     return N.concatenate( (bin_centers[0:1], mid, bin_centers[-1:]) )
     
+def resample(x, xp, yp, edges=False):
+    """
+    Resample a spectrum to a new binning
+    """
     
+    if edges:
+        edges = x
+    else:
+        edges = get_bin_edges(x)
+        
+    binwidth = N.diff(edges)
+    return trapz(edges, xp, yp) / binwidth
     
         
     
