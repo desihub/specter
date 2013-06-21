@@ -215,6 +215,30 @@ class TestPSF(unittest.TestCase):
         img[ymin:ymax, xmin:xmax] = 0.0
         self.assertTrue(N.all(img == 0.0))
         
+    #- Test the projection matrix gives same answer as psf.project()
+    def test_projection_matrix(self):
+        nspec = 5
+        nw = 20
+        w_edge = 10  #- avoid edge effects; test that separately
+        phot = N.random.uniform(100,1000, size=(nspec, nw))
+        for specmin in (0, self.psf.nspec/2, self.psf.nspec-nspec-1):
+            specrange = (specmin, specmin+nspec)
+            wspec = self.psf.wavelength(specmin, [0, self.psf.npix_y])
+            for wmin in (wspec[0]+w_edge, 0.5*(wspec[0]+wspec[1]), wspec[1]-nw-w_edge):
+                ww = N.arange(wmin, wmin+nw)
+                waverange = (ww[0], ww[-1])
+                xmin, xmax, ymin, ymax = xyrange = self.psf.xyrange(specrange, waverange)
+                nx = xmax-xmin
+                ny = ymax-ymin
+
+                img1 = self.psf.project(phot, ww, xr=(xmin, xmax), yr=(ymin,ymax), \
+                                        specmin=specmin, verbose=False)
+
+                A = self.psf.projection_matrix(specrange, ww, xyrange)
+                img2 = A.dot(phot.ravel()).reshape((ny, nx))                    
+                
+                self.assertTrue(N.all(img1==img2))
+        
     #- Test shift of PSF xy solution
     def test_shift_xy(self):
         dx, dy = 0.1, 0.2
@@ -288,6 +312,15 @@ class TestPSF(unittest.TestCase):
         #- y for all fibers at a range of wavelengths
         y = self.psf.y(None, w)
         self.assertEqual(y.shape, (self.psf.nspec, len(w)))
+
+    #- To fix: projecting off the edge of the CCD leaves us at the edge
+    @unittest.expectedFailure
+    def test_y_edge(self):
+        ispec = 0
+        wmin = self.psf.wavelength(ispec, y=0.0)
+        y0 = self.psf.y(ispec, wmin)        
+        ym = self.psf.y(ispec, wmin-1)
+        self.assertLess(ym, y0)
         
     #- Test getting x and y at the same time
     def test_xy(self):
