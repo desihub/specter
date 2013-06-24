@@ -88,5 +88,26 @@ class TestExtract(unittest.TestCase):
         self.assertTrue(N.abs(1-N.std(pull_image)) < 0.03,
                         msg="pull_image sigma is %f" % N.std(pull_image))
         
+    def test_ex2d_subimage(self):
+        specrange = (0, self.nspec)
+        waverange = self.ww[0], self.ww[-1]
+        flux, ivar, R = ex2d(self.image, self.ivar, self.psf, specrange, self.ww)
+
+        xmin, xmax, ymin, ymax = self.psf.xyrange(specrange, waverange)
+        xmin = max(0, xmin-10)
+        xmax = min(self.psf.npix_x, xmax+10)
+        ymin = max(0, ymin-10)
+        ymax = min(self.psf.npix_y, ymax+10)
+        xyrange = (xmin, xmax, ymin, ymax)
+        
+        subimg = self.image[ymin:ymax, xmin:xmax]
+        subivar = self.ivar[ymin:ymax, xmin:xmax]
+        subflux, subivar, subR = ex2d(subimg, subivar, self.psf, \
+            specrange, self.ww, xyrange=xyrange)
+
+        self.assertTrue( N.all(subflux == flux) )
+        self.assertTrue( N.all(subivar == ivar) )
+        self.assertTrue( N.all(subR == R) )
+        
 if __name__ == '__main__':
     unittest.main()           

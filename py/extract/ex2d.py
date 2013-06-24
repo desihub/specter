@@ -6,7 +6,7 @@ import numpy as N
 from scipy.sparse import spdiags, issparse
 from scipy.sparse.linalg import spsolve
 
-def ex2d(image, ivar, psf, specrange, wavelengths, full_output=False):
+def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None, full_output=False):
     """
     2D PSF extraction of flux from image given pixel inverse variance.
     
@@ -17,24 +17,30 @@ def ex2d(image, ivar, psf, specrange, wavelengths, full_output=False):
         specrange : (specmin, specmax) inclusive to extract
         wavelengths : 1D array of wavelengths to extract
         
+    Optional Inputs:
+        xyrange = (xmin, xmax, ymin, ymax): treat image as a subimage
+            cutout of this region from the full image
+        full_output : if True, return a dictionary of outputs including
+            intermediate outputs such as the projection matrix.
+        
     Returns (flux, ivar, R):
         flux[nspec, nwave] = extracted resolution convolved flux
         ivar[nspec, nwave] = inverse variance of flux
         R : 2D resolution matrix to convert
-        
-    if full_output is True, return dictionary of the above plus additional
-    intermediate outputs such as the projection matrix.
-        
-    To do: Add ability to input subimage instead of entire image
     """
     
     #- Range of image to consider
     waverange = (wavelengths[0], wavelengths[-1])
-    xmin, xmax, ymin, ymax = xyrange = psf.xyrange(specrange, waverange)
+    
+    if xyrange is None:
+        xmin, xmax, ymin, ymax = xyrange = psf.xyrange(specrange, waverange)
+        image = image[ymin:ymax, xmin:xmax]
+        ivar = ivar[ymin:ymax, xmin:xmax]
+    else:
+        xmin, xmax, ymin, ymax = xyrange
+
     nx, ny = xmax-xmin, ymax-ymin
     npix = nx*ny
-    image = image[ymin:ymax, xmin:xmax]
-    ivar = ivar[ymin:ymax, xmin:xmax]
     
     nspec = specrange[1] - specrange[0]
     nflux = len(wavelengths)
