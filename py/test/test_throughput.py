@@ -15,7 +15,7 @@ class TestThroughput(unittest.TestCase):
     def setUp(self):
         self.thru = load_throughput(test_data_dir()+'/throughput.fits')
         self.w = N.arange(5000, 9000, 1)
-        self.flux = N.random.uniform(0,1, size=self.w.shape) * 1e-17
+        self.flux = N.random.uniform(1,2, size=self.w.shape) * 1e-17
         self.photflux = N.random.uniform(0,1, size=self.w.shape)
         
     def test_effarea(self):
@@ -91,7 +91,7 @@ class TestThroughput(unittest.TestCase):
         units = [
             "photon",
             "photon/A",
-            "photon/A/arcsec^2",
+            ### "photon/A/arcsec^2",
         ]
         for u in units:
             p = self.thru.photons(self.w, self.photflux, units=u, objtype='STAR')
@@ -118,9 +118,45 @@ class TestThroughput(unittest.TestCase):
         p1 = self.thru.photons(self.w, self.flux, objtype='CALIB', airmass=1.0)
         p2 = self.thru.photons(self.w, self.flux, objtype='SKY', airmass=1.0)
         p3 = self.thru.photons(self.w, self.flux, objtype='STAR', airmass=1.0)
+        
         self.assertTrue( N.all( (p1>p2) | (p1==0.0) ) )
         self.assertTrue( N.all( (p2>p3) | (p2==0.0) ) )
         self.assertTrue( N.any(p3>0.0) )
+
+    def test_apply_throughput(self):
+        f1 = self.thru.apply_throughput(self.w, self.flux, objtype='CALIB')
+        f2 = self.thru.apply_throughput(self.w, self.flux, objtype='SKY')
+        f3 = self.thru.apply_throughput(self.w, self.flux, objtype='STAR')
+    
+        self.assertTrue( N.all( (f1>f2) | (f1==0.0) ) )
+        self.assertTrue( N.all( (f2>f3) | (f2==0.0) ) )
+        self.assertTrue( N.any(f3>0.0) )
+        
+        self.assertTrue( N.all(f1 <= self.flux) )
+        self.assertTrue( N.all(f2 <= self.flux) )
+        self.assertTrue( N.all(f3 <= self.flux) )
+    
+        self.assertTrue( N.all(f2 <= f1) )
+        self.assertTrue( N.all(f3 <= f2) )
+
+    #- Throughputs don't work when the model goes negative.
+    #- Should we have less negative flux, or even more negative flux?
+    #- The can happen even when the integrated flux in a bin is positive
+    #- but the underlying model fit goes negative.
+    #- This test is a placeholder to remind us of this issue.
+    @unittest.expectedFailure
+    def test_low_flux(self):
+        flux = N.random.uniform(0, 1, len(self.w))
+        f1 = self.thru.apply_throughput(self.w, flux, objtype='CALIB')
+        f2 = self.thru.apply_throughput(self.w, flux, objtype='SKY')
+        f3 = self.thru.apply_throughput(self.w, flux, objtype='STAR')
+
+        self.assertTrue( N.all(f1 <= flux) )
+        self.assertTrue( N.all(f2 <= flux) )
+        self.assertTrue( N.all(f3 <= flux) )
+
+        self.assertTrue( N.all(f2 <= f1) )
+        self.assertTrue( N.all(f3 <= f2) )
             
 if __name__ == '__main__':
     unittest.main()            

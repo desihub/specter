@@ -14,6 +14,11 @@ Stephen Bailey, Fall 2012
 
 import numpy as N
 ### import scipy.sparse
+from scipy.ndimage import center_of_mass
+from numpy.polynomial.legendre import Legendre
+import scipy.optimize
+
+from specter.util import gausspix
 import fitsio
 
 class PSF(object):
@@ -60,7 +65,130 @@ class PSF(object):
         else:
             self._loglam = fx[2].read()
             self._wavelength = 10**self._loglam
+            
+        #- Cache some ranges
+        self._wmin = self._wavelength.min()
+        self._wmax = self._wavelength.max()
+            
+        #- Filled only if needed
+        self._xsigma = None
+        self._ysigma = None
+
+    #- Utility function to fit spot sigma vs. wavelength
+    def _fit_spot_sigma(self, ispec, axis=0, npoly=5):
+        """
+        Fit the cross-sectional Gaussian sigma of PSF spots vs. wavelength.
+        Return callable Legendre object.
         
+        Inputs:
+            ispec : spectrum number
+            axis  : 0 or 'x' for cross dispersion sigma;
+                    1 or 'y' or 'w' for wavelength dispersion
+            npoly : order of Legendre poly to fit to sigma vs. wavelength
+            
+        Returns:
+            legfit such that legfit(w) returns fit at wavelengths w
+        """
+        
+        if type(axis) is not int:
+            if axis in ('x', 'X'):
+                axis = 0
+            elif axis in ('y', 'Y', 'w', 'W'):
+                axis = 1
+            else:
+                raise ValueError("Unknown axis type "+str(axis))
+                
+        if axis not in (0,1):
+            raise ValueError("axis must be 0, 'x', 1, 'y', or 'w'")
+            
+        yy = N.linspace(10, self.npix_y-10, 20)
+        ww = self.wavelength(ispec, y=yy)
+        xsig = list()  #- sigma vs. wavelength array to fill
+        for w in ww:
+            xspot = self.pix(ispec, w).sum(axis=axis)
+            xspot /= N.sum(xspot)       #- normalize for edge cases
+            xx = N.arange(len(xspot))
+            mean, sigma = scipy.optimize.curve_fit(gausspix, xx, xspot)[0]
+            xsig.append(sigma)
+        
+        #- Fit Legendre polynomial and return coefficients
+        legfit = Legendre.fit(ww, xsig, npoly, domain=(self._wmin, self._wmax))
+                
+        return legfit
+
+    #-------------------------------------------------------------------------
+    #- Cross dispersion width for row-by-row extractions
+    def xsigma(self, ispec, wavelength):
+        """
+        Return Gaussian sigma of PSF spot in cross-dispersion direction
+        in CCD pixel units.
+        
+        ispec : spectrum index
+        wavelength : scalar or vector wavelength(s) to evaluate spot sigmas
+        
+        The first time this is called for a spectrum, the PSF is sampled
+        at 20 wavelengths and the variation is fit with a 5th order
+        Legendre polynomial and the coefficients are cached.
+        The actual value (and subsequent calls) use these cached
+        Legendre fits to interpolate the sigma value.  If this is not
+        fast enough and/or accurate enough, PSF subtypes may override
+        this function to provide a more accurate xsigma measurement.
+        """
+
+        #- First call for any spectrum: setup array to cache coefficients
+        if self._xsigma is None:
+            self._xsigma = [None,] * self.nspec
+            
+        #- First call for this spectrum: calculate coefficients & cache
+        if self._xsigma[ispec] is None:
+            self._xsigma[ispec] = self._fit_spot_sigma(ispec, axis=0, npoly=5)
+
+        #- Use cached Legendre fit to interpolate xsigma at wavelength(s)
+        return self._xsigma[ispec](wavelength)
+
+    #-------------------------------------------------------------------------
+    #- Cross dispersion width for row-by-row extractions
+    def ysigma(self, ispec, wavelength):
+        """
+        Return Gaussian sigma of PSF spot in wavelength-dispersion direction
+        in units of pixels.
+        
+        Also see wdisp(...) which returns sigmas in units of Angstroms.
+        
+        ispec : spectrum index
+        wavelength : scalar or vector wavelength(s) to evaluate spot sigmas
+        
+        See notes in xsigma(...) about caching of Legendre fit coefficients.
+        """
+
+        #- First call for any spectrum: setup array to cache coefficients
+        if self._ysigma is None:
+            self._ysigma = [None,] * self.nspec
+            
+        #- First call for this spectrum: calculate coefficients & cache
+        if self._ysigma[ispec] is None:
+            self._ysigma[ispec] = self._fit_spot_sigma(ispec, axis=1, npoly=5)
+
+        #- Use cached Legendre fit to interpolate xsigma at wavelength(s)
+        return self._ysigma[ispec](wavelength)
+
+    #-------------------------------------------------------------------------
+    #- Cross dispersion width for row-by-row extractions
+    def wdisp(self, ispec, wavelength):
+        """
+        Return Gaussian sigma of PSF spot in wavelength-dispersion direction
+        in units of Angstroms.
+        
+        Also see ysigma(...) which returns sigmas in units of pixels.
+        
+        ispec : spectrum index
+        wavelength : scalar or vector wavelength(s) to evaluate spot sigmas
+        
+        See notes in xsigma(...) about caching of Legendre fit coefficients.
+        """
+        sigma_pix = self.ysigma(ispec, wavelength)
+        return self.angstroms_per_pixel(ispec, wavelength) * sigma_pix        
+
     #-------------------------------------------------------------------------
     #- Evaluate the PSF into pixels
     
@@ -74,7 +202,7 @@ class PSF(object):
         """
         return self.xypix(ispec, wavelength)[2]
 
-    def _xypix(self, ispec):
+    def _xypix(self, ispec, wavelength):
         """
         Subclasses of PSF should implement this to return
         xslice, yslice, pixels[iy,ix] for their particular
@@ -138,6 +266,9 @@ class PSF(object):
         
         spec_range = indices specmin,specmax inclusive (not python style)
         wave_range = wavelength range wavemin,wavemax inclusive
+        
+        BUG: will fail if asking for a range where one of the spectra is
+        completely off the CCD
         """
         specmin, specmax = spec_range
         wavemin, wavemax = wave_range
@@ -145,30 +276,32 @@ class PSF(object):
         #- Find the spectra with the smallest/largest y centroids
         ispec_ymin = specmin + N.argmin(self.y(None, wavemin)[specmin:specmax+1])
         ispec_ymax = specmin + N.argmax(self.y(None, wavemax)[specmin:specmax+1])
-        
-        #- Now for wavelength where x = min(x), while staying on CCD
-        #- and within wavlength range
-        w = self.wavelength(specmin)
-        x = self.x(specmin)
-        y = self.y(specmin)
-        ii = (0 <= y) & (y < self.npix_y) & (wavemin <= w) & (w <= wavemax)
-        ww, xx = w[ii], x[ii]
-        wxmin = ww[ N.argmin(xx) ]
-
-        #- and wavelength where x = max(x)
-        w = self.wavelength(specmax)
-        x = self.x(specmax)
-        y = self.y(specmax)
-        ii = (0 <= y) & (y < self.npix_y) & (wavemin <= w) & (w <= wavemax)
-        ww, xx = w[ii], x[ii]
-        wxmax = ww[ N.argmax(xx) ]
-                
-        #- pixel ranges on CCD
-        xmin = self.xypix(specmin, wxmin)[0].start
-        xmax = self.xypix(specmax, wxmax)[0].stop
         ymin = self.xypix(ispec_ymin, wavemin)[1].start
         ymax = self.xypix(ispec_ymax, wavemax)[1].stop
-                        
+        
+        #- Now for wavelength where x = min(x),
+        #- while staying on CCD and within wavelength range
+        w = self.wavelength(specmin)
+        ii = (wavemin < w) & (w < wavemax)
+        ww = N.concatenate( ([wavemin,], w[ii], [wavemax,]) )
+        x = self.x(specmin, ww)
+        if min(x) < 0:
+            xmin = 0.0
+        else:
+            wxmin = ww[N.argmin(x)]
+            xmin = self.xypix(specmin, wxmin)[0].start
+            
+        #- and wavelength where x = max(x)
+        w = self.wavelength(specmax)
+        ii = (wavemin < w) & (w < wavemax)
+        ww = N.concatenate( ([wavemin,], w[ii], [wavemax,]) )
+        x = self.x(specmax, ww)
+        if max(x) > self.npix_x:
+            xmax = self.npix_x
+        else:
+            wxmax = ww[N.argmax(x)]
+            xmax = self.xypix(specmax, wxmax)[0].stop
+                                        
         return (xmin, xmax, ymin, ymax)
     
     #-------------------------------------------------------------------------
@@ -288,9 +421,18 @@ class PSF(object):
         else:
             return result
     
+    def angstroms_per_pixel(self, ispec, wavelength):
+        """
+        Return CCD pixel width in Angstroms for spectrum ispec at given
+        wavlength(s).  Wavelength may be scalar or array.
+        """
+        ww = self.wavelength(ispec, y=N.arange(self.npix_y))
+        dw = N.gradient( ww )
+        return N.interp(wavelength, ww, dw)
+    
     #-------------------------------------------------------------------------
     #- Project spectra onto CCD pixels
-    def project(self, phot, wavelength, specmin=0, xr=None, yr=None, verbose=True):
+    def project(self, phot, wavelength, specmin=0, xr=None, yr=None, verbose=False):
         """
         Returns 2D image of spectra projected onto the CCD
 
@@ -330,8 +472,7 @@ class PSF(object):
                 wspec = wavelength
                 
             #- Only eval non-zero fluxes of wavelengths covered by this PSF
-            wpsf = self.wavelength(ispec)
-            wmin, wmax = wpsf[0], wpsf[-1]
+            wmin, wmax = self.wavelength(ispec, y=(0, self.npix_y))
             for j, w in enumerate(wspec):
                 if phot[i,j] > 0.0 and wmin <= w and w <= wmax:
                     xx, yy, pix = self.xypix(ispec, w)
@@ -341,79 +482,54 @@ class PSF(object):
 
         return img
     
-    # #-------------------------------------------------------------------------
-    # #- Access the projection matrix A
-    # #- pix = A * phot
-    #
-    # #- NOTE: these are copied from bbspec PSF classes, used for extracting
-    # #-       spectra, which isn't a part of specter (yet).
-    # #-       This code is kept here for future reference.
-    # 
-    # def _reslice(self, xslice, yslice, data, xy_range):
-    #     """
-    #     shift xslice, yslice, and subsample data to match an xy_range,
-    #     taking boundaries into account.
-    #     """
-    # 
-    #     #- Check boundaries
-    #     xmin, xmax, ymin, ymax = xy_range
-    #     if xslice.start < xmin:
-    #         dx = xmin - xslice.start
-    #         xslice = slice(xmin, xslice.stop)
-    #         data = data[:, dx:]
-    #     if xslice.stop > xmax:
-    #         dx = xslice.stop - xmax
-    #         xslice = slice(xslice.start, xmax)
-    #         data = data[:, :-dx]
-    #     if yslice.start < ymin:
-    #         dy = ymin - yslice.start
-    #         yslice = slice(ymin, yslice.stop)
-    #         data = data[dy:, :]
-    #     if yslice.stop > ymax:
-    #         dy = yslice.stop - ymax
-    #         yslice = slice(yslice.start, ymax)
-    #         data = data[:-dy, :]
-    #         
-    #     #- Shift slices    
-    #     xslice = slice(xslice.start-xmin, xslice.stop-xmin)
-    #     yslice = slice(yslice.start-ymin, yslice.stop-ymin)
-    # 
-    #     return xslice, yslice, data
-    #     
-    # 
-    # def getAx(self, spec_range, flux_range, pix_range):
-    #     """
-    #     Returns sparse projection matrix from flux to pixels
-    # 
-    #     Inputs:
-    #         spec_range = (ispecmin, ispecmax)
-    #         flux_range = (ifluxmin, ifluxmax)
-    #         pix_range  = (xmin, xmax, ymin, ymax)
-    #     """
-    # 
-    #     #- Matrix dimensions
-    #     specmin, specmax = spec_range
-    #     fluxmin, fluxmax = flux_range
-    #     xmin, xmax, ymin, ymax = pix_range        
-    #     nspec = specmax - specmin
-    #     nflux = fluxmax - fluxmin
-    #     nx = xmax - xmin
-    #     ny = ymax - ymin
-    # 
-    #     #- Generate A
-    #     A = N.zeros( (ny*nx, nspec*nflux) )
-    #     tmp = N.zeros((ny, nx))
-    #     for ispec in range(specmin, specmax):
-    #         for iflux in range(fluxmin, fluxmax):
-    #             #- Get subimage and index slices
-    #             xslice, yslice, pix = self.pix(ispec, iflux, xyrange=True)
-    #             xslice, yslice, pix = self._reslice(xslice, yslice, pix, pix_range)
-    #             
-    #             #- If there is overlap with pix_range, put into sub-region of A
-    #             if pix.shape[0]>0 and pix.shape[1]>0:              
-    #                 tmp[yslice, xslice] = pix
-    #                 ij = (ispec-specmin)*nflux + iflux-fluxmin
-    #                 A[:, ij] = tmp.ravel()
-    #                 tmp[yslice, xslice] = 0.0
-    # 
-    #     return scipy.sparse.csr_matrix(A)    
+    #- Convenience functions
+    
+    @property
+    def wmin(self):
+        return self._wmin
+
+    @property
+    def wmax(self):
+        return self._wmax
+    
+    def projection_matrix(self, spec_range, wavelengths, xyrange):
+        """
+        Returns sparse projection matrix from flux to pixels
+    
+        Inputs:
+            spec_range = (ispecmin, ispecmax)
+            wavelengths = array_like wavelengths
+            xyrange  = (xmin, xmax, ymin, ymax)
+            
+        Usage:
+            xyrange = xmin, xmax, ymin, ymax
+            A = psf.projection_matrix(spec_range, wavelengths, xyrange)
+            nx = xmax-xmin
+            ny = ymax-ymin
+            img = A.dot(phot.ravel()).reshape((ny,nx))
+        """
+    
+        #- Matrix dimensions
+        specmin, specmax = spec_range
+        xmin, xmax, ymin, ymax = xyrange        
+        nspec = specmax - specmin
+        nflux = len(wavelengths)
+        nx = xmax - xmin
+        ny = ymax - ymin
+    
+        #- Generate A
+        A = N.zeros( (ny*nx, nspec*nflux) )
+        tmp = N.zeros((ny, nx))
+        for ispec in range(specmin, specmax):
+            for iflux, w in enumerate(wavelengths):
+                #- Get subimage and index slices
+                xslice, yslice, pix = self.xypix(ispec, w, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
+                
+                #- If there is overlap with pix_range, put into sub-region of A
+                if pix.shape[0]>0 and pix.shape[1]>0:              
+                    tmp[yslice, xslice] = pix
+                    ij = (ispec-specmin)*nflux + iflux
+                    A[:, ij] = tmp.ravel()
+                    tmp[yslice, xslice] = 0.0
+    
+        return scipy.sparse.csr_matrix(A)    

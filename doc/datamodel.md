@@ -263,13 +263,61 @@ HDU 0-2 : Same as Base PSF: X, Y, wavelength or loglam of traces
 wavelength `spotwave[j]`.  Its center is located on the CCD at
 `spotx[i,j], spoty[i,j]`.
 
+Pixellated PSF PCA expansion
+----------------------------
+PSFTYPE = "PCA-PIX"
+
+This format is a PCA-like pixelated model such that
+
+    pix = ConstImage + x*ImageX + y*ImageY + x*y*ImageXY + ...
+
+HDU 0-2 : Same as Base PSF: X, Y, wavelength or loglam of traces
+
+HDU 3 : table with x and y exponents to use for each image model
+
+    Columns IMODEL, XEXP, YEXP
+    One row per model image
+
+HDU 4 : table with x and y scale factors
+
+    Columns IGROUP, X0, XSCALE, Y0, YSCALE
+    One row per fiber
+    
+The model images are separately calculated for groups of fibers
+(could be bundles, but doesn't have to be).  Within each group,
+the x and y dimensions are rescaled such that
+
+    x = xscale * (xpix - x0)
+    y = yscale * (ypix - y0)
+
+HDU 5 : 4-D array with the PSF images
+
+    Array[IGROUP, IMODEL, IY, IX]
+    
+e.g. to find the PSF for ifiber iflux:
+
+    xpix = HDU0[ifiber, iflux]
+    ypix = HDU1[ifiber, iflux]
+    x0 = HDU4.X0[ifiber]
+    y0 = HDU4.Y0[ifiber]
+    xscale = HDU4.XSCALE[ifiber]
+    yscale = HDU4.YSCALE[ifiber]    
+    x = xscale*(xpix - x0)
+    y = yscale*(ypix - y0)
+    
+    igroup = HDU4.IGROUP[ifiber]
+    psf = [BlankImage]
+    for imodel in range( len(HDU3) ):
+        xexp = HDU3.XEXP[imodel]
+        yexp = HDU3.YEXP[imodel]
+        psf += x^xexp * y^yexp * HDU5[igroup, imodel]
+
 Other PSF Formats
 -----------------
 
 Specter grew out of "bbspec" which includes PSF formats for:
 
   * 2D rotated asymmetric Gaussian
-  * Pixelized PCA expansion
   * Gauss-Hermite polynomials
 
 These are structurally compatible with Specter PSFs but haven't been

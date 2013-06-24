@@ -15,6 +15,8 @@ import sys
 import os
 import numpy as N
 import fitsio
+import scipy.linalg
+from specter import util
 
 #- ObjType enum
 class ObjType:
@@ -84,6 +86,10 @@ class Throughput:
         self.effarea = float(effarea)
         self.fiberdia = float(fiberdia)
         
+        #- Flux -> photons conversion constant
+        #-         h [erg s]      * c [m/s]      * [1e10 A/m] = [erg A]
+        self._hc = 6.62606957e-27 * 2.99792458e8 * 1e10
+        
         if fiberinput is not None:
             if isinstance(fiberinput, float):
                 self._fiberinput = N.ones(len(wave)) * fiberinput
@@ -91,6 +97,10 @@ class Throughput:
                 self._fiberinput = N.copy(fiberinput)
         else:
             self._fiberinput = N.ones(len(wave))
+    
+    @property
+    def fiberarea(self):
+        return N.pi * self.fiberdia**2 / 4.0
         
     def extinction(self, wavelength):
         """
@@ -122,9 +132,10 @@ class Throughput:
         """
         return N.interp(wavelength, self._wave, self._thru, left=0.0, right=0.0)
         
-    def __call__(self, wavelength, objtype=ObjType.STAR, airmass=1.0):
+    def _throughput(self, objtype=ObjType.STAR, airmass=1.0):
         """
-        Returns system throughput at requested wavelength(s)
+        Returns system throughput for this object type and airmass
+        at the native wavelengths of this Throughput object (self._wave)
         
         objtype may be any of the ObjType enumerated types
             CALIB : atmospheric extinction and fiber input losses not applied
@@ -141,6 +152,19 @@ class Throughput:
         else:
             T = self._thru * Tatm * self._fiberinput
             
+        return T
+
+    def __call__(self, wavelength, objtype=ObjType.STAR, airmass=1.0):
+        """
+        Returns system throughput at requested wavelength(s)
+        
+        objtype may be any of the ObjType enumerated types
+            CALIB : atmospheric extinction and fiber input losses not applied
+            SKY   : fiber input losses are not applied
+            other : all throughput losses are applied
+        """
+
+        T = self._throughput(objtype=objtype, airmass=airmass)
         return N.interp(wavelength, self._wave, T, left=0.0, right=0.0)
 
     def thru(self, *args, **kwargs):
@@ -152,13 +176,16 @@ class Throughput:
     def photons(self, wavelength, flux, units="erg/s/cm^2/A", \
                 objtype="STAR", exptime=None, airmass=1.0):
         """
-        Returns photons observed by CCD given input flux vs. wavelength,
-        flux units, and object type, using this throughput model.
+        Returns photons per bin given input flux vs. wavelength,
+        flux units, object type, exposure time, and airmass.
+        
+        NOTE: Returns raw photons per wavelength bin,
+              *not* photons/A sampled at these wavelengths
 
         Inputs
         ------
         wavelength : input wavelength array in Angstroms
-        flux       : input flux or photons; same length as `wavelength`
+        flux       : input flux; same length as `wavelength`
         units      : units of `flux`
           * Treated as delta functions at each given wavelength:
             - "photons"
@@ -168,16 +195,12 @@ class Throughput:
             - "erg/s/cm^2/A"
             - "erg/s/cm^2/A/arcsec^2"
 
-        For the per-Angstrom units options ("/A"), the user is responsible for
-        providing a fine enough wavelength sampling that multiplying
-        by the bin width is a reasonable approximation of the integration.
-
         "photon" and "photon/A" are as observed by CCD and are returned
         without applying throughput terms.
 
         Optional Inputs
         ---------------
-        objtype : string, optional; object type for Throuput object.
+        objtype : string, optional; object type for Throughput object.
             SKY - atmospheric extinction and telescope+instrument throughput
                     applied, but not fiber input geometric losses.
             CALIB - telescope+instrument throughtput applied, but not
@@ -193,81 +216,84 @@ class Throughput:
         i.e. not per-Angstrom.
 
         Stephen Bailey, LBL
-        January 2013
+        May 2013
         """
-
-        #- Allow some sloppiness in units
+        
+        #- Wavelength bin size
+        dw = N.gradient(wavelength)
+        
+        #- Standardize units; allow some sloppiness
         units = units.strip()  #- FITS pads short strings with spaces (!)
         units = units.replace("ergs", "erg")
         units = units.replace("photons", "photon")
         units = units.replace("Angstroms", "A")
         units = units.replace("Angstrom", "A")
         units = units.replace("**", "^")
-
-        #- check if units have numerical scaling prefix
-        #- e.g. "1e-16 erg/s/cm^2/A"
-        try:
-            pre, xunit = units.split()
-            flux = float(pre) * flux
-            units = xunit
-        except:
-            pass
-
-        #- Flux -> photons conversion constants
-        #-   h [erg s] * c [m/s] * [1e10 A/m] = [erg A]
-        h_c = 6.62606957e-27 * 2.99792458e8 * 1e10
-
+        
         #- Default exposure time
         if exptime is None:
             exptime = self.exptime
-
-        #- photons (delta functions at given wavelengths)
+        
+        #- Input photons; return photons per bin (not photons per Angstrom)
         if units == "photon":
             return flux
-
-        #- photon/A
         elif units == "photon/A":
-            #- photon/A * width(A) -> photons
-            phot = flux * N.gradient(wavelength)
-            return phot
+            return flux * dw
 
-        #- photon/A/arcsec^2
-        elif units == "photon/A/arcsec^2":
-            #- photon/A/arcsec^2 * width(A) -> photons/arcsec^2
-            phot = flux * N.gradient(wavelength)
-            #- multiply by area to get final photons
-            phot *= self.effarea
-            return phot
+        #- Sanity check on units
+        if not units.startswith('erg'):
+            raise ValueError, "Unrecognized units " + units
 
-        #- erg/s/cm^2 (flux delta functions at given wavelengths)
-        elif units == "erg/s/cm^2":
-            phot = flux * wavelength / h_c              #- photon/s/cm^2
-            phot *= self.effarea                        #- photon/s
-            phot *= exptime                             #- photon
-            return phot * self.thru(wavelength, objtype=objtype, airmass=airmass)
+        #- If we got here, we need to apply throughputs
+        flux = self.apply_throughput(wavelength, flux,
+                                 objtype=objtype, airmass=airmass)
+        
+        #- Convert to photons
+        phot = flux * wavelength / self._hc
+        
+        #- erg/s/cm^2/A (i.e. Flambda, astronomical object)
+        if units == "erg/s/cm^2/A":
+            return phot * exptime * self.effarea * dw
             
-        elif units == "erg/s/cm^2/arcsec^2":
-            phot = flux * wavelength / h_c              #- photon/s/cm^2/arcsec^2
-            phot *= self.effarea                        #- photon/s/arcsec^2
-            phot *= exptime                             #- photon/arcsec^2
-            phot *= N.pi * self.fiberdia**2 / 4.0       #- photon
-            return phot * self.thru(wavelength, objtype=objtype, airmass=airmass)
-            
-        #- erg/s/cm^2/A (e.g. astronomical object)
-        elif units == "erg/s/cm^2/A":
-            phot = flux * wavelength / h_c              #- photon/s/cm^2/A
-            phot *= self.effarea                        #- photon/s/A
-            phot *= exptime                             #- photon/A
-            phot *= N.gradient(wavelength)              #- photons
-            return phot * self.thru(wavelength, objtype=objtype, airmass=airmass)
-
         #- erg/s/cm^2/A/arcsec^2 (e.g. sky)
         elif units == "erg/s/cm^2/A/arcsec^2":
-            f = flux * N.pi * self.fiberdia**2 / 4.0    #- erg/s/cm^2/A
-            return self.photons(wavelength, f, units="erg/s/cm^2/A", \
-                           objtype=objtype, exptime=exptime, airmass=airmass)
+            return phot * exptime * self.effarea * dw * self.fiberarea
+            
+        #- erg/s/cm^2 (not per A; flux delta functions at given wavelengths)
+        elif units == "erg/s/cm^2":
+            return phot * exptime * self.effarea
 
+        #- erg/s/cm^2/arcsec^2 (not per A; intensity delta functions)
+        elif units == "erg/s/cm^2/arcsec^2":
+            return phot * exptime * self.effarea * self.fiberarea
+            
         else:
             raise ValueError, "Unrecognized units " + units
-    
         
+    def apply_throughput(self, wavelength, flux, objtype="STAR", airmass=1.0):
+        """
+        Returns flux array with throughputs applied for given
+        objtype and airmass.
+        """
+
+        #- Find function which integrates to each bin flux
+        y = util.model_function(wavelength, flux)
+        
+        #- Apply throughput, sampling at both input wavelengths and
+        #- at native throughput wavelengths.
+        ww = N.concatenate( (wavelength, self._wave) )
+        yflux = N.interp(ww, wavelength, y)
+        t = self.thru(ww, objtype=objtype, airmass=airmass)
+        yflux *= t
+        
+        #- HACK: Only apply throughput to positive fluxes
+        # ii = N.where(yflux>0)
+        # yflux[ii] *= t[ii]
+        
+        #- Resample back to input wavelength binning
+        edges = util.get_bin_edges(wavelength)
+        binwidths = N.diff(edges)
+        ii = N.argsort(ww)
+        binnedflux = util.trapz(edges, ww[ii], yflux[ii]) / binwidths
+        return binnedflux
+

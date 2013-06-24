@@ -10,6 +10,13 @@ import fitsio
 import numpy as N
 
 def read_simspec(filename):
+    """
+    Read an input simulated spectrum file, parse the various format
+    options, and return a standardized spectrum dictionary for use.
+    
+    Returns a dictionary with keys flux, wavelength, units, objtype
+    """
+    
     fx = fitsio.FITS(filename)
     is_image = fx[0].has_data()
     fx.close()
@@ -20,6 +27,11 @@ def read_simspec(filename):
         return read_simspec_table(filename)
 
 def read_simspec_image(filename):
+    """
+    Read an input simulated spectrum file formatted in multi-HDU FITS images.
+    
+    Returns a dictionary with keys flux, wavelength, units, objtype
+    """
     fx = fitsio.FITS(filename)
     flux = fx[0].read()
     header = fx[0].read_header()
@@ -31,6 +43,9 @@ def read_simspec_image(filename):
         nwave = flux.shape[-1]
         w = header['CRVAL1'] + N.arange(nwave) * header['CDELT1']
         if 'LOGLAM' in header and header['LOGLAM']:
+            w = 10**w
+        #- DC-FLAG is deprecated, but still support it
+        elif 'DC-FLAG' in header and header['DC-FLAG']:
             w = 10**w
 
     #- Convert wavelength to 2D if needed
@@ -50,8 +65,7 @@ def read_simspec_image(filename):
 
 def read_simspec_table(filename):
     """
-    Read an input simulated spectrum file, parse the various format
-    options, and return a standardized spectrum dictionary for use.
+    Read an input simulated spectrum file formatted as a FITS binary table.
     
     Returns a dictionary with keys flux, wavelength, units, objtype
     """
@@ -68,7 +82,10 @@ def read_simspec_table(filename):
     else:
         nwave = spectra.flux.shape[-1]
         w = header['CRVAL1'] + N.arange(nwave) * header['CDELT1']
-        if header['DC-FLAG'] > 0:
+        if 'LOGLAM' in header and header['LOGLAM']:
+            w = 10**w
+        #- DC-FLAG is deprecated, but still support it
+        elif 'DC-FLAG' in header and header['DC-FLAG']:
             w = 10**w
 
     #- Convert wavelength to 2D if needed

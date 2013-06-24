@@ -11,7 +11,7 @@ import os
 import numpy as N
 import fitsio
 from specter.psf import PSF
-from specter.util import LinearInterp2D, rebin, sincshift
+from specter.util import LinearInterp2D, rebin_image, sincshift
 
 class SpotGridPSF(PSF):
     """
@@ -41,8 +41,8 @@ class SpotGridPSF(PSF):
         pp = self._spotpos
         ww = self._spotwave
         self._fspot = LinearInterp2D(pp, ww, self._spots)
-        self._fx    = LinearInterp2D(pp, ww, self._spotx)
-        self._fy    = LinearInterp2D(pp, ww, self._spoty)
+        # self._fx    = LinearInterp2D(pp, ww, self._spotx)
+        # self._fy    = LinearInterp2D(pp, ww, self._spoty)
         
         #- Read spot vs. CCD pixel scales from header
         hdr = fx[0].read_header()
@@ -58,8 +58,9 @@ class SpotGridPSF(PSF):
         
         #- x,y of spot on CCD
         p, w = self._fiberpos[ispec], wavelength
-        xc = self._fx(p, w)
-        yc = self._fy(p, w)
+        # xc = self._fx(p, w)
+        # yc = self._fy(p, w)
+        xc, yc = self.xy(ispec, wavelength)
         
         #- Ratio of CCD to Spot pixel sizes
         rpix = int(round(self.CcdPixelSize / self.SpotPixelSize))
@@ -73,7 +74,7 @@ class SpotGridPSF(PSF):
         ny, nx = pix.shape
         A = N.zeros(shape=(pix.shape[0]+rpix, pix.shape[1]+rpix))
         A[yoffset:yoffset+ny, xoffset:xoffset+nx] = pix
-        ccdpix = rebin(A, rpix)
+        ccdpix = rebin_image(A, rpix)
                 
         #- Fractional high-res pixel offset
         #- This can be slow; is it really necessary?
