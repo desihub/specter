@@ -29,7 +29,7 @@ class TestExtract(unittest.TestCase):
         phot_shape = (nspec, nwave)
         phot = N.random.uniform(100,1000, size=phot_shape)
         image_orig = psf.project(phot, ww, verbose=False)
-        var = 1.0 + N.sqrt(N.abs(image_orig))
+        var = 1.0 + N.abs(image_orig)
         image = image_orig + N.random.normal(scale=N.sqrt(var))
                 
         self.phot = phot

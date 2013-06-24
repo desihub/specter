@@ -432,7 +432,7 @@ class PSF(object):
     
     #-------------------------------------------------------------------------
     #- Project spectra onto CCD pixels
-    def project(self, phot, wavelength, specmin=0, xr=None, yr=None, verbose=True):
+    def project(self, phot, wavelength, specmin=0, xr=None, yr=None, verbose=False):
         """
         Returns 2D image of spectra projected onto the CCD
 
