@@ -23,11 +23,11 @@ class TestExtract(unittest.TestCase):
 
         nspec = 10
         wmin = min(psf.wavelength(0, y=0), psf.wavelength(nspec-1, y=0))
-        ww = N.arange(wmin+10, wmin+60)
+        ww = psf.wavelength(0, y=N.arange(10,60))
         nwave = len(ww)
         
         phot_shape = (nspec, nwave)
-        phot = N.random.uniform(100,1000, size=phot_shape)
+        phot = N.random.uniform(1, 1000, size=phot_shape)
         image_orig = psf.project(phot, ww, verbose=False)
         var = 1.0 + N.abs(image_orig)
         image = image_orig + N.random.normal(scale=N.sqrt(var))
@@ -40,6 +40,33 @@ class TestExtract(unittest.TestCase):
         self.ww = ww
         self.nspec = nspec
                 
+    def _test_blat(self):
+        from time import time
+        specrange = (0, self.nspec)
+        waverange = (self.ww[0], self.ww[-1])
+        imgvar = 1/self.ivar
+        xmin, xmax, ymin, ymax = xyrange = self.psf.xyrange(specrange, waverange)
+        
+        for i in range(3):
+            pix = self.image_orig + N.random.normal(scale=N.sqrt(imgvar))
+            d = ex2d(pix, self.ivar, self.psf, specrange, self.ww, full_output=True)
+            flux, ivar, R = d['flux'], d['ivar'], d['R']
+            rflux = R.dot(self.phot.ravel()).reshape(flux.shape)
+            chi = (flux - rflux) * N.sqrt(ivar)
+            
+            xpix = d['A'].dot(d['xflux'].ravel())
+            subpix = pix[ymin:ymax, xmin:xmax].ravel()
+            subivar = self.ivar[ymin:ymax, xmin:xmax].ravel()
+            
+            pixchi = (xpix - subpix) * N.sqrt(subivar)
+        
+            #--- DEBUG ---
+            import IPython
+            IPython.embed()
+            #--- DEBUG ---
+            
+            
+            print i, N.std(chi), N.std(pixchi)
     
     def test_noiseless_ex2d(self):
         specrange = (0, self.nspec)
@@ -57,12 +84,11 @@ class TestExtract(unittest.TestCase):
         ximg = self.psf.project(xflux, self.ww, verbose=False)
         
         #- Compare inputs to outputs
-        dflux = flux - rphot
-        dxflux = xflux - self.phot
+        bias = (flux - rphot)/rphot
         dximg = ximg - self.image_orig
-        self.assertTrue( N.max(N.abs(dflux)) < 1e-9 )
-        self.assertTrue( N.max(N.abs(dxflux)) < 1e-9 )
-        self.assertTrue( N.max(N.abs(dximg)) < 1e-9 )                
+        
+        self.assertTrue( N.max(N.abs(bias)) < 1e-9 )
+        self.assertTrue( N.max(N.abs(dximg)) < 1e-6 )                
 
     def test_ex2d(self):
         specrange = (0, self.nspec)
@@ -78,14 +104,17 @@ class TestExtract(unittest.TestCase):
         specrange = (0, self.nspec)
         waverange = (self.ww[0], self.ww[-1])
         xmin, xmax, ymin, ymax = xyrange = self.psf.xyrange(specrange, waverange)
+        nx, ny = xmax-xmin, ymax-ymin
         xflux = d['xflux']   #- original extracted flux
-        ximage = self.psf.project(xflux, self.ww, verbose=False)
-        pull_image = ((ximage - self.image) * N.sqrt(self.ivar))[ymin:ymax, xmin:xmax]
-        
-        
-        self.assertTrue(N.abs(1-N.std(pull_flux)) < 0.03,
+        ### ximage = self.psf.project(xflux, self.ww, verbose=False)
+        ximage = d['A'].dot(xflux.ravel()).reshape((ny,nx))
+        subimg = self.image[ymin:ymax, xmin:xmax]
+        subivar = self.ivar[ymin:ymax, xmin:xmax]
+        pull_image = ((ximage - subimg) * N.sqrt(subivar))
+
+        self.assertTrue(N.abs(1-N.std(pull_flux)) < 0.05,
                         msg="pull_flux sigma is %f" % N.std(pull_flux))
-        self.assertTrue(N.abs(1-N.std(pull_image)) < 0.03,
+        self.assertTrue(N.abs(1-N.std(pull_image)) < 0.05,
                         msg="pull_image sigma is %f" % N.std(pull_image))
         
     def test_ex2d_subimage(self):

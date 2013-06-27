@@ -3,10 +3,12 @@
 """
 
 import numpy as N
+import scipy.sparse
 from scipy.sparse import spdiags, issparse
 from scipy.sparse.linalg import spsolve
 
-def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None, full_output=False):
+def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
+         full_output=False, regularize=0.0):
     """
     2D PSF extraction of flux from image given pixel inverse variance.
     
@@ -45,34 +47,44 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None, full_output=Fal
     nspec = specrange[1] - specrange[0]
     nflux = len(wavelengths)
     
-    #- Pixel weights matrix
-    W = spdiags(ivar.ravel(), 0, npix, npix)
+    #- Solve AT W pix = (AT W A) flux
     
     #- Projection matrix and inverse covariance
     A = psf.projection_matrix(specrange, wavelengths, xyrange)
-    iCov = A.T.dot(W.dot(A))
+
+    #- Pixel weights matrix
+    w = ivar.ravel()
+    ### W = spdiags(ivar.ravel(), 0, npix, npix)
+    
+    #- Add regularization term to avoid excessive ringing
+    if regularize > 0:
+        nx = nspec*nflux
+        I = regularize*scipy.sparse.identity(nx)
+        Ax = scipy.sparse.vstack( (A, I) )
+        w = N.concatenate( (w, N.ones(nx)) )
+        pix = N.concatenate( (image.ravel(), N.zeros(nx)) )
+    else:
+        pix = image.ravel()
+        Ax = A
+    
+    #- Inverse covariance
+    W = spdiags(w, 0, len(w), len(w))
+    iCov = Ax.T.dot(W.dot(Ax))
     
     #- Solve image = A flux weighted by W:
     #-     A^T W image = (A^T W A) flux = iCov flux    
-    y = A.T.dot(W.dot(image.ravel()))
+    y = Ax.T.dot(W.dot(pix))
     
     xflux = spsolve(iCov, y).reshape((nspec, nflux))
 
     #- Convolve with Resolution matrix to decorrelate errors
-    R = resolution_from_icov(iCov)
+    R, ivar = resolution_from_icov(iCov)
+    ivar = ivar.reshape((nspec, nflux))
     rflux = R.dot(xflux.ravel()).reshape(xflux.shape)
 
-    #- Note: this could be faster by using calculations already done in
-    #- resolution_from_iCov()
-    Cov = N.linalg.inv(iCov.toarray())
-    rCov = R.T.dot(Cov.dot(R))
-    ivar = 1.0/rCov.diagonal().reshape(rflux.shape)
-
     if full_output:
-        results = dict(flux=rflux, ivar=ivar, R=R, xflux=xflux, projmat=A)
-        results['Cov'] = Cov
+        results = dict(flux=rflux, ivar=ivar, R=R, xflux=xflux, A=A)
         results['iCov'] = iCov
-        results['rCov'] = rCov
         return results
     else:
         return rflux, ivar, R
@@ -115,6 +127,10 @@ def resolution_from_icov(icov):
 
     Input argument is inverse covariance matrix array.
     If input is not 2D and symmetric, results will be unpredictable.
+    
+    returns (R, ivar):
+        R : resolution matrix
+        ivar : R C R.T  -- decorrelated resolution convolved inverse variance
 
     WRITTEN: Adam S. Bolton, U. of Utah, 2009
     """
@@ -123,5 +139,6 @@ def resolution_from_icov(icov):
         
     sqrt_icov = sym_sqrt(icov)
     norm_vector = N.sum(sqrt_icov, axis=1)
-    r_mat = N.outer(norm_vector**(-1), N.ones(norm_vector.size)) * sqrt_icov
-    return r_mat
+    R = N.outer(norm_vector**(-1), N.ones(norm_vector.size)) * sqrt_icov
+    ivar = norm_vector**2  #- Bolton & Schlegel 2010 Eqn 13
+    return R, ivar
