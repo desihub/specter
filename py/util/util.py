@@ -12,6 +12,8 @@ from scipy.special import legendre
 from scipy.sparse import spdiags
 from scipy.signal import convolve, convolve2d
 
+from specter.extract.ex2d import resolution_from_icov
+
 #- 2D Linear interpolator
 class LinearInterp2D(object):
     """
@@ -50,11 +52,46 @@ class LinearInterp2D(object):
 
         return dataxy
         
-def psfbias(pix1, pix2):
+def psfbias(p1, p2, wave, phot, ispec=0, readnoise=3.0):
     """
-    Return bias from extracting true PSF with pix1 using PSF with pix2
+    Return bias from extracting with PSF p2 if the real PSF is p1
+    
+    Inputs:
+        p1, p2 : PSF objects
+        wave[] : wavelengths in Angstroms
+        phot[] : spectrum in photons
+        
+    Optional Inputs:
+        ispec : spectrum number
+        readnoise : CCD read out noise (optional)
+        
+    Returns:
+        bias array same length as wave
     """
-    return 1.0 - N.sum(pix1*pix2) / N.sqrt(N.sum(pix1*pix1) * N.sum(pix2*pix2))
+    #- flux -> pixels projection matrices
+    xyrange = p1.xyrange( (ispec,ispec+1), (wave[0], wave[-1]) )
+    A = p1.projection_matrix((ispec,ispec+1), wave, xyrange)
+    B = p2.projection_matrix((ispec,ispec+1), wave, xyrange)
+
+    #- Pixel weights from photon shot noise and CCD read noise
+    img = A.dot(phot)            #- True noiseless image
+    imgvar = readnoise**2 + img  #- pixel variance
+    npix = img.size
+    W = spdiags(1.0/imgvar, 0, npix, npix)
+    
+    #- covariance matrix for each PSF
+    iACov = A.T.dot(W.dot(A))
+    iBCov = B.T.dot(W.dot(B))
+    BCov = N.linalg.inv(iBCov.toarray())
+    
+    #- Resolution matricies
+    RA, _ = resolution_from_icov(iACov)
+    RB, _ = resolution_from_icov(iBCov)
+
+    #- Bias
+    bias = (RB.dot(BCov.dot(B.T.dot(W.dot(A)).toarray())) - RA).dot(phot) / RA.dot(phot)
+
+    return bias
 
 def rebin_image(image, n):
     """
