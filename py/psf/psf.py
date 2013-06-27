@@ -432,6 +432,27 @@ class PSF(object):
     
     #-------------------------------------------------------------------------
     #- Project spectra onto CCD pixels
+    # def project_subimage(self, phot, wavelength, specmin, verbose=False):
+    #     """
+    #     Project photons onto CCD.  Returns subimage, (xmin,xmax,ymin,ymax).
+    #     See PSF.project() for full parameter descriptions.
+    #     """
+    #     #- NOTES:
+    #     #- Tightly coupled to self.project
+    #     #- Should this return slices instead of xyrange, similar to
+    #     #-     PSF.xypix?
+    #     #- Maybe even rename to xyproject() ?
+    #     
+    #     nspec = phot.shape[0] if phot.ndim == 2 else self.nspec
+    #     specmax = min(specmin+nspec, nspec)
+    #     specrange = (specmin, specmax)
+    #     waverange = (N.min(wavelength), N.max(wavelegth))
+    #     xmin, xmax, ymin, ymax = xyrange = self.xyrange(specrange, waverange)
+    #     image = self.project(phot, wavelength, specmin=specmin, \
+    #         xr=(xmin,xmax), yr=(ymin, ymax), verbose=verbose)
+    #         
+    #     return image, xyrange
+
     def project(self, phot, wavelength, specmin=0, xr=None, yr=None, verbose=False):
         """
         Returns 2D image of spectra projected onto the CCD
