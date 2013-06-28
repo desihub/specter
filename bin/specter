@@ -43,7 +43,7 @@ parser.add_option("-w", "--wavelength", type="string",
 parser.add_option("-l", "--loglam", type="string",
     help="log10(wavelength[A]) range min,max")
 parser.add_option("-r", "--specrange", type="string",
-    help="range of spectra to simulate specmin,specmax")
+    help="simulate spectra range specmin,specmax inclusive")
 parser.add_option("--debug", action="store_true", help="start ipython after running")
 
 opts, args = parser.parse_args()
@@ -74,7 +74,7 @@ else:
     
 spectra = specter.io.read_simspec(opts.input)
 
-#- Expand specrange = first,last inclusive, i.e. not python slice style
+#- Expand specrange = first,last inclusive
 if opts.specrange is not None:
     x = map(int, opts.specrange.split(','))
     x[1] = min(x[1]+1, psf.nspec)

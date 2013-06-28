@@ -197,16 +197,14 @@ class TestPSF(unittest.TestCase):
         nspec = 5
         nw = 10
         ww = self.psf.wavelength(0)[0:nw]
-        wave_range = (ww[0], ww[-1])
         phot = N.random.uniform(0,100,nw)               #- 1D
         phot = N.tile(phot, nspec).reshape(nspec, nw)   #- 2D
         
         spec_range = (0, nspec-1)
-        wave_range = (ww[0], ww[-1])
         
-        xmin, xmax, ymin, ymax = self.psf.xyrange(spec_range, wave_range)        
+        xyrange = xmin,xmax,ymin,ymax = self.psf.xyrange(spec_range, ww)
         img = self.psf.project(phot, ww, verbose=False)
-        subimg = self.psf.project(phot, ww, xr=(xmin,xmax), yr=(ymin,ymax), verbose=False)
+        subimg = self.psf.project(phot, ww, xyrange=xyrange, verbose=False)
 
         #- Does subimage match corresponding range for full image?
         self.assertTrue(N.all(subimg == img[ymin:ymax, xmin:xmax]))
@@ -231,13 +229,32 @@ class TestPSF(unittest.TestCase):
                 nx = xmax-xmin
                 ny = ymax-ymin
 
-                img1 = self.psf.project(phot, ww, xr=(xmin, xmax), yr=(ymin,ymax), \
+                img1 = self.psf.project(phot, ww, xyrange=xyrange, \
                                         specmin=specmin, verbose=False)
 
                 A = self.psf.projection_matrix(specrange, ww, xyrange)
                 img2 = A.dot(phot.ravel()).reshape((ny, nx))                    
                 
                 self.assertTrue(N.all(img1==img2))
+        
+    #- Test xyrange with scalar vs. tuple spec_range
+    def test_xyrange_ispec(self):
+        ispec = 0
+        ww = self.psf.wavelength(ispec, y=N.arange(0, 10))
+        xyr1 = self.psf.xyrange(ispec, ww)
+        xyr2 = self.psf.xyrange((ispec, ispec+1), ww)
+        self.assertTrue(xyr1 == xyr2)
+    
+    #- Test projection matrix with scalar vs. tuple spec_range
+    def test_projmat_ispec(self):
+        ispec = 0
+        ww = self.psf.wavelength(ispec, y=N.arange(0, 10))
+        xyrange = self.psf.xyrange(ispec, ww)
+        A = self.psf.projection_matrix(ispec, ww, xyrange)
+        B = self.psf.projection_matrix((ispec, ispec+1), ww, xyrange)
+
+        self.assertTrue(A.shape == B.shape)
+        self.assertTrue(N.all(A.data == B.data))
         
     #- Test shift of PSF xy solution
     def test_shift_xy(self):
@@ -348,9 +365,8 @@ class TestPSF(unittest.TestCase):
     #- Test getting xy pixel range where spectra would project
     def test_xyrange(self):
         ww = self.psf.wavelength(0)[0:10]
-        wave_range = [N.min(ww), N.max(ww)]
         spec_range = [0,10]
-        xmin,xmax,ymin,ymax = self.psf.xyrange(spec_range, wave_range)
+        xmin,xmax,ymin,ymax = self.psf.xyrange(spec_range, ww)
 
         #- Test all wavelengths for first and last spectrum
         for i in spec_range:
@@ -366,7 +382,7 @@ class TestPSF(unittest.TestCase):
 
         #- Test all spectra for min and max wavelengths
         for i in range(spec_range[0], spec_range[-1]+1):
-            for w in wave_range:
+            for w in (ww[0], ww[-1]):
                 xx, yy, pix = self.psf.xypix(i, w)
                 if pix.shape == (0,0):  #- off edge of CCD
                     continue
