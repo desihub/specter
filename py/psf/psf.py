@@ -213,7 +213,7 @@ class PSF(object):
         
     def xypix(self, ispec, wavelength, xmin=0, xmax=None, ymin=0, ymax=None):
         """
-        Evaluate PSF for spectrum[ispec] at given wavelength(s)
+        Evaluate PSF for spectrum[ispec] at given wavelength
         
         returns xslice, yslice, pixels[iy,ix] such that
         image[yslice,xslice] += photons*pixels adds the contribution from
@@ -222,6 +222,10 @@ class PSF(object):
         if xmin or ymin are set, the slices are relative to those
         minima (useful for simulating subimages)
         """
+        
+        if wavelength < self._wavelength[ispec, 0] or \
+           self._wavelength[ispec, -1] < wavelength:
+            return slice(0,0), slice(0,0), N.zeros( (0,0) )
         
         xx, yy, ccdpix = self._xypix(ispec, wavelength)
         xlo, xhi = xx.start, xx.stop

@@ -134,19 +134,26 @@ class PixelSpline:
     Pixel Spline object class.
     
     Initialize as follows:
-       PS = PixelSpline(pixbound, flux)
+        PS = PixelSpline(pixbound, flux)
     where
-       pixbound = array of pixel boundaries in baseline units
+        pixbound = array of pixel boundaries in baseline units
+            (if same len as flux, treat as centers instead of edges)
     and
-       flux = array of specific flux values in baseline units.
+        flux = array of specific flux values in baseline units.
 
     Assumptions:
-       'pixbound' should have one more element than 'flux', and
-       units of 'flux' are -per-unit-baseline, for the baseline
-       units in which pixbound is expressed, averaged over the
-       extent of each pixel.
+        'pixbound' should have one more element than 'flux', and
+        units of 'flux' are -per-unit-baseline, for the baseline
+        units in which pixbound is expressed, averaged over the
+        extent of each pixel.
     """
     def __init__(self, pixbound, flux):
+        
+        #- If pixbound and flux have same number of elements, assume they
+        #- are centers rather than edges
+        if len(pixbound) == len(flux):
+            pixbound = cen2bound(pixbound)
+        
         npix = len(flux)
         # Test for correct argument dimensions:
         if (len(pixbound) - npix) != 1:
