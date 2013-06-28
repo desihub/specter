@@ -263,19 +263,25 @@ class PSF(object):
         
         return xx, yy, ccdpix
 
-    def xyrange(self, spec_range, wave_range):
+    def xyrange(self, spec_range, wavelengths):
         """
         Return recommended range of pixels which cover these spectra/fluxes:
         (xmin, xmax, ymin, ymax)
         
-        spec_range = indices specmin,specmax inclusive (not python style)
-        wave_range = wavelength range wavemin,wavemax inclusive
+        spec_range = indices specmin,specmax (python style indexing),
+                     or scalar for single spectrum index
+        wavelengths = wavelength range wavemin,wavemax inclusive
+                     or sorted array of wavelengths
         
         BUG: will fail if asking for a range where one of the spectra is
         completely off the CCD
         """
-        specmin, specmax = spec_range
-        wavemin, wavemax = wave_range
+        if isinstance(spec_range, int):
+            specmin, specmax = spec_range, spec_range+1
+        else:
+            specmin, specmax = spec_range
+
+        wavemin, wavemax = wavelengths[0], wavelengths[-1]
 
         #- Find the spectra with the smallest/largest y centroids
         ispec_ymin = specmin + N.argmin(self.y(None, wavemin)[specmin:specmax+1])
@@ -457,7 +463,7 @@ class PSF(object):
     #         
     #     return image, xyrange
 
-    def project(self, phot, wavelength, specmin=0, xr=None, yr=None, verbose=False):
+    def project(self, phot, wavelength, specmin=0, xyrange=None, verbose=False):
         """
         Returns 2D image of spectra projected onto the CCD
 
@@ -469,14 +475,18 @@ class PSF(object):
 
         Optional inputs:
             specmin : starting spectrum number
-            xr      : xrange xmin,xmax in CCD pixels
-            yr      : yrange ymin,ymax in CCD pixels
+            xyrange : (xmin, xmax, ymin, ymax) range of CCD pixels
         """
         #- x,y ranges and number of pixels
-        if xr is None: xr = [0, self.npix_x]
-        if yr is None: yr = [0, self.npix_y]
-        nx = xr[1] - xr[0]    
-        ny = yr[1] - yr[0]    
+        if xyrange is None:
+            xmin, xmax = (0, self.npix_x)
+            ymin, ymax = (0, self.npix_y)
+            xyrange = (xmin, xmax, ymin, ymax)
+        else:
+            xmin, xmax, ymin, ymax = xyrange
+            
+        nx = xmax - xmin
+        ny = ymax - ymin
 
         #- For convenience, treat phot as a 2D vector
         phot = N.atleast_2d(phot)
@@ -501,8 +511,8 @@ class PSF(object):
             for j, w in enumerate(wspec):
                 if phot[i,j] > 0.0 and wmin <= w and w <= wmax:
                     xx, yy, pix = self.xypix(ispec, w)
-                    xx = slice(xx.start-xr[0], xx.stop-xr[0])
-                    yy = slice(yy.start-yr[0], yy.stop-yr[0])
+                    xx = slice(xx.start-xmin, xx.stop-xmin)
+                    yy = slice(yy.start-ymin, yy.stop-ymin)
                     img[yy, xx] += pix * phot[i,j]
 
         return img
@@ -522,7 +532,7 @@ class PSF(object):
         Returns sparse projection matrix from flux to pixels
     
         Inputs:
-            spec_range = (ispecmin, ispecmax)
+            spec_range = (ispecmin, ispecmax) or scalar ispec
             wavelengths = array_like wavelengths
             xyrange  = (xmin, xmax, ymin, ymax)
             
@@ -535,7 +545,11 @@ class PSF(object):
         """
     
         #- Matrix dimensions
-        specmin, specmax = spec_range
+        if isinstance(spec_range, int):
+            specmin, specmax = spec_range, spec_range+1
+        else:
+            specmin, specmax = spec_range
+            
         xmin, xmax, ymin, ymax = xyrange        
         nspec = specmax - specmin
         nflux = len(wavelengths)
