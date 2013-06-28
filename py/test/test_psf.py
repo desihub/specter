@@ -313,14 +313,19 @@ class TestPSF(unittest.TestCase):
         y = self.psf.y(None, w)
         self.assertEqual(y.shape, (self.psf.nspec, len(w)))
 
-    #- To fix: projecting off the edge of the CCD leaves us at the edge
-    @unittest.expectedFailure
-    def test_y_edge(self):
-        ispec = 0
-        wmin = self.psf.wavelength(ispec, y=0.0)
-        y0 = self.psf.y(ispec, wmin)        
-        ym = self.psf.y(ispec, wmin-1)
-        self.assertLess(ym, y0)
+    #- Ensure that pix requests outside of wavelength range are blank
+    def test_waverange_pix(self):
+        for ispec in (0, 1, self.psf.nspec/2, self.psf.nspec-1):
+            xx, yy, pix = self.psf.xypix(ispec, self.psf.wmin-1)
+            self.assertTrue(xx.start == xx.stop == 0)
+            self.assertTrue(yy.start == yy.stop == 0)
+            self.assertTrue(pix.shape == (0,0))
+
+            xx, yy, pix = self.psf.xypix(ispec, self.psf.wmax+1)
+            self.assertTrue(xx.start == xx.stop == 0)
+            self.assertTrue(yy.start == yy.stop == 0)
+            self.assertTrue(pix.shape == (0,0))
+            
         
     #- Test getting x and y at the same time
     def test_xy(self):
@@ -381,11 +386,17 @@ class TestSpotPSF(TestPSF):
     def setUp(self):
         self.psf = load_psf(test_data_dir() + "/psf-spot.fits")
 
+#- Test SpotGrid PSF format
+class TestMonoSpotPSF(TestPSF):
+    def setUp(self):
+        self.psf = load_psf(test_data_dir() + "/psf-monospot.fits")
+        
 if __name__ == '__main__':
         
     # unittest.main()           
     s1 = unittest.defaultTestLoader.loadTestsFromTestCase(TestPixPSF)
     s2 = unittest.defaultTestLoader.loadTestsFromTestCase(TestSpotPSF)
+    s2 = unittest.defaultTestLoader.loadTestsFromTestCase(TestMonoSpotPSF)
     suite = unittest.TestSuite([s1, s2])
     unittest.TextTestRunner(verbosity=2).run(suite)
     # suite = unittest.TestSuite()
