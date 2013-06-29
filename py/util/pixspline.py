@@ -2,52 +2,10 @@
 # Pixel-integrated sline utilities.
 # Written by A. Bolton, U. of Utah, 2010-2013.
 
-import numpy as n
+import numpy as N
 from scipy import linalg as la
 from scipy import sparse as sp
 from scipy import special as sf
-
-def compute_duck_slopes(pixbound, flux):
-    """
-    Compute the slope of the illuminating quadratic spline at
-    the locations of the 'ducks', i.e., the pixel boundaries,
-    given the integrated flux per unit baseline within the pixels.
-
-    ARGUMENTS:
-      pixbound: (npix + 1) ndarray of pixel boundaries, in units of
-        wavelength or log-wavelength or frequency or whatever you like.
-      flux: (npix) ndarray of spectral flux (energy or counts) per
-        abscissa unit, averaged over the extent of the pixel
-
-    RETURNS:
-      an (npix+1) ndarray of the slope of the underlying/illuminating
-      flux per unit abscissa spectrum at the position of the pixel
-      boundaries, a.k.a. 'ducks'.  The end conditions are taken to
-      be zero slope, so the exterior points of the output are zeros.
-    """
-    npix = len(flux)
-    # Test for correct argument dimensions:
-    if (len(pixbound) - npix) != 1:
-        print 'Need one more element in pixbound than in flux!'
-        return 0
-    # The array of "delta-x" values:
-    dxpix = pixbound[1:] - pixbound[:-1]
-    # Test for monotonif increase:
-    if dxpix.min() <= 0.:
-        print 'Pixel boundaries not monotonically increasing!'
-        return 0
-    # Encode the tridiagonal matrix that needs to be solved:
-    maindiag = (dxpix[:-1] + dxpix[1:]) / 3.
-    offdiag = dxpix[1:-1] / 6.
-    upperdiag = n.append(0., offdiag)
-    lowerdiag = n.append(offdiag, 0.)
-    band_matrix = n.vstack((upperdiag, maindiag, lowerdiag))
-    # The right-hand side:
-    rhs = flux[1:] - flux[:-1]
-    # Solve the banded matrix and return:
-    acoeff = la.solve_banded((1,1), band_matrix, rhs)
-    acoeff = n.append(n.append(0., acoeff), 0.)
-    return acoeff
 
 def cen2bound(pixelcen):
     """
@@ -57,7 +15,7 @@ def cen2bound(pixelcen):
     pixbound = 0.5 * (pixelcen[1:] + pixelcen[:-1])
     lo_val = 2. * pixbound[0] - pixbound[1]
     hi_val = 2. * pixbound[-1] - pixbound[-2]
-    pixbound = n.append(n.append(lo_val, pixbound), hi_val)
+    pixbound = N.append(N.append(lo_val, pixbound), hi_val)
     return pixbound
 
 def gauss_blur_matrix(pixbound, sig_conv):
@@ -88,29 +46,29 @@ def gauss_blur_matrix(pixbound, sig_conv):
     # Let's go +/- 6 sigma for all:
     sig_width = 6.0
     # A minor correction factor to preserve flux conservation:
-    cfact = 1./sf.erf(sig_width / n.sqrt(2.))
+    cfact = 1./sf.erf(sig_width / N.sqrt(2.))
     xblur_lo = xcen - sig_width * sig_conv
     xblur_hi = xcen + sig_width * sig_conv
-    bin_lo = n.digitize(xblur_lo, pixbound) - 1
-    bin_hi = n.digitize(xblur_hi, pixbound) - 1
+    bin_lo = N.digitize(xblur_lo, pixbound) - 1
+    bin_hi = N.digitize(xblur_hi, pixbound) - 1
     # Restrict the ranges:
-    #xblur_lo = n.where((xblur_lo > pixbound[0]), xblur_lo, pixbound[0])
-    #xblur_lo = n.where((xblur_lo < pixbound[-1]), xblur_lo, pixbound[-1])
-    #xblur_hi = n.where((xblur_hi > pixbound[0]), xblur_hi, pixbound[0])
-    #xblur_hi = n.where((xblur_hi < pixbound[-1]), xblur_hi, pixbound[-1])
-    bin_lo = n.where((bin_lo >= 0), bin_lo, 0)
-    #bin_lo = n.where((bin_lo < npix), bin_lo, npix-1)
-    #bin_hi = n.where((bin_hi >= 0), bin_hi, 0)
-    bin_hi = n.where((bin_hi < npix), bin_hi, npix-1)
+    #xblur_lo = N.where((xblur_lo > pixbound[0]), xblur_lo, pixbound[0])
+    #xblur_lo = N.where((xblur_lo < pixbound[-1]), xblur_lo, pixbound[-1])
+    #xblur_hi = N.where((xblur_hi > pixbound[0]), xblur_hi, pixbound[0])
+    #xblur_hi = N.where((xblur_hi < pixbound[-1]), xblur_hi, pixbound[-1])
+    bin_lo = N.where((bin_lo >= 0), bin_lo, 0)
+    #bin_lo = N.where((bin_lo < npix), bin_lo, npix-1)
+    #bin_hi = N.where((bin_hi >= 0), bin_hi, 0)
+    bin_hi = N.where((bin_hi < npix), bin_hi, npix-1)
     # Compute total number of non-zero elements in the broadening matrix:
     n_each = bin_hi - bin_lo + 1
     n_entries = n_each.sum()
-    ij = n.zeros((2, n_entries), dtype=long)
-    v_vec = n.zeros(n_entries, dtype=float)
+    ij = N.zeros((2, n_entries), dtype=long)
+    v_vec = N.zeros(n_entries, dtype=float)
     # Loop over pixels in the "old" spectrum:
     pcount = 0L
-    roottwo = n.sqrt(2.)
-    bin_vec = n.arange(npix, dtype=long)
+    roottwo = N.sqrt(2.)
+    bin_vec = N.arange(npix, dtype=long)
     for k in range(npix):
         xbound = pixbound[bin_lo[k]:bin_hi[k]+2]
         # Gaussian integral in terms of error function:
@@ -170,25 +128,41 @@ class PixelSpline:
         self.flux = flux.copy()
         maindiag = (dxpix[:-1] + dxpix[1:]) / 3.
         offdiag = dxpix[1:-1] / 6.
-        upperdiag = n.append(0., offdiag)
-        lowerdiag = n.append(offdiag, 0.)
-        band_matrix = n.vstack((upperdiag, maindiag, lowerdiag))
+        upperdiag = N.append(0., offdiag)
+        lowerdiag = N.append(offdiag, 0.)
+        band_matrix = N.vstack((upperdiag, maindiag, lowerdiag))
         # The right-hand side:
         rhs = flux[1:] - flux[:-1]
         # Solve the banded matrix for the slopes at the ducks:
         acoeff = la.solve_banded((1,1), band_matrix, rhs)
-        self.duckslopes = n.append(n.append(0., acoeff), 0.)
+        self.duckslopes = N.append(N.append(0., acoeff), 0.)
+        
+    #- convenience wrapper
+    def __call__(self, xnew):
+        """
+        Evaluate underlying pixel spline at array of points
+        
+        Also see: PixelSpline.resample()
+        """
+        return self.point_evaluate(xnew, missing=0.0)
+        
     def point_evaluate(self, xnew, missing=0.):
         """
         Evaluate underlying pixel spline at array of points
-        BUG: input currently needs to be at least 1D array.
+        
+        Also see: PixelSpline.resample()
         """
+        input_scalar = False
+        if isinstance(xnew, float) or isinstance(xnew, int):
+            input_scalar = True
+            xnew = N.array( (xnew,) )
+        
         # Initialize output array:
         outflux = 0. * self.flux[0] * xnew + missing
         # Digitize into bins:
-        bin_idx = n.digitize(xnew, self.pixbound)
+        bin_idx = N.digitize(xnew, self.pixbound)
         # Find the indices of those that are actually in-bounds:
-        wh_in = n.where((bin_idx > 0) * (bin_idx < len(self.pixbound)))
+        wh_in = N.where((bin_idx > 0) * (bin_idx < len(self.pixbound)))
         if len(wh_in[0]) == 0:
             return outflux
         xnew_in = xnew[wh_in]
@@ -197,25 +171,37 @@ class PixelSpline:
         adiff = self.duckslopes[idx_in+1] - self.duckslopes[idx_in]
         asum = self.duckslopes[idx_in+1] + self.duckslopes[idx_in]
         xdiff = xnew_in - self.xcen[idx_in]
-        fluxvals = adiff * xdiff**2 / (2. * self.dxpix[idx_in]) + asum * xdiff / 2. \
-           + self.flux[idx_in] - adiff * self.dxpix[idx_in] / 24.
+        fluxvals = adiff * xdiff**2 / (2. * self.dxpix[idx_in]) \
+                 + asum * xdiff / 2. \
+                 + self.flux[idx_in] - adiff * self.dxpix[idx_in] / 24.
         outflux[wh_in] = fluxvals
-        return outflux
+
+        if input_scalar:
+            return outflux[0]
+        else:
+            return outflux
+        
     def find_extrema(self, minima=False):
+        """
+        Return array of extrema of underlying pixelspline
+        
+        if minima is False, return only maxima
+        """
         # Find the formal extrema positions:
         x_ext = self.xcen - 0.5 * self.dxpix * (self.duckslopes[1:] + self.duckslopes[:-1]) \
                 / (self.duckslopes[1:] - self.duckslopes[:-1])
         # Digitize these into bins:
-        bin_ext = n.digitize(x_ext, self.pixbound) - 1
+        bin_ext = N.digitize(x_ext, self.pixbound) - 1
         # The second derivatives, flipped in sign if minima is set:
         curvat = (-1)**(minima == True) * (self.duckslopes[1:] - self.duckslopes[:-1]) / self.dxpix
         # Find in-bin maxima:
-        wh_ext = n.where((bin_ext == n.arange(self.npix)) * (curvat < 0))
+        wh_ext = N.where((bin_ext == N.arange(self.npix)) * (curvat < 0))
         if len(wh_ext[0]) < 1:
-            return n.array([])
+            return N.array([])
         x_ext = x_ext[wh_ext]
         return x_ext
-    def subpixel_average(self, ipix, xlo, xhi):
+        
+    def _subpixel_average(self, ipix, xlo, xhi):
         adiff = self.duckslopes[ipix+1] - self.duckslopes[ipix]
         asum = self.duckslopes[ipix+1] + self.duckslopes[ipix]
         xlo_c = xlo - self.xcen[ipix]
@@ -223,10 +209,10 @@ class PixelSpline:
         outval = adiff * ((xhi-xlo)**2 / 6. + xhi_c * xlo_c / 2.) / self.dxpix[ipix] \
                  + asum * (xhi_c + xlo_c) / 4. - adiff * self.dxpix[ipix] / 24. + self.flux[ipix]
         return outval
+        
     def resample(self, pb_new):
         """
-        Method to resample a pixelspline analytically onto a new
-        set of pixel boundaries.
+        Resample a pixelspline analytically onto a new set of pixel boundaries
         """
         npix_new = len(pb_new) - 1
         ### xnew_lo = pb_new[:-1].copy()
@@ -240,8 +226,9 @@ class PixelSpline:
             raise PixSplineError('New pixel boundaries not monotonically increasing!')
 
         # Digitize the new boundaries into the original bins:
-        ### bin_idx = n.digitize(pb_new, self.pixbound) - 1
-        bin_idx = n.searchsorted(self.pixbound, pb_new) - 1
+        # searchsorted is faster than digitize for sorted data
+        ### bin_idx = N.digitize(pb_new, self.pixbound) - 1
+        bin_idx = N.searchsorted(self.pixbound, pb_new) - 1
         
         ### bin_lo = bin_idx[:-1].copy()
         ### bin_hi = bin_idx[1:].copy()
@@ -249,11 +236,12 @@ class PixelSpline:
         bin_hi = bin_idx[1:]
         
         # Array for accumulating new counts:
-        new_counts = n.zeros(npix_new, dtype=self.flux.dtype)
+        new_counts = N.zeros(npix_new, dtype=self.flux.dtype)
                 
         # Array for accumulating new pixel widths by pieces.
         # Only used for debugging so far, but may be useful in future.
-        #new_dxpix = n.zeros(npix_new, dtype=self.flux.dtype)
+        #new_dxpix = N.zeros(npix_new, dtype=self.flux.dtype)
+        
         # For convenience, we define the following.
         # Careful not to modify them... they are views, not copies!
         xold_lo = self.pixbound[:-1]
@@ -261,41 +249,90 @@ class PixelSpline:
 
         # 4 cases to cover:
         # Case 1: both bin_hi and bin_lo in the same bin:
-        wh_this = n.where((bin_hi == bin_lo) * (bin_lo >= 0) * (bin_hi < self.npix))
+        wh_this = N.where((bin_hi == bin_lo) * (bin_lo >= 0) * (bin_hi < self.npix))
         if (len(wh_this[0]) > 0):
             dx_this = xnew_hi[wh_this] - xnew_lo[wh_this]
-            avgval_this = self.subpixel_average(bin_lo[wh_this], xnew_lo[wh_this], xnew_hi[wh_this])
+            avgval_this = self._subpixel_average(bin_lo[wh_this], xnew_lo[wh_this], xnew_hi[wh_this])
             #new_dxpix[wh_this] += dx_this
             new_counts[wh_this] += avgval_this * dx_this
 
         # Case 2: more than one bin, lower segment:
-        wh_this = n.where((bin_hi > bin_lo) * (bin_lo >= 0))
+        wh_this = N.where((bin_hi > bin_lo) * (bin_lo >= 0))
         if (len(wh_this[0]) > 0):
             dx_this = xold_hi[bin_lo[wh_this]] - xnew_lo[wh_this]
-            avgval_this = self.subpixel_average(bin_lo[wh_this], xnew_lo[wh_this], xold_hi[bin_lo[wh_this]])
+            avgval_this = self._subpixel_average(bin_lo[wh_this], xnew_lo[wh_this], xold_hi[bin_lo[wh_this]])
             #new_dxpix[wh_this] += dx_this
             new_counts[wh_this] += avgval_this * dx_this
 
         # Case 3: more than one bin, upper segment:
-        wh_this = n.where((bin_hi > bin_lo) * (bin_hi < self.npix))
+        wh_this = N.where((bin_hi > bin_lo) * (bin_hi < self.npix))
         if (len(wh_this[0]) > 0):
             dx_this = xnew_hi[wh_this] - xold_lo[bin_hi[wh_this]]
-            avgval_this = self.subpixel_average(bin_hi[wh_this], xold_lo[bin_hi[wh_this]], xnew_hi[wh_this])
+            avgval_this = self._subpixel_average(bin_hi[wh_this], xold_lo[bin_hi[wh_this]], xnew_hi[wh_this])
             #new_dxpix[wh_this] += dx_this
             new_counts[wh_this] += avgval_this * dx_this
 
-        # Case 4: enire bins covered, whole pixels:
-        wh_this = n.where(bin_hi > (bin_lo+1))
+        # Case 4: entire bins covered, whole pixels:
+        wh_this = N.where(bin_hi > (bin_lo+1))
         nwhole = len(wh_this[0])
         if (nwhole > 0):
             pcounts = self.flux * self.dxpix
             bin_lo1 = bin_lo+1  #- for speed
-            #dx_this = n.array([self.dxpix[bin_lo[wh_this[0][ii]]+1:bin_hi[wh_this[0][ii]]].sum() for ii in range(nwhole)])
-            ### icounts_this = n.array([pcounts[bin_lo[wh_this[0][ii]]+1:bin_hi[wh_this[0][ii]]].sum() for ii in range(nwhole)])  # Slowest bit
-            ### icounts_this = n.array([pcounts[bin_lo1[wh_this[0][ii]]:bin_hi[wh_this[0][ii]]].sum() for ii in range(nwhole)])  # Slowest bit
-            icounts_this = n.array([pcounts[a:b].sum() for a, b in zip(bin_lo1[wh_this], bin_hi[wh_this]) ])
+            #dx_this = N.array([self.dxpix[bin_lo[wh_this[0][ii]]+1:bin_hi[wh_this[0][ii]]].sum() for ii in range(nwhole)])
+            
+            #- Progressively faster versions of same thing:
+            ### icounts_this = N.array([pcounts[bin_lo[wh_this[0][ii]]+1:bin_hi[wh_this[0][ii]]].sum() for ii in range(nwhole)])  # Slowest bit
+            ### icounts_this = N.array([pcounts[bin_lo1[wh_this[0][ii]]:bin_hi[wh_this[0][ii]]].sum() for ii in range(nwhole)])  # Slowest bit
+            icounts_this = N.array([pcounts[a:b].sum() for a, b in zip(bin_lo1[wh_this], bin_hi[wh_this]) ])
+            
             #new_dxpix[wh_this] += dx_this
             new_counts[wh_this] += icounts_this
 
         # Divide out for average and return:
         return new_counts / new_fulldx
+
+#- Currently unused (aborbed into PixelSpline), but kept for reference
+#- and maybe reviving if needed.        
+def _compute_duck_slopes(pixbound, flux):
+    """
+    Compute the slope of the illuminating quadratic spline at
+    the locations of the 'ducks', i.e., the pixel boundaries,
+    given the integrated flux per unit baseline within the pixels.
+
+    ARGUMENTS:
+      pixbound: (npix + 1) ndarray of pixel boundaries, in units of
+        wavelength or log-wavelength or frequency or whatever you like.
+      flux: (npix) ndarray of spectral flux (energy or counts) per
+        abscissa unit, averaged over the extent of the pixel
+
+    RETURNS:
+      an (npix+1) ndarray of the slope of the underlying/illuminating
+      flux per unit abscissa spectrum at the position of the pixel
+      boundaries, a.k.a. 'ducks'.  The end conditions are taken to
+      be zero slope, so the exterior points of the output are zeros.
+    """
+    npix = len(flux)
+    # Test for correct argument dimensions:
+    if (len(pixbound) - npix) != 1:
+        print 'Need one more element in pixbound than in flux!'
+        return 0
+    # The array of "delta-x" values:
+    dxpix = pixbound[1:] - pixbound[:-1]
+    # Test for monotonif increase:
+    if dxpix.min() <= 0.:
+        print 'Pixel boundaries not monotonically increasing!'
+        return 0
+    # Encode the tridiagonal matrix that needs to be solved:
+    maindiag = (dxpix[:-1] + dxpix[1:]) / 3.
+    offdiag = dxpix[1:-1] / 6.
+    upperdiag = N.append(0., offdiag)
+    lowerdiag = N.append(offdiag, 0.)
+    band_matrix = N.vstack((upperdiag, maindiag, lowerdiag))
+    # The right-hand side:
+    rhs = flux[1:] - flux[:-1]
+    # Solve the banded matrix and return:
+    acoeff = la.solve_banded((1,1), band_matrix, rhs)
+    acoeff = N.append(N.append(0., acoeff), 0.)
+    return acoeff
+
+
