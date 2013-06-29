@@ -1,16 +1,19 @@
-Specter : 2D CCD pixel-level simulation of multi-object spectrographs
+## Specter ##
+
+A 2D CCD pixel-level simulation toolkit for multi-object spectrographs
 
 Directories included here:
 
-doc : documentation (data model, overview, ...)
-py  : python classes and modules
-    py/psf : modeling the spectrograph point spread functions
-    py/extract : extract spectra from CCD images given a PSF (TODO)
-bin : executable scripts
-dev : code under initial development, before it moves into py/
-lib : add this to PYTHONPATH to get the live development version
+    doc : documentation (data model, overview, ...)
+    py  : python classes and modules
+        py/psf : modeling the spectrograph point spread functions
+        py/extract : extract spectra from CCD images given a PSF (TODO)
+    bin : executable scripts
+    dev : code under initial development, before it moves into py/
+    lib : add this to PYTHONPATH to get the live development version
 
-Run bin/specter -h to see command line options.
+Run "bin/specter -h" to see command line options and "pydoc specter" to
+see python library documentation.
 
 Example usage of the python toolkit:
 
@@ -25,5 +28,7 @@ Example usage of the python toolkit:
     image = psf.project(flux, wavelength)
 
 Stephen Bailey
-Fall 2012
+Lawrence Berkeley National Lab
+Summer 2013
+
 
