@@ -4,7 +4,7 @@
 Simulate multi-object spectrograph CCD images given input spectra and PSF
 
 Stephen Bailey, LBL
-Fall 2012
+Summer 2013
 """
 
 import sys
@@ -29,7 +29,7 @@ parser.add_option("-o", "--output", type="string",  help="output image")
 parser.add_option("-p", "--psf", type="string",  help="input PSF")
 parser.add_option("-t", "--throughput", type="string",  help="input throughput file")
 parser.add_option("-n", "--noise", action="store_true", help="add noise")
-parser.add_option("-N", "--readnoise", type="float", default=4.0, help="readout noise in electrons [%default]")
+parser.add_option("-N", "--readnoise", type="float", default=3.0, help="readout noise in electrons [%default]")
 parser.add_option(      "--randseed", type="int", default=0, help="random number seed")
 parser.add_option("-G", "--gaussnoise", action='store_true', help="Use Gaussian photon shot noise instead of Poisson")
 parser.add_option("-g", "--gain", type="float", default=1.6, help="CCD gain [%default]")
@@ -53,10 +53,28 @@ if opts.test:
     specter.test.test()
     sys.exit(0)
 
-#+ TODO: Test input consistency
-#- required: --input, --output, --psf
-#- exclusive: --wavelength or --loglam or neither, but not both
+#- Test input option consistency
+badopts = False
+if opts.input is None:
+    print >> sys.stderr, "ERROR: -i/--input spectra filename required"
+    badopts = True
+    
+if opts.output is None:
+    print >> sys.stderr, "ERROR: -o/--output image filename required"
+    badopts = True
 
+if opts.psf is None:
+    print >> sys.stderr, "ERROR: -p/--psf input psf filename required"
+    badopts = True
+
+if (opts.wavelength is not None) and (opts.loglam is not None):
+    print >> sys.stderr, "ERROR: -w/--wavelength and -l/--loglam are mutually exclusive options"
+    badopts = True
+
+if badopts:
+    sys.exit(1)
+
+#- Check numcores option vs. actual available number of CPU cores
 if opts.numcores < 1 or opts.numcores > MP.cpu_count():
     print >> sys.stderr, "WARNING: overriding numcores %d -> %d" % \
         (opts.numcores, MP.cpu_count())
@@ -71,7 +89,8 @@ if opts.throughput:
     thru = load_throughput(opts.throughput)
 else:
     thru = load_throughput(opts.psf)
-    
+
+#- Get dictionary with keys flux, wavelength, units, objtype
 spectra = specter.io.read_simspec(opts.input)
 
 #- Expand specrange = first,last inclusive
@@ -179,7 +198,7 @@ get 8 images off the output queue
 add them
 """
 
-#- Read imput image
+#- Read imput CCD image
 if opts.image:
     print "Loading input image"
     fx = fitsio.FITS(opts.image)
@@ -264,7 +283,7 @@ fitsio.write(opts.output, img, clobber=True, extname="CCDIMAGE")
 #- Update header keywords
 fx = fitsio.FITS(opts.output, 'rw')
 fx[0].write_key('SIMDATA', True, 'Simulated image written by Specter')
-fx[0].write_key('PREPROC', True, 'Preproc done (1/0 = True/False)')
+fx[0].write_key('PREPROC', True, 'Preproc done (1=True, 0=False)')
 fx[0].write_key('GAIN', opts.gain, 'Gain [e-/ADU]')
 fx[0].write_key('RDNOISE', output_readnoise, 'Read noise [e-]')    
 
@@ -317,9 +336,9 @@ if opts.extra:
 
 if opts.debug:
     #--- DEBUG ---
-    import IPython
     from pylab import *
     ion()
+    import IPython
     IPython.embed()
     #--- DEBUG ---
     

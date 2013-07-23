@@ -12,6 +12,7 @@ from specter.throughput import load_throughput
 from specter.test import test_data_dir
 
 class TestThroughput(unittest.TestCase):
+
     def setUp(self):
         self.thru = load_throughput(test_data_dir()+'/throughput.fits')
         self.w = N.arange(5000, 9000, 1)
@@ -86,6 +87,22 @@ class TestThroughput(unittest.TestCase):
         for u in units:
             p = self.thru.photons(self.w, self.flux, units=u, objtype='STAR')
             self.assertTrue( N.any(p>0) and N.all(p>=0) )
+
+    def test_scaledunits(self):
+        scale = 1e-16
+        units = [
+            "erg/s/cm^2",
+            "erg/s/cm^2/A",
+            "erg/s/cm^2/A/arcsec^2",
+            "erg/s/cm^2/arcsec^2",
+        ]
+        for u in units:
+            scaled_units = str(scale) + " " + u
+            p0 = self.thru.photons(self.w, self.flux, units=u, objtype='STAR')
+            p1 = self.thru.photons(self.w, self.flux/scale, units=scaled_units, objtype='STAR')
+            ii = (p0 != 0.0)
+            dp = N.abs( (p0-p1)[ii]/p0[ii] )
+            self.assertTrue( N.max(dp) < 1e-14 )  #- allow for roundoff error
 
     def test_photunits(self):
         units = [
