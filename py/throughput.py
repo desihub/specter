@@ -230,6 +230,17 @@ class Throughput:
         units = units.replace("Angstrom", "A")
         units = units.replace("**", "^")
         
+        #- Check for units prefactor like "1e-17 erg/s/cm^2/A"
+        scale = 1.0
+        tmp = units.split()
+        if len(tmp) == 2:
+            try:
+                scale = float(tmp[0])
+                flux = flux * scale
+                units = tmp[1]
+            except ValueError:
+                raise ValueError, "Non-numeric units scale factor " + tmp[0]
+        
         #- Default exposure time
         if exptime is None:
             exptime = self.exptime
