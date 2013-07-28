@@ -40,8 +40,6 @@ parser.add_option(      "--test", action='store_true', help="Run a suite of test
 ### parser.add_option("-s", "--sky", type="string",  help="input sky spectra")
 parser.add_option("-w", "--wavelength", type="string",
     help="wavelength range min,max in Angstroms")
-parser.add_option("-l", "--loglam", type="string",
-    help="log10(wavelength[A]) range min,max")
 parser.add_option("-r", "--specrange", type="string",
     help="simulate spectra range specmin,specmax inclusive")
 parser.add_option("--debug", action="store_true", help="start ipython after running")
@@ -65,10 +63,6 @@ if opts.output is None:
 
 if opts.psf is None:
     print >> sys.stderr, "ERROR: -p/--psf input psf filename required"
-    badopts = True
-
-if (opts.wavelength is not None) and (opts.loglam is not None):
-    print >> sys.stderr, "ERROR: -w/--wavelength and -l/--loglam are mutually exclusive options"
     badopts = True
 
 if badopts:
@@ -103,17 +97,13 @@ else:
 
 nspec = len(opts.specrange)
 
-#- Wavelength and loglam are just 2-elements min,max
+#- Wavelength is 2-elements min,max
 if opts.wavelength is not None:
     opts.wavelength = map(float, opts.wavelength.split(','))
-    opts.loglam = N.log10(opts.wavelength)
-elif opts.loglam is not None:
-    opts.loglam = map(float, opts.loglam.split(','))
-    opts.wavelength = 10**opts.loglam
 else:
-    ll = psf.loglam()
-    opts.loglam = N.array( [N.min(ll), N.max(ll)] )
-    opts.wavelength = 10**opts.loglam
+    wmin = N.min( psf.wavelength(None, y=-0.5) )        #- bottom edge of CCD
+    wmax = N.max( psf.wavelength(None, y=psf.npix_y-0.5) ) #- top edge of CCD 
+    opts.wavelength = wmin, wmax
     
 #- Get flux and wavelength arrays
 wavelength = spectra['wavelength']
