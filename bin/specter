@@ -27,7 +27,7 @@ parser.add_option("-i", "--input", type="string",  help="input spectra")
 parser.add_option("-I", "--image", type="string",  help="input image to add photons to")
 parser.add_option("-o", "--output", type="string",  help="output image")
 parser.add_option("-p", "--psf", type="string",  help="input PSF")
-parser.add_option("-t", "--throughput", type="string",  help="input throughput file")
+parser.add_option("-t", "--throughput", type="string",  help="input throughput file (default to throughtput in PSF file)")
 parser.add_option("-n", "--noise", action="store_true", help="add noise")
 parser.add_option("-N", "--readnoise", type="float", default=3.0, help="readout noise in electrons [%default]")
 parser.add_option(      "--randseed", type="int", default=0, help="random number seed")
@@ -36,22 +36,23 @@ parser.add_option("-g", "--gain", type="float", default=1.6, help="CCD gain [%de
 parser.add_option("-x", "--extra", action='store_true', help="Write extra HDUs with input spectra, xyw models")
 parser.add_option(      "--numcores", type="int", default=MP.cpu_count(), help="number of CPU cores to use [%default]")
 parser.add_option(      "--test", action='store_true', help="Run a suite of tests; ignore other options")
-
 ### parser.add_option("-s", "--sky", type="string",  help="input sky spectra")
 parser.add_option("-w", "--wavelength", type="string",
     help="wavelength range min,max in Angstroms")
 parser.add_option("-r", "--specrange", type="string",
-    help="simulate spectra range specmin,specmax inclusive")
+    help="simulate spectra specmin to specmax inclusive")
 parser.add_option("--debug", action="store_true", help="start ipython after running")
+parser.add_option("--trimxy", action='store_true', help="Trim output image to just pixels with spectra")
 
 opts, args = parser.parse_args()
 
+#- Run tests and skip the rest if --test
 if opts.test:
     import specter.test
     specter.test.test()
     sys.exit(0)
 
-#- Test input option consistency
+#- Check input option consistency
 badopts = False
 if opts.input is None:
     print >> sys.stderr, "ERROR: -i/--input spectra filename required"
@@ -65,29 +66,25 @@ if opts.psf is None:
     print >> sys.stderr, "ERROR: -p/--psf input psf filename required"
     badopts = True
 
-if badopts:
-    sys.exit(1)
-
-#- Check numcores option vs. actual available number of CPU cores
 if opts.numcores < 1 or opts.numcores > MP.cpu_count():
     print >> sys.stderr, "WARNING: overriding numcores %d -> %d" % \
         (opts.numcores, MP.cpu_count())
     opts.numcores = MP.cpu_count()
 
-#- Ensure reproducibility
+if badopts:
+    sys.exit(1)
+
+#- Set random seed to ensure reproducibility
 N.random.seed(opts.randseed)
 
-#- Load inputs
+#- Load input PSF and throughtput
 psf = load_psf(opts.psf)
 if opts.throughput:
     thru = load_throughput(opts.throughput)
 else:
     thru = load_throughput(opts.psf)
 
-#- Get dictionary with keys flux, wavelength, units, objtype
-spectra = specter.io.read_simspec(opts.input)
-
-#- Expand specrange = first,last inclusive
+#- Expand opts.specrange = first,last *inclusive* -> array of indices
 if opts.specrange is not None:
     x = map(int, opts.specrange.split(','))
     x[1] = min(x[1]+1, psf.nspec)
@@ -97,30 +94,70 @@ else:
 
 nspec = len(opts.specrange)
 
-#- Wavelength is 2-elements min,max
+#-  opts.wavelength is 2-elements min,max
 if opts.wavelength is not None:
     opts.wavelength = map(float, opts.wavelength.split(','))
+    wmin, wmax = opts.wavelength
 else:
     wmin = N.min( psf.wavelength(None, y=-0.5) )        #- bottom edge of CCD
     wmax = N.max( psf.wavelength(None, y=psf.npix_y-0.5) ) #- top edge of CCD 
     opts.wavelength = wmin, wmax
     
-#- Get flux and wavelength arrays
+#- Load input spectra
+#- returns dictionary with keys flux, wavelength, units, objtype
+spectra = specter.io.read_simspec(opts.input)
 wavelength = spectra['wavelength']
 flux = spectra['flux']
 units = spectra['units']
 
-assert flux.ndim == wavelength.ndim
-assert flux.shape == wavelength.shape
+#- Expand to 2D if necessary and trim wavelength range
+if wavelength.ndim == 1 and flux.ndim == 1:
+   ii = (wmin <= wavelength) & (wavelength <= wmax)
+   wavelength = wavelength[ii]
+   flux = flux[ii]
+   wavelength = N.tile(wavelength, nspec).reshape(nspec, len(wavelength))
+   flux = N.tile(flux, nspec).reshape(nspec, len(flux))
+elif wavelength.ndim == 1 and flux.ndim == 2:
+    ii = (wmin <= wavelength) & (wavelength <= wmax)
+    wavelength = wavelength[ii]
+    wavelength = N.tile(wavelength, nspec).reshape(nspec, len(wavelength))
 
+    flux = flux[:, ii]
+    if flux.shape[0] > nspec:
+        flux = flux[opts.specrange]
+else:
+    #- Trim wavelengths where all spectra are out of range
+    ii = (wmin <= wavelength.min(axis=0)) & (wavelength.max(axis=0) <= wmax)
+    wavelength = wavelength[:, ii]
+    flux = flux[:, ii]
+    
+    
+#- Exapnd objtype into array
 objtype = spectra['objtype']
 if isinstance(objtype, str) and (flux.ndim == 2):
     objtype = N.array( [objtype,] * flux.shape[0] )
 
-#- Trim to just requested specrange
-if wavelength.ndim == 2:
-    flux = flux[opts.specrange]
-    wavelength = wavelength[opts.specrange]
+#- Resample spectra to match CCD sub-pixel resolution
+#- only do this for "per-Angstrom" units, not delta functions flux/phot at A
+if units.endswith('/A'):
+    dy = 0.25
+    edges = N.arange(-0.5, psf.npix_y-0.5+dy/2., dy)
+    midy = (edges[0:-1] + edges[1:])/2
+    newwave = N.zeros(nspec, len(edges)-1)
+    newflux = N.zeros(nspec, len(edges)-1)
+    for i in range(nspec):
+        newwave[i] = psf.wavelength(i, y=midy)
+        newflux[i] = util.resample(edges, wavelength[i], flux[i], xedges=True)
+        
+    wavelength = newwave
+    flux = newflux
+    
+#- For each spectrum, set flux=0 for wavelengths out of range
+#- When spectral wavelength ranges are different, some may need trimming
+#- even if others don't.
+for i in range(flux.shape[0]):
+    iibad = (wavelength[i] < wmin) | (wmax < wavelength[i])
+    flux[iibad] = 0.0    
 
 #- Convert flux to photons, and 1D -> 2D if needed
 if flux.ndim == 1:
@@ -132,30 +169,23 @@ else:
     for i in range(photons.shape[0]):
         photons[i] = thru.photons(wavelength[i], flux[i], units, objtype=objtype[i])
 
-#- Trim wavelength range by setting photons=0 outside wavelength range
-wmin, wmax = opts.wavelength
-if wavelength.ndim == 1:
-    ii = (wmin <= wavelength) & (wavelength <= wmax)
-    photons = photons[:, ii]
-    wavelength = wavelength[ii]
+if opts.trimxy:
+    specrange = opts.specrange[0], opts.specrange[-1]+1
+    waverange = opts.wavelength[0], opts.wavelength[-1]
+    xyrange = psf.xyrange(specrange, opts.wavelength)
 else:
-    #- for 2D, just set photons=0 outside wavelength range
-    ii = (wavelength < wmin) | (wmax < wavelength)
-    photons[ii] = 0.0
-
-#- Do the projection
-#+ TODO: Add options for simulating xy subregion
+    xyrange = None
 
 #- Project spectra onto the CCD
 print "Projecting spectra onto CCD"
 if opts.numcores == 1:
-    img = psf.project(photons, wavelength, specmin=opts.specrange[0])
+    img = psf.project(photons, wavelength, specmin=opts.specrange[0], xyrange=xyrange)
 else:
     #- Parallel version uses function passed to parallel map
     #- Input dictionary provides parameters
     def project(args):
         psf = args['psf']
-        return psf.project(args['photons'], args['wavelength'], args['specmin'])
+        return psf.project(args['photons'], args['wavelength'], args['specmin'], args['xyrange'])
     
     #- Setup list of dictionaries with arguments
     arglist = list()
@@ -163,7 +193,9 @@ else:
     for i in range(0, len(opts.specrange), n):
         arglist.append(dict(psf=psf, photons=photons[i:i+n],
                          wavelength=wavelength[i:i+n],
-                         specmin=opts.specrange[i]))
+                         specmin=opts.specrange[i],
+                         xyrange=xyrange)
+                      )
 
     #- Parallel map to run project(arglist[0]), project(arglist[1]), etc.
     pool = MP.Pool(opts.numcores)
@@ -200,12 +232,19 @@ if opts.image:
         input_var = 1.0/fx['IVAR'].read()
     elif len(fx) > 1:
         input_var = 1.0/fx[1].read()
-    else:            
+    else:
+        #- Robust noise estimate; RMS would get pulled by cosmic outliers.
         #- Assume sparse image of mostly noise; 68.27% is outside
         #- of +/- 1 sigma so 15.865% is below 1 sigma downward
-        sigma = N.median(input_input) - N.percentile(input_image, 15.865)
+        sigma = N.median(input_image) - N.percentile(input_image, 15.865)
         input_var = sigma**2
         input_readnoise = sigma
+
+        if xyrange is not None:
+            xmin, xmax, ymin, ymax = xyrange
+            input_image = input_image[ymin:ymax, xmin:xmax]
+            if input_var.ndim == 2:
+                input_var = input_var[ymin:ymax, xmin:xmax]
 
     #- Read or derive read noise
     hdr = fx[0].read_header()
@@ -214,14 +253,14 @@ if opts.image:
     else:
         #- Per amp read-noise:
         amp_noise = list()
-        for i in range(10):
+        for i in range(32):
             key = 'RDNOISE%d' % i
             if key in hdr:
                 amp_noise.append(hdr[key])
         if len(amp_noise) > 0:
             input_readnoise = N.mean(amp_noise)
         else:
-            input_readnoise = N.sqrt(N.median(input_var))
+            input_readnoise = N.sqrt(N.median(input_var))   #- ???
             
     fx.close()  #- close input image file
 
@@ -276,6 +315,11 @@ fx[0].write_key('SIMDATA', True, 'Simulated image written by Specter')
 fx[0].write_key('PREPROC', True, 'Preproc done (1=True, 0=False)')
 fx[0].write_key('GAIN', opts.gain, 'Gain [e-/ADU]')
 fx[0].write_key('RDNOISE', output_readnoise, 'Read noise [e-]')    
+if opts.trimxy:
+    #- TO DO: check logic; is -ymin, -xmin correct?  or -1 of that?
+    #- is order correct?
+    fx[0].write_key('CRPIX0', -xyrange[0])  #- negative xmin
+    fx[0].write_key('CRPIX0', -xyrange[2])  #- negative ymin
 
 if opts.gaussnoise:
     fx[0].write_key('SIMNOISE', 'Gaussian', 'Gaussian noise (not Poisson)')
