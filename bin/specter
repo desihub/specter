@@ -150,8 +150,14 @@ if units.endswith('/A'):
         newwave[i] = psf.wavelength(i, y=midy)
         newflux[i] = specter.util.resample(edges, wavelength[i], flux[i], xedges=True)
         
-    wavelength = newwave
-    flux = newflux
+    # wavelength = newwave
+    # flux = newflux
+
+#--- DEBUG ---
+import IPython
+IPython.embed()
+#--- DEBUG ---
+
     
 #- For each spectrum, set flux=0 for wavelengths out of range
 #- When spectral wavelength ranges are different, some may need trimming
