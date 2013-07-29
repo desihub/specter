@@ -302,10 +302,10 @@ class PSF(object):
             xmin = self.xypix(specmin, wxmin)[0].start
             
         #- and wavelength where x = max(x)
-        w = self.wavelength(specmax)
+        w = self.wavelength(specmax-1)
         ii = (wavemin < w) & (w < wavemax)
         ww = N.concatenate( ([wavemin,], w[ii], [wavemax,]) )
-        x = self.x(specmax, ww)
+        x = self.x(specmax-1, ww)
         if max(x) > self.npix_x:
             xmax = self.npix_x
         else:

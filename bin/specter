@@ -16,6 +16,7 @@ import multiprocessing as MP
 import specter
 from specter.psf import load_psf
 from specter.throughput import load_throughput
+import specter.util
 import fitsio
 
 #- Parse options
@@ -143,11 +144,11 @@ if units.endswith('/A'):
     dy = 0.25
     edges = N.arange(-0.5, psf.npix_y-0.5+dy/2., dy)
     midy = (edges[0:-1] + edges[1:])/2
-    newwave = N.zeros(nspec, len(edges)-1)
-    newflux = N.zeros(nspec, len(edges)-1)
+    newwave = N.zeros((nspec, len(edges)-1))
+    newflux = N.zeros((nspec, len(edges)-1))
     for i in range(nspec):
         newwave[i] = psf.wavelength(i, y=midy)
-        newflux[i] = util.resample(edges, wavelength[i], flux[i], xedges=True)
+        newflux[i] = specter.util.resample(edges, wavelength[i], flux[i], xedges=True)
         
     wavelength = newwave
     flux = newflux
@@ -155,9 +156,10 @@ if units.endswith('/A'):
 #- For each spectrum, set flux=0 for wavelengths out of range
 #- When spectral wavelength ranges are different, some may need trimming
 #- even if others don't.
+
 for i in range(flux.shape[0]):
     iibad = (wavelength[i] < wmin) | (wmax < wavelength[i])
-    flux[iibad] = 0.0    
+    flux[i, iibad] = 0.0    
 
 #- Convert flux to photons, and 1D -> 2D if needed
 if flux.ndim == 1:
