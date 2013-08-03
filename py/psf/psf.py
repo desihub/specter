@@ -223,23 +223,29 @@ class PSF(object):
         minima (useful for simulating subimages)
         """
         
-        if wavelength < self._wavelength[ispec, 0] or \
-           self._wavelength[ispec, -1] < wavelength:
-            return slice(0,0), slice(0,0), N.zeros( (0,0) )
-        
         if xmax is None:
             xmax = self.npix_x
         if ymax is None:
             ymax = self.npix_y
 
+        if wavelength < self._wavelength[ispec, 0]:
+            return slice(0,0), slice(0,0), N.zeros((0,0))
+        elif wavelength > self._wavelength[ispec, -1]:
+            return slice(0,0), slice(ymax, ymax), N.zeros((0,0))
+        
         xx, yy, ccdpix = self._xypix(ispec, wavelength)
         xlo, xhi = xx.start, xx.stop
         ylo, yhi = yy.start, yy.stop
 
         #- Check if completely off the edge in any direction
-        if (xlo >= xmax) or (xhi <= xmin) or \
-           (ylo >= ymax) or (yhi < ymin):
-            return slice(0,0), slice(0,0), N.zeros( (0,0) )
+        if (ylo >= ymax):
+            return slice(0,0), slice(ymax,ymax), N.zeros( (0,0) )            
+        elif (yhi < ymin):
+            return slice(0,0), slice(ymin,ymin), N.zeros( (0,0) )
+        elif (xlo >= xmax):
+            return slice(xmax, xmax), slice(0,0), N.zeros( (0,0) )
+        elif (xhi <= xmin):
+            return slice(xmin, xmin), slice(0,0), N.zeros( (0,0) )
             
         #- Check if partially off edge
         if xlo < xmin:
@@ -258,13 +264,7 @@ class PSF(object):
         
         xx = slice(xlo-xmin, xhi-xmin)
         yy = slice(ylo-ymin, yhi-ymin)
-        
-        if (xx.stop-xx.start != ccdpix.shape[1]) or (yy.stop-yy.start != ccdpix.shape[0]):
-            #--- DEBUG ---
-            import IPython
-            IPython.embed()
-            #--- DEBUG ---            
-        
+                
         return xx, yy, ccdpix
 
     def xyrange(self, spec_range, wavelengths):
@@ -314,7 +314,7 @@ class PSF(object):
             xmax = self.npix_x
         else:
             wxmax = ww[N.argmax(x)]
-            xmax = self.xypix(specmax, wxmax)[0].stop
+            xmax = self.xypix(specmax-1, wxmax)[0].stop
                                         
         return (xmin, xmax, ymin, ymax)
     
