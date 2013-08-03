@@ -11,6 +11,7 @@ import scipy.signal
 from scipy.special import legendre
 from scipy.sparse import spdiags
 from scipy.signal import convolve, convolve2d
+from specter.util import pixspline
 
 from specter.extract.ex2d import resolution_from_icov
 
@@ -286,18 +287,23 @@ def get_bin_edges(bin_centers):
     mid = 0.5*(bin_centers[0:-1] + bin_centers[1:])
     return N.concatenate( (bin_centers[0:1], mid, bin_centers[-1:]) )
     
-def resample(x, xp, yp, edges=False):
+def resample(x, xp, yp, xedges=False, xpedges=False):
     """
-    Resample a spectrum to a new binning
+    IN PROGRESS.  Resample a spectrum to a new binning using PixelSpline
+
+    1 <= x.ndim <= xp.ndim <= yp.ndim <= 2
     """
+
+    assert 1 <= x.ndim
+    assert x.ndim <= xp.ndim
+    assert xp.ndim <= yp.ndim
+    assert yp.ndim <= 2
+
+    input_edges = xp if xpedges else pixspline.cen2bound(xp)
+    ys = pixspline.PixelSpline(input_edges, yp)
     
-    if edges:
-        edges = x
-    else:
-        edges = get_bin_edges(x)
-        
-    binwidth = N.diff(edges)
-    return trapz(edges, xp, yp) / binwidth
+    edges = x if xedges else pixspline.cen2bound(x)
+    return ys.resample(edges)
     
         
     

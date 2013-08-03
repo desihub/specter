@@ -155,6 +155,33 @@ class TestPSF(unittest.TestCase):
         self.assertTrue(xx.start == 0)
         self.assertTrue(yy.start == 0)
         
+    #- Test requests for PSFs off the edge of the requested xyrange
+    #- Helper function
+    def check_xypix_edges(self, ispec, wavelength, xyrange):
+        xx, yy, pix = self.psf.xypix(ispec, wavelength=wavelength, **xyrange)
+        nx = xx.stop - xx.start
+        ny = yy.stop - yy.start
+        msg = 'xx=' + str(xx) + ' yy=' + str(yy) + ' ' + str(pix.shape)
+        self.assertEqual(ny, pix.shape[0], msg)
+        self.assertEqual(nx, pix.shape[1], msg)
+    
+    #- The actual test
+    def test_xypix_edges(self):
+        psf = self.psf
+        #- Pick a range within the CCD
+        imin = psf.nspec/2 - 5
+        imax = psf.nspec/2 + 5
+        wmin = psf.wavelength(imin, y=int(psf.npix_y*0.4))
+        wmax = psf.wavelength(imax, y=int(psf.npix_y*0.6))
+        wmid = 0.5*(wmin + wmax)
+
+        xmin, xmax, ymin, ymax = psf.xyrange((imin, imax), (wmin, wmax))
+        xyrange = dict(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
+
+        for i in (imin-1, imin, imax, imax+1):
+            for w in (wmin-3, wmin, wmid, wmax, wmax+3):
+                self.check_xypix_edges(i, w, xyrange)
+        
     #- Test projection of 1D spectrum with 1D wavelength vector
     def test_project11(self):
         ww = self.psf.wavelength(0)[0:10]
