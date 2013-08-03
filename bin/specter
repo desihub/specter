@@ -138,31 +138,30 @@ objtype = spectra['objtype']
 if isinstance(objtype, str) and (flux.ndim == 2):
     objtype = N.array( [objtype,] * flux.shape[0] )
 
+
 #- Resample spectra to match CCD sub-pixel resolution
 #- only do this for "per-Angstrom" units, not delta functions flux/phot at A
 if units.endswith('/A'):
+    specrange = opts.specrange[0], opts.specrange[-1]+1
+    waverange = opts.wavelength[0], opts.wavelength[-1]
+    xmin, xmax, ymin, ymax = psf.xyrange(specrange, opts.wavelength)
     dy = 0.25
-    edges = N.arange(-0.5, psf.npix_y-0.5+dy/2., dy)
-    midy = (edges[0:-1] + edges[1:])/2
-    newwave = N.zeros((nspec, len(edges)-1))
-    newflux = N.zeros((nspec, len(edges)-1))
+    yedges = N.arange(ymin-0.5, ymax-0.5+dy/2., dy)
+    ymid = (yedges[0:-1] + yedges[1:])/2
+    newwave = N.zeros( (nspec, len(ymid)) )
+    newflux = N.zeros( (nspec, len(ymid)) )
     for i in range(nspec):
-        newwave[i] = psf.wavelength(i, y=midy)
-        newflux[i] = specter.util.resample(edges, wavelength[i], flux[i], xedges=True)
+        wedges = psf.wavelength(i, y=yedges)
+        wmid = psf.wavelength(i, y=ymid)
+        newwave[i] = wmid
+        newflux[i] = specter.util.resample(wedges, wavelength[i], flux[i], xedges=True)
         
-    # wavelength = newwave
-    # flux = newflux
-
-#--- DEBUG ---
-import IPython
-IPython.embed()
-#--- DEBUG ---
-
+    wavelength = newwave
+    flux = newflux
     
 #- For each spectrum, set flux=0 for wavelengths out of range
 #- When spectral wavelength ranges are different, some may need trimming
 #- even if others don't.
-
 for i in range(flux.shape[0]):
     iibad = (wavelength[i] < wmin) | (wmax < wavelength[i])
     flux[i, iibad] = 0.0    

@@ -227,15 +227,15 @@ class PSF(object):
            self._wavelength[ispec, -1] < wavelength:
             return slice(0,0), slice(0,0), N.zeros( (0,0) )
         
-        xx, yy, ccdpix = self._xypix(ispec, wavelength)
-        xlo, xhi = xx.start, xx.stop
-        ylo, yhi = yy.start, yy.stop
-
         if xmax is None:
             xmax = self.npix_x
         if ymax is None:
             ymax = self.npix_y
-        
+
+        xx, yy, ccdpix = self._xypix(ispec, wavelength)
+        xlo, xhi = xx.start, xx.stop
+        ylo, yhi = yy.start, yy.stop
+
         #- Check if completely off the edge in any direction
         if (xlo >= xmax) or (xhi <= xmin) or \
            (ylo >= ymax) or (yhi < ymin):
@@ -243,23 +243,27 @@ class PSF(object):
             
         #- Check if partially off edge
         if xlo < xmin:
-            ccdpix = ccdpix[:, -xlo:]
+            ccdpix = ccdpix[:, -(xhi-xmin):]
             xlo = xmin
         elif xhi > xmax:
-            dx = xmax - xlo
-            ccdpix = ccdpix[:, 0:dx]
+            ccdpix = ccdpix[:, 0:(xmax-xlo)]
             xhi = xmax
 
         if ylo < ymin:
-            ccdpix = ccdpix[-ylo:, ]
+            ccdpix = ccdpix[-(yhi-ymin):, ]
             ylo = ymin
         elif yhi > ymax:
-            dy = ymax - ylo
-            ccdpix = ccdpix[0:dy, :]
+            ccdpix = ccdpix[0:(ymax-ylo), :]
             yhi = ymax
         
         xx = slice(xlo-xmin, xhi-xmin)
         yy = slice(ylo-ymin, yhi-ymin)
+        
+        if (xx.stop-xx.start != ccdpix.shape[1]) or (yy.stop-yy.start != ccdpix.shape[0]):
+            #--- DEBUG ---
+            import IPython
+            IPython.embed()
+            #--- DEBUG ---            
         
         return xx, yy, ccdpix
 
@@ -510,9 +514,10 @@ class PSF(object):
             wmin, wmax = self.wavelength(ispec, y=(0, self.npix_y))
             for j, w in enumerate(wspec):
                 if phot[i,j] > 0.0 and wmin <= w and w <= wmax:
-                    xx, yy, pix = self.xypix(ispec, w)
-                    xx = slice(xx.start-xmin, xx.stop-xmin)
-                    yy = slice(yy.start-ymin, yy.stop-ymin)
+                    xx, yy, pix = self.xypix(ispec, w, \
+                        xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
+                    # xx = slice(xx.start-xmin, xx.stop-xmin)
+                    # yy = slice(yy.start-ymin, yy.stop-ymin)
                     img[yy, xx] += pix * phot[i,j]
 
         return img
