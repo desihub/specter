@@ -29,7 +29,7 @@ class TestExtract(unittest.TestCase):
         phot_shape = (nspec, nwave)
         phot = N.random.uniform(1, 1000, size=phot_shape)
         image_orig = psf.project(phot, ww, verbose=False)
-        var = 1.0 + N.abs(image_orig)
+        var = 1.0 + image_orig
         image = image_orig + N.random.normal(scale=N.sqrt(var))
                 
         self.phot = phot
@@ -60,12 +60,6 @@ class TestExtract(unittest.TestCase):
             
             pixchi = (xpix - subpix) * N.sqrt(subivar)
         
-            #--- DEBUG ---
-            import IPython
-            IPython.embed()
-            #--- DEBUG ---
-            
-            
             print i, N.std(chi), N.std(pixchi)
     
     def test_noiseless_ex2d(self):
@@ -112,6 +106,7 @@ class TestExtract(unittest.TestCase):
         subivar = self.ivar[ymin:ymax, xmin:xmax]
         pull_image = ((ximage - subimg) * N.sqrt(subivar))
 
+        print "Known problem: Overfitting may result in small pull value"
         self.assertTrue(N.abs(1-N.std(pull_flux)) < 0.05,
                         msg="pull_flux sigma is %f" % N.std(pull_flux))
         self.assertTrue(N.abs(1-N.std(pull_image)) < 0.05,
