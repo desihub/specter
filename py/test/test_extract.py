@@ -107,6 +107,7 @@ class TestExtract(unittest.TestCase):
         pull_image = ((ximage - subimg) * N.sqrt(subivar))
 
         print "Known problem: Overfitting may result in small pull value"
+        print N.std(pull_flux), N.std(pull_image)
         self.assertTrue(N.abs(1-N.std(pull_flux)) < 0.05,
                         msg="pull_flux sigma is %f" % N.std(pull_flux))
         self.assertTrue(N.abs(1-N.std(pull_image)) < 0.05,
