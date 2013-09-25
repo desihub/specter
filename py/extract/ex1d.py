@@ -15,7 +15,7 @@ import math
 from specter.util import gausspix, weighted_solve
 
 def extract1d(img, ivar, psf, specrange=None, yrange=None,
-              nspec_per_group=20):
+              nspec_per_group=20, debug=False, model=False):
     """
     Extract spectra from an image using row-by-row weighted extraction.
     
@@ -33,6 +33,8 @@ def extract1d(img, ivar, psf, specrange=None, yrange=None,
         groupspec: extract spectra in groups of N spectra
             (faster if spectra are physically separated into non-overlapping
             groups)
+            
+        debug: if True, stop with prompt after each row
         
     Returns:
         spectra[nspec, ny]   - extracted spectra
@@ -51,6 +53,9 @@ def extract1d(img, ivar, psf, specrange=None, yrange=None,
     
     spectra = N.zeros((nspec, ny))
     specivar = N.zeros((nspec, ny))
+    
+    if model:
+        imgmodel = N.zeros(img.shape)
         
     #- Loop over groups of spectra
     for speclo in range(specmin, specmax, nspec_per_group):
@@ -89,13 +94,23 @@ def extract1d(img, ivar, psf, specrange=None, yrange=None,
             
             #- Solve
             tmpspec, iCov = weighted_solve(A, img[row, xmin:xmax], ivar[row, xmin:xmax])
+            if model:
+                imgmodel[row, xmin:xmax] = A.dot(tmpspec)
         
             #- TODO: Should repeat extraction using model to derive errors
             #- Requires read noise as an input parameter
         
             spectra[speclo-specmin:spechi-specmin, row-ymin] = tmpspec
-            specivar[speclo-specmin:spechi-specmin, row-ymin] = iCov.diagonal()            
+            specivar[speclo-specmin:spechi-specmin, row-ymin] = iCov.diagonal()   
+            
+            if debug:
+                print speclo, row
+                import IPython
+                IPython.embed()                
                 
-    return spectra, specivar
+    if model:
+        return spectra, specivar, imgmodel
+    else:
+        return spectra, specivar
     
         

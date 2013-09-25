@@ -227,7 +227,7 @@ class TestPSF(unittest.TestCase):
         phot = N.random.uniform(0,100,nw)               #- 1D
         phot = N.tile(phot, nspec).reshape(nspec, nw)   #- 2D
         
-        spec_range = (0, nspec-1)
+        spec_range = (0, nspec)
         
         xyrange = xmin,xmax,ymin,ymax = self.psf.xyrange(spec_range, ww)
         img = self.psf.project(phot, ww, verbose=False)
@@ -235,7 +235,7 @@ class TestPSF(unittest.TestCase):
 
         #- Does subimage match corresponding range for full image?
         self.assertTrue(N.all(subimg == img[ymin:ymax, xmin:xmax]))
-        
+
         #- Clear subimage region and test that everything is 0
         img[ymin:ymax, xmin:xmax] = 0.0
         self.assertTrue(N.all(img == 0.0))
@@ -366,8 +366,8 @@ class TestPSF(unittest.TestCase):
             self.assertTrue(pix.shape == (0,0))
 
             xx, yy, pix = self.psf.xypix(ispec, self.psf.wmax+1)
-            self.assertTrue(xx.start == xx.stop == 0)
-            self.assertTrue(yy.start == yy.stop == 0)
+            self.assertTrue(xx.start == xx.stop == 0)                            
+            self.assertTrue(yy.start == yy.stop == self.psf.npix_y)
             self.assertTrue(pix.shape == (0,0))
             
         
@@ -396,7 +396,7 @@ class TestPSF(unittest.TestCase):
         xmin,xmax,ymin,ymax = self.psf.xyrange(spec_range, ww)
 
         #- Test all wavelengths for first and last spectrum
-        for i in spec_range:
+        for i in range(spec_range[0], spec_range[-1]):
             for w in ww:
                 xx, yy, pix = self.psf.xypix(i, w)
                 if pix.shape == (0,0):  #- off edge of CCD
@@ -408,7 +408,7 @@ class TestPSF(unittest.TestCase):
                 self.assertLessEqual(yy.stop, ymax)
 
         #- Test all spectra for min and max wavelengths
-        for i in range(spec_range[0], spec_range[-1]+1):
+        for i in range(spec_range[0], spec_range[-1]):
             for w in (ww[0], ww[-1]):
                 xx, yy, pix = self.psf.xypix(i, w)
                 if pix.shape == (0,0):  #- off edge of CCD

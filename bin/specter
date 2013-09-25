@@ -102,7 +102,7 @@ if opts.wavelength is not None:
 else:
     wmin = N.min( psf.wavelength(None, y=-0.5) )        #- bottom edge of CCD
     wmax = N.max( psf.wavelength(None, y=psf.npix_y-0.5) ) #- top edge of CCD 
-    opts.wavelength = wmin, wmax
+    opts.wavelength = [wmin, wmax]
     
 #- Load input spectra
 #- returns dictionary with keys flux, wavelength, units, objtype
@@ -111,13 +111,20 @@ wavelength = spectra['wavelength']
 flux = spectra['flux']
 units = spectra['units']
 
+#- Check if input spectra are less than PSF wavelength range
+if N.min(wavelength) > wmin:
+    opts.wavelength[0] = wmin = N.min(wavelength)
+
+if N.max(wavelength) < wmax:
+    opts.wavelength[1] = wmax = N.max(wavelength)
+
 #- Expand to 2D if necessary and trim wavelength range
 if wavelength.ndim == 1 and flux.ndim == 1:
-   ii = (wmin <= wavelength) & (wavelength <= wmax)
-   wavelength = wavelength[ii]
-   flux = flux[ii]
-   wavelength = N.tile(wavelength, nspec).reshape(nspec, len(wavelength))
-   flux = N.tile(flux, nspec).reshape(nspec, len(flux))
+    ii = (wmin <= wavelength) & (wavelength <= wmax)
+    wavelength = wavelength[ii]
+    flux = flux[ii]
+    wavelength = N.tile(wavelength, nspec).reshape(nspec, len(wavelength))
+    flux = N.tile(flux, nspec).reshape(nspec, len(flux))
 elif wavelength.ndim == 1 and flux.ndim == 2:
     ii = (wmin <= wavelength) & (wavelength <= wmax)
     wavelength = wavelength[ii]
@@ -131,16 +138,15 @@ else:
     ii = (wmin <= wavelength.min(axis=0)) & (wavelength.max(axis=0) <= wmax)
     wavelength = wavelength[:, ii]
     flux = flux[:, ii]
-    
-    
-#- Exapnd objtype into array
+        
+#- Expand objtype into array
 objtype = spectra['objtype']
 if isinstance(objtype, str) and (flux.ndim == 2):
     objtype = N.array( [objtype,] * flux.shape[0] )
 
-
 #- Resample spectra to match CCD sub-pixel resolution
 #- only do this for "per-Angstrom" units, not delta functions flux/phot at A
+#- BUG: what if we go partially off the CCD for some spectra but not others?
 if units.endswith('/A'):
     specrange = opts.specrange[0], opts.specrange[-1]+1
     waverange = opts.wavelength[0], opts.wavelength[-1]
