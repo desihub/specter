@@ -208,7 +208,7 @@ def gausspix(x, mean=0.0, sigma=1.0):
     """
     Return Gaussian(mean,sigma) integrated over unit width pixels centered at x[].
     """
-    edges = N.concatenate( (x-0.5, x[-1:]+0.5))
+    edges = N.concatenate((x-0.5, x[-1:]+0.5))
     integrals = gaussint(edges, mean=mean, sigma=sigma)
     return integrals[1:] - integrals[0:-1]
     

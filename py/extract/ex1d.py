@@ -14,17 +14,19 @@ import math
 
 from specter.util import gausspix, weighted_solve
 
-def extract1d(img, ivar, psf, specrange=None, yrange=None,
+def extract1d(img, mask, psf, readnoise=2.5,
+              specrange=None, yrange=None,
               nspec_per_group=20, debug=False, model=False):
     """
     Extract spectra from an image using row-by-row weighted extraction.
     
     Inputs:
         img[ny, nx]     CCD image
-        ivar[ny, nx]    Image inverse variance
+        mask[ny, nx]    0=good, non-zero=bad
         psf object
         
     Optional Inputs:
+        readnoise = CCD readnoise
         specrange = (specmin, specmax) Spectral range to extract (default all)
         yrange = (ymin, ymax) CCD y (row) range to extract (default all rows)
         --> ranges are python-like, i.e. yrange=(0,100) extracts 100 rows
@@ -61,8 +63,17 @@ def extract1d(img, ivar, psf, specrange=None, yrange=None,
     for speclo in range(specmin, specmax, nspec_per_group):
         spechi = min(specmax, speclo+nspec_per_group)
                 
+        #- Calc trace centers (x0) and gaussian sigmas (xsigma) for each row
+        allx0 = N.zeros((nspec_per_group, ymax-ymin))
+        allxsigma = N.zeros((nspec_per_group, ymax-ymin))
+        rows = N.arange(ymin, ymax)
+        for ispec in range(speclo, spechi):
+            w = psf.wavelength(ispec, y=rows)
+            allx0[ispec-speclo] = psf.x(ispec, w)
+            allxsigma[ispec-speclo] = psf.xsigma(ispec, w)
+                
         #- Loop over CCD rows
-        for row in range(ymin, ymax):
+        for irow, row in enumerate(range(ymin, ymax)):
             if row%500 == 0:
                 print "Row %3d spectra %d:%d" % (row, speclo, spechi)
         
@@ -82,9 +93,11 @@ def extract1d(img, ivar, psf, specrange=None, yrange=None,
             #- Design matrix for pixels = A * flux for this row
             A = N.zeros( (xmax-xmin, spechi-speclo) )
             for ispec in range(speclo, spechi):
-                w = psf.wavelength(ispec, y=row)
-                x0 = psf.x(ispec, w)
-                xsigma = psf.xsigma(ispec, w)
+                # w = psf.wavelength(ispec, y=row)
+                # x0 = psf.x(ispec, w)
+                # xsigma = psf.xsigma(ispec, w)
+                x0 = allx0[ispec-speclo, irow]
+                xsigma = allxsigma[ispec-speclo, irow]
             
                 #- x range for single spectrum on single row
                 xlo = max(xmin, int(x0-5*xsigma))
@@ -92,8 +105,18 @@ def extract1d(img, ivar, psf, specrange=None, yrange=None,
             
                 A[xlo-xmin:xhi-xmin, ispec-speclo] = gausspix(xx[xlo:xhi], x0, xsigma)
             
-            #- Solve
-            tmpspec, iCov = weighted_solve(A, img[row, xmin:xmax], ivar[row, xmin:xmax])
+            #- Original solve, weighting by input ivar
+            ### tmpspec, iCov = weighted_solve(A, img[row, xmin:xmax], ivar[row, xmin:xmax])
+
+            #- Solve weighting only by readnoise and mask
+            nx = xmax-xmin
+            xvar = N.ones(nx)*readnoise**2 * (mask[row, xmin:xmax] == 0)
+            tmpspec, iCov = weighted_solve(A, img[row, xmin:xmax], 1.0/xvar)
+            
+            #- Re-extract with weight incluing model shot noise
+            xvar = (A.dot(tmpspec) + readnoise**2) * (mask[row, xmin:xmax] == 0)
+            tmpspec, iCov = weighted_solve(A, img[row, xmin:xmax], 1.0/xvar)
+
             if model:
                 imgmodel[row, xmin:xmax] = A.dot(tmpspec)
         
