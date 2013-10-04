@@ -78,7 +78,7 @@ tw = tele['WAVE'][0]
 tx = tele['MIRROREF'][0] * tele['CORRTRANS'][0] * tele['ARTRANS'][0]**tele['NSURF'][0]
 s = SplineFit(tw, tx)
 thru['optics'] = s(ww)
-thru['effarea'] = (tele['MIRRORDIAM'][0]*100)**2 / 4 * tele['VIGN'][0]  #- cm^2
+thru['effarea'] = N.pi * (tele['MIRRORDIAM'][0]*100)**2 / 4 * tele['VIGN'][0]  #- cm^2
 thru['fiberdia'] = fiber_size_um / tele['FPSCALE'][0]  #- microns -> arcsec
 
 #- Fiber input model
