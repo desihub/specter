@@ -12,9 +12,18 @@ from scipy.special import legendre
 from scipy.sparse import spdiags
 from scipy.signal import convolve, convolve2d
 from specter.util import pixspline
+from time import time
 
 from specter.extract.ex2d import resolution_from_icov
 
+_t0 = 0.0
+def _timeit():
+    global _t0
+    tx = time()
+    dt = tx - _t0
+    _t0 = tx
+    return dt
+    
 #- 2D Linear interpolator
 class LinearInterp2D(object):
     """
@@ -47,9 +56,17 @@ class LinearInterp2D(object):
         dy = (y - self.y[iy-1]) / (self.y[iy] - self.y[iy-1])
 
         #- Interpolate, allowing x and/or y to be multi-dimensional
-        data1 = (self.data[ix-1,iy-1].T*(1-dx) + self.data[ix,iy-1].T*dx).T
-        data2 = (self.data[ix-1,iy].T*(1-dx) + self.data[ix,iy].T*dx).T
-        dataxy = (data1.T*(1-dy) + data2.T*dy).T
+        #- NOTE: these are the slow steps, about equal time each
+        
+        #- Original code with what appears to be vestigial transposes
+        # data1 = (self.data[ix-1,iy-1].T*(1-dx) + self.data[ix,iy-1].T*dx).T
+        # data2 = (self.data[ix-1,iy].T*(1-dx) + self.data[ix,iy].T*dx).T
+        # dataxy = (data1.T*(1-dy) + data2.T*dy).T
+
+        #- Updated without transposes
+        data1 = (self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx)
+        data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx)
+        dataxy = (data1*(1-dy) + data2*dy)
 
         return dataxy
         
