@@ -13,11 +13,6 @@ import numpy as N
 import optparse
 import multiprocessing as MP
 
-import specter
-from specter.psf import load_psf
-from specter.throughput import load_throughput
-import specter.util
-
 #- Parse options
 parser = optparse.OptionParser(
     usage = "%prog [options]",
@@ -53,6 +48,12 @@ except ImportError:
     print >> sys.stderr, "ERROR: specter requires the fitsio package, available from"
     print >> sys.stderr, "       https://github.com/esheldon/fitsio"
     sys.exit(1)
+
+#- If fitsio was there, safe to proceed with other imports
+import specter
+from specter.psf import load_psf
+from specter.throughput import load_throughput
+import specter.util
 
 #- Run tests and skip the rest if --test
 if opts.test:
