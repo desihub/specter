@@ -17,7 +17,6 @@ import specter
 from specter.psf import load_psf
 from specter.throughput import load_throughput
 import specter.util
-import fitsio
 
 #- Parse options
 parser = optparse.OptionParser(
@@ -46,6 +45,14 @@ parser.add_option("--debug", action="store_true", help="start ipython after runn
 parser.add_option("--trimxy", action='store_true', help="Trim output image to just pixels with spectra")
 
 opts, args = parser.parse_args()
+
+#- Load fitsio after the parsing so that you can get help even without fitsio
+try:
+    import fitsio
+except ImportError:
+    print >> sys.stderr, "ERROR: specter requires the fitsio package, available from"
+    print >> sys.stderr, "       https://github.com/esheldon/fitsio"
+    sys.exit(1)
 
 #- Run tests and skip the rest if --test
 if opts.test:
