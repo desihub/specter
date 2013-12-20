@@ -104,6 +104,64 @@ e.g. to find the PSF for ifiber iflux:
         yexp = HDU3.YEXP[imodel]
         psf += x^xexp * y^yexp * HDU5[igroup, imodel]
 
+Gauss Hermite PSF
+-----------------
+
+*NOTE* : This format is not yet implemented; it is documented here as the
+first step toward implementing it.
+
+This format models the PSF as 2D Gauss-Hermite polynomials.  The coefficients
+of the polynomials are modeled as smoothly varying in (x,y) using 2D Legendre
+polynomials.  Spectra grouped in bundles with a smoothly
+varying solution within the bundle but independent of other bundles.
+
+HDU 0-2 : Same as Base PSF: X, Y, wavelength or loglam of traces
+
+    PSFTYPE = "PCA-PIX"
+    PSFVERS = "2.0" or above
+
+HDU 3+ : One HDU per bundle of spectra on the CCD
+
+#### Header Keywords for HDUs 3+
+
+| Keyword            | Meaning |
+|:-------------------|:--------|
+| GHSIGX, GHSIGY     | Gauss-Hermite sigma in x and y directions [pixel units] |
+| GHDEGX, GHDEGY     | Gauss-Hermite degree in x and y directions |
+| FIBERMIN, FIBERMAX | Fibers covered by this bundle min to max inclusive, 0-indexed |
+| LXMIN, LXMAX       | X-coordinate min/max to transform CCD x -> [-1,1] range for Legendre polynomial |
+| LYMIN, LYMAX       | Y-coordinate min/max to transform CCD y -> [-1,1] range for Legendre polynomial |
+| LDEGX, LDEGY       | Degree of Legendre polynomial in x and y directions |
+
+#### Data in HDUs 3+
+
+A 4D image `coeff[GHDEGY+1, GHDEGX+1, LDEGY+1, LDEGX+1]`
+
+### Example
+
+Find the PSF for fiber 5 at wavelength 6000 Angstroms:
+
+  * Map fiber 5, wavelength 6000 A -> (x,y) on the CCD using HDUs 0-2:
+    * x = numpy.interp(6000, WAVELENGTH[5], X[5])
+    * y = numpy.interp(6000, WAVELENGTH[5], Y[5])
+  * Find which bundle fiber 5 is included in (probably bundle 0 in HDU 3)
+  * Convert x,y -> to ranges [-1,1]
+    * xx = 2*(x-LXMIN)/(LXMAX - LXMIN) - 1
+    * yy = 2*(y-LYMIN)/(LYMAX - LYMIN) - 1
+  * The Gauss-Hermite coefficent c_ij = Sum_kl data[i,j,k,l] L_k(yy) L_l(xx)
+    where L_k is the kth order Legendre Polynomial
+  * PSF(dx, dy) = Sum_ij c_ij H_i(dy/GHSIGY) H_j(dx/GHSIGX)
+  * Then integrate PSF(dx,dy) over the individual pixels
+    * In practice it is better to directly integrate the functions
+
+### Notes
+
+This is different from the original Gauss-Hermite format used by bbspec.
+These may be distingished by the existence of PSFVERS >= 2.0
+
+Future versions of this format may also include additional HDUs to model
+the wings of the PSF and the covariance of the coefficients.
+
 Other PSF Formats
 -----------------
 
