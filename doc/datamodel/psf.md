@@ -21,9 +21,9 @@ HDU 0 keywords:
 
   - NPIX\_X, NPIX\_Y : CCD dimensions in pixels
 
-Optional HDU EXTNAME=THROUGHPUT in the same format as described above.
-i.e. the throughput may be kept in a separate FITS file, or bundled with the
-instrument PSF for convenience.
+Optional HDU EXTNAME=THROUGHPUT in the format as described in
+throughput.md .  i.e. the throughput may be kept in a separate FITS file,
+or bundled with the instrument PSF for convenience.
   
 If throughput isn't available, the PSF can still be used to project
 photons onto a CCD, but not flux in erg/s/cm^2/A .
@@ -133,9 +133,9 @@ HDU 3+ : One HDU per bundle of spectra on the CCD
 | LYMIN, LYMAX       | Y-coordinate min/max to transform CCD y -> [-1,1] range for Legendre polynomial |
 | LDEGX, LDEGY       | Degree of Legendre polynomial in x and y directions |
 
-#### Data in HDUs 3+
+#### Data in HDU 3+
 
-A 4D image `coeff[GHDEGY+1, GHDEGX+1, LDEGY+1, LDEGX+1]`
+A 4D image `coeff[GHDEGY+1, GHDEGX+1, LDEGY+1, LDEGX+1]` for that bundle.
 
 ### Example
 
@@ -168,7 +168,7 @@ Other PSF Formats
 Specter grew out of "bbspec" which includes PSF formats for:
 
   * 2D rotated asymmetric Gaussian
-  * Gauss-Hermite polynomials
+  * An older format for Gauss-Hermite polynomials
 
 These are structurally compatible with Specter PSFs but haven't been
 ported yet.

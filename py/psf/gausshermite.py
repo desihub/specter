@@ -113,7 +113,7 @@ class GaussHermitePSF(PSF):
         ghcoeff = list()
         for igx in range(p['GHDEGX']+1):
             for igy in range(p['GHDEGY']+1):
-                ghcoeff.append( legval2d(xx, yy, c[:,:,igx,igy]) )
+                ghcoeff.append( legval2d(yy, xx, c[igy,igx]) )
                 psfimg.append( N.outer(yfuncs[igy], xfuncs[igx]) )
         
         psfimg = N.array(psfimg)
