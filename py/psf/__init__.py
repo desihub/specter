@@ -2,6 +2,8 @@ from psf import PSF
 from spotgrid import SpotGridPSF
 from pixpsf import PixPSF
 from monospot import MonoSpotPSF
+from monospot import MonoSpotPSF
+from gausshermite import GaussHermitePSF
 
 def load_psf(filename):
     """
@@ -17,6 +19,8 @@ def load_psf(filename):
         return MonoSpotPSF(filename)
     elif hdr['PSFTYPE'].strip() == 'PCA-PIX':
         return PixPSF(filename)
+    elif hdr['PSFTYPE'].strip() == 'GAUSS-HERMITE':
+        return GaussHermitePSF(filename)
     else:
         print "Unknown PSFTYPE", hdr['PSFTYPE']
         return PSF(filename)

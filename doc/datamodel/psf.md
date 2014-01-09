@@ -21,9 +21,13 @@ HDU 0 keywords:
 
   - NPIX\_X, NPIX\_Y : CCD dimensions in pixels
 
-Optional HDU EXTNAME=THROUGHPUT in the same format as described above.
-i.e. the throughput may be kept in a separate FITS file, or bundled with the
-instrument PSF for convenience.
+(x,y) coordinates are *centered* on each pixel and start counting at 0.
+i.e. the lower left corner of the CCD is (-0.5, -0.5) and the center of
+the lower left pixel is (0,0).
+
+Optional HDU EXTNAME=THROUGHPUT in the format as described in
+throughput.md .  i.e. the throughput may be kept in a separate FITS file,
+or bundled with the instrument PSF for convenience.
   
 If throughput isn't available, the PSF can still be used to project
 photons onto a CCD, but not flux in erg/s/cm^2/A .
@@ -104,11 +108,46 @@ e.g. to find the PSF for ifiber iflux:
         yexp = HDU3.YEXP[imodel]
         psf += x^xexp * y^yexp * HDU5[igroup, imodel]
 
-Gauss Hermite PSF
------------------
+Gauss Hermite PSF (Suggested)
+-----------------------------
 
-*NOTE* : This format is not yet implemented; it is documented here as the
-first step toward implementing it.
+*NOTE*: This is a suggested format.  Let's try it out.
+It is not yet implemented.
+
+All parameters are stored as Legendre coefficients describing how the
+parameter varies with wavelength for each fiber.
+
+Header keywords WAVEMIN and WAVEMAX define the wavelength extent in Angstroms
+that should be mapped to [-1,1] for evaluating the Legendre polynomials.
+
+The parameters are:
+
+| HDU | EXTNAME | Parameter |
+|:----|:--------|:----------|
+| 0   | X       | x coordinate on CCD |
+| 1   | Y       | y coordinate on CCD |
+| 2   | SIGMAX  | Gaussian sigma in cross-dispersion direction in pixel units |
+| 3   | SIGMAY  | Gaussian sigma in wavelength direction in pixel units |
+| 4+  | GH_n_m  | Gauss-Hermite term (n,m) |
+
+GH_n_m extensions also contain keywords GHDEGX=n and GHDEGY=m
+
+Each HDU has a 2D data array
+
+  coeff[NAXIS2,NAXIS1] = coeff[nspec, degree+1]
+  
+e.g. if there are 500 fibers and x vs. wavelength is described as
+a degree 3 Legendre polynomial, coeff.shape = (500, 4) and coeff[0]
+contains the coefficients for the 0th spectrum.  e.g.
+
+    w = 2.0*(wavelength - WAVEMIN) / (WAVEMAX-WAVEMIN)
+    x = Sum_i coeff[0,i] * L_i(w)
+
+Gauss Hermite PSF (Deprecated)
+------------------------------
+
+*NOTE* : This format is implemented but somewhat cumbersome.  We may
+abandon it for a simpler format.
 
 This format models the PSF as 2D Gauss-Hermite polynomials.  The coefficients
 of the polynomials are modeled as smoothly varying in (x,y) using 2D Legendre
@@ -133,9 +172,9 @@ HDU 3+ : One HDU per bundle of spectra on the CCD
 | LYMIN, LYMAX       | Y-coordinate min/max to transform CCD y -> [-1,1] range for Legendre polynomial |
 | LDEGX, LDEGY       | Degree of Legendre polynomial in x and y directions |
 
-#### Data in HDUs 3+
+#### Data in HDU 3+
 
-A 4D image `coeff[GHDEGY+1, GHDEGX+1, LDEGY+1, LDEGX+1]`
+A 4D image `coeff[GHDEGY+1, GHDEGX+1, LDEGY+1, LDEGX+1]` for that bundle.
 
 ### Example
 
@@ -168,7 +207,7 @@ Other PSF Formats
 Specter grew out of "bbspec" which includes PSF formats for:
 
   * 2D rotated asymmetric Gaussian
-  * Gauss-Hermite polynomials
+  * An older format for Gauss-Hermite polynomials
 
 These are structurally compatible with Specter PSFs but haven't been
 ported yet.
