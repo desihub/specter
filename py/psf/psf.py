@@ -53,23 +53,14 @@ class PSF(object):
         #- Load basic dimensions
         self.npix_x = hdr['NPIX_X']
         self.npix_y = hdr['NPIX_Y']
-        self.nspec  = hdr['NAXIS2']
-        self.nwave  = hdr['NAXIS1']
+        self.nspec  = hdr['NSPEC']
+        self._wmin = hdr['WAVEMIN']
+        self._wmax = hdr['WAVEMAX']
         
-        #- Load x, y, loglam arrays
-        self._x = fx[0].read()
-        self._y = fx[1].read()
-        if fx[2].get_extname() == 'WAVELENGTH':
-            self._wavelength = fx[2].read()
-            self._loglam = N.log10(self._wavelength)
-        else:
-            self._loglam = fx[2].read()
-            self._wavelength = 10**self._loglam
-            
-        #- Cache some ranges
-        self._wmin = self._wavelength.min()
-        self._wmax = self._wavelength.max()
-            
+        #- Load x, y legendre coefficients
+        self._xc = fx['XCOEFF'].read()
+        self._yc = fx['YCOEFF'].read()
+        
         #- Filled only if needed
         self._xsigma = None
         self._ysigma = None
@@ -321,13 +312,12 @@ class PSF(object):
     #-------------------------------------------------------------------------
     #- Shift PSF to a new x,y grid, e.g. to account for flexure
     
-    def shift_xy(self, dx, dy):        
+    def shift_xy(self, dx, dy):
         """
         Shift the x,y trace locations of this PSF while preserving
         wavelength grid:  xnew = x + dx, ynew = y + dy
         """
-        self._x += dx
-        self._y += dy
+        raise NotImplementedError
     
     #-------------------------------------------------------------------------
     #- accessors for x, y, wavelength, loglam
@@ -337,11 +327,27 @@ class PSF(object):
         Return CCD X centroid of spectrum ispec at given wavelength(s).
         
         ispec can be None or scalar
-        wavelength can be None, scalar, or a vector
+        wavelength can be scalar or a vector
         
-        May return a view of the underlying array; do not modify unless
-        specifying copy=True to get a copy of the data.
+        ispec   wavelength  returns
+        +-------+-----------+------
+        scalar  scalar      scalar
+        scalar  vector      vector
+        vector  scalar      vector
+        vector  vector      array[len(ispec), len(wavelength)]
         """
+        if isinstance(ispec, int):
+            return legendre.legval(wavelength, self._xc[ispec])
+        else:
+            if ispec is None:
+                ispec = range(self.nspec)
+            
+            x = [legendre.legval(wavelength, self._xc[i]) for i in ispec]
+            return N.array(x)
+            
+            
+        
+        #-----
         if ispec is None:
             if wavelength is None:
                 result = self._x
@@ -389,17 +395,6 @@ class PSF(object):
         x = self.x(ispec, wavelength, copy=copy)
         y = self.y(ispec, wavelength, copy=copy)
         return x, y
-
-    def xyw(self, ispec=None, copy=False):
-        """
-        Utility function to return x, y, and wavelength arrays for
-        spectrum number ispec.  Set copy=True to get copies of the
-        arrays instead of references to the originals.
-        """
-        x = self.x(ispec, copy=copy)
-        y = self.y(ispec, copy=copy)
-        w = self.wavelength(ispec, copy=copy)
-        return x, y, w
 
     def loglam(self, ispec=None, y=None, copy=False):
         """
