@@ -15,10 +15,10 @@ Stephen Bailey, Fall 2012
 import numpy as N
 ### import scipy.sparse
 from scipy.ndimage import center_of_mass
-from numpy.polynomial.legendre import Legendre
+from numpy.polynomial.legendre import Legendre, legval, legfit
 import scipy.optimize
 
-from specter.util import gausspix
+from specter.util import gausspix, TraceSet
 import fitsio
 
 class PSF(object):
@@ -46,21 +46,23 @@ class PSF(object):
         to access the projection of this PSF into pixels.
         """
         
-        #- Open fits file
-        fx = fitsio.FITS(filename)
-        hdr = fx[0].read_header()
-        
         #- Load basic dimensions
+        hdr = fitsio.read_header(filename)
         self.npix_x = hdr['NPIX_X']
         self.npix_y = hdr['NPIX_Y']
         self.nspec  = hdr['NSPEC']
-        self._wmin = hdr['WAVEMIN']
-        self._wmax = hdr['WAVEMAX']
         
-        #- Load x, y legendre coefficients
-        self._xc = fx['XCOEFF'].read()
-        self._yc = fx['YCOEFF'].read()
+        #- Load x, y legendre coefficient tracesets
+        xc, hdr = fitsio.read(filename, 'XCOEFF', header=True)
+        self._x = TraceSet(xc, domain=(hdr['WAVEMIN'], hdr['WAVEMAX']))
+        yc, hdr = fitsio.read(filename, 'YCOEFF', header=True)
+        self._y = TraceSet(yc, domain=(hdr['WAVEMIN'], hdr['WAVEMAX']))
         
+        #- Create inverse y -> wavelength mapping
+        self._w = self._y.invert()
+        self._wmin = N.min(self.wavelength(None, 0))
+        self._wmax = N.max(self.wavelength(None, self.npix_y-1))
+                
         #- Filled only if needed
         self._xsigma = None
         self._ysigma = None
@@ -219,9 +221,9 @@ class PSF(object):
         if ymax is None:
             ymax = self.npix_y
 
-        if wavelength < self._wavelength[ispec, 0]:
+        if wavelength < self.wavelength(ispec, 0):
             return slice(0,0), slice(0,0), N.zeros((0,0))
-        elif wavelength > self._wavelength[ispec, -1]:
+        elif wavelength > self.wavelength(ispec, self.npix_y-1):
             return slice(0,0), slice(ymax, ymax), N.zeros((0,0))
         
         xx, yy, ccdpix = self._xypix(ispec, wavelength)
@@ -320,115 +322,105 @@ class PSF(object):
         raise NotImplementedError
     
     #-------------------------------------------------------------------------
-    #- accessors for x, y, wavelength, loglam
-        
-    def x(self, ispec=None, wavelength=None, copy=False):
+    #- accessors for x, y, wavelength
+                
+    def x(self, ispec=None, wavelength=None):
         """
         Return CCD X centroid of spectrum ispec at given wavelength(s).
         
-        ispec can be None or scalar
-        wavelength can be scalar or a vector
+        ispec can be None, scalar, or vector
+        wavelength can be None, scalar or a vector
         
         ispec   wavelength  returns
         +-------+-----------+------
+        None    None        array[nspec, npix_y]
+        None    scalar      vector[nspec]
+        None    vector      array[nspec, nwave]
+        scalar  None        array[npix_y]
         scalar  scalar      scalar
-        scalar  vector      vector
-        vector  scalar      vector
-        vector  vector      array[len(ispec), len(wavelength)]
+        scalar  vector      vector[nwave]
+        vector  None        array[nspec, npix_y]
+        vector  scalar      vector[nspec]
+        vector  vector      array[nspec, nwave]
         """
-        if isinstance(ispec, int):
-            return legendre.legval(wavelength, self._xc[ispec])
-        else:
-            if ispec is None:
-                ispec = range(self.nspec)
-            
-            x = [legendre.legval(wavelength, self._xc[i]) for i in ispec]
-            return N.array(x)
-            
-            
         
-        #-----
-        if ispec is None:
-            if wavelength is None:
-                result = self._x
-            else:
-                result = N.array([self.x(i, wavelength) for i in range(self.nspec)])
-        else:
-            if wavelength is None:
-                result = self._x[ispec]
-            else:
-                result = N.interp(wavelength, self._wavelength[ispec], self._x[ispec])
-                
-        if copy and isinstance(result, N.ndarray):
-            return N.copy(result)
-        else:
-            return result
-
-    def y(self, ispec=None, wavelength=None, copy=False):
+        if wavelength is None:
+            #- ispec=None -> ispec=every spectrum
+            if ispec is None:
+                ispec = N.arange(self.nspec)
+            
+            #- ispec is an array; sample at every row
+            if isinstance(ispec, (N.ndarray, list, tuple)):
+                x = list()
+                for i in ispec:
+                    w = self.wavelength(i)
+                    x.append(self._x.eval(i, w))
+                return N.array(x)
+            else:  #- scalar ispec, make wavelength an array
+                wavelength = self.wavelength(ispec)
+            
+        return self._x.eval(ispec, wavelength)
+            
+    def y(self, ispec=None, wavelength=None):
         """
         Return CCD Y centroid of spectrum ispec at given wavelength(s).
-        wavelength can be None, scalar, or a vector
-
-        May return a view of the underlying array; do not modify unless
-        specifying copy=True to get a copy of the data.
+        
+        ispec can be None, scalar, or vector
+        wavelength can be scalar or a vector (but not None)
+        
+        ispec   wavelength  returns
+        +-------+-----------+------
+        None    scalar      vector[nspec]
+        None    vector      array[nspec,nwave]
+        scalar  scalar      scalar
+        scalar  vector      vector[nwave]
+        vector  scalar      vector[nspec]
+        vector  vector      array[nspec, nwave]
         """
+        if wavelength is None:
+            raise ValueError, "PSF.y requires wavelength scalar or vector"
+            
+        if ispec is None:
+            ispec = N.arange(self.nspec)
+            
+        return self._y.eval(ispec, wavelength)
+        
         if ispec is None:
             if wavelength is None:
-                result = self._y
+                return N.tile(N.arange(self.npix_y), self.nspec).reshape(self.nspec, self.npix_y)
             else:
-                result = N.array([self.y(i, wavelength) for i in range(self.nspec)])                
-        else:
-            if wavelength is None:
-                result = self._y[ispec]
-            else:
-                result = N.interp(wavelength, self._wavelength[ispec], self._y[ispec])
+                ispec = N.arange(self.nspec)
+        
+        if wavelength is None:
+            wavelength = self.wavelength(ispec)
 
-        if copy and isinstance(result, N.ndarray):
-            return N.copy(result)
-        else:
-            return result
+        return self._y.eval(ispec, wavelength)
             
-    def xy(self, ispec=None, wavelength=None, copy=False):
+    def xy(self, ispec=None, wavelength=None):
         """
         Utility function to return self.x(...) and self.y(...) in one call
         """
-        x = self.x(ispec, wavelength, copy=copy)
-        y = self.y(ispec, wavelength, copy=copy)
+        x = self.x(ispec, wavelength)
+        y = self.y(ispec, wavelength)
         return x, y
 
-    def loglam(self, ispec=None, y=None, copy=False):
-        """
-        Return log10(wavelength) of spectrum[ispec] evaluated at y.
-        y can be None, scalar, or vector
-        
-        TODO: Directly interpolate on loglam grid?
-        """
-        return N.log10(self.wavelength(ispec, y, copy=copy))
-    
-    def wavelength(self, ispec=None, y=None, copy=False):
+    def wavelength(self, ispec=None, y=None):
         """
         Return wavelength of spectrum[ispec] evaluated at y.
         
-        ispec can be None or scalar; y can be None, scalar, or vector
+        ispec can be None, scalar, or vector
+        y can be None, scalar, or vector
 
         May return a view of the underlying array; do not modify unless
         specifying copy=True to get a copy of the data.
         """
+        if y is None:
+            y = N.arange(0, self.npix_y)
+        
         if ispec is None:
-            if y is None:
-                result = self._wavelength
-            else:
-                result = N.array([self.wavelength(i,y) for i in range(self.nspec)])
-        else:
-            if y is None:
-                result = self._wavelength[ispec]
-            else:
-                result = N.interp(y, self._y[ispec], self._wavelength[ispec])
-                
-        if copy:
-            return N.copy(result)
-        else:
-            return result
+            ispec = N.arange(self.nspec)
+            
+        return self._w.eval(ispec, y)
     
     def angstroms_per_pixel(self, ispec, wavelength):
         """
