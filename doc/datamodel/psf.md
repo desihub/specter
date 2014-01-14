@@ -49,8 +49,8 @@ HDU 0-2 : Same as Base PSF: X, Y, wavelength or loglam of traces
         NAXIS3 = size of spot in the CCD y dimension
         NAXIS4 = size of spot in the CCD x direction
     
-    HDU SPOTX : spotx[NAXIS1, NAXIS2]   #- CCD X pixel location of spot pixel[0,0]
-    HDU SPOTY : spoty[NAXIS1, NAXIS2]   #- CCD Y pixel location of spot pixel[0,0]
+    HDU SPOTX : spotx[NAXIS1, NAXIS2]   #- CCD X pixel location of spot centroid
+    HDU SPOTY : spoty[NAXIS1, NAXIS2]   #- CCD Y pixel location of spot centroid
     HDU FIBERPOS : fiberpos[nspec]      #- Slit position of each fiber
     HDU SPOTPOS  : spotpos[NAXIS1]      #- Slit positions where spots are sampled
     HDU SPOTWAVE : spotwave[NAXIS2]     #- Wavelengths where spots are sampled
