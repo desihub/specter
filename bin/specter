@@ -31,7 +31,7 @@ parser.add_option("-g", "--gain", type="float", default=1.6, help="CCD gain [%de
 parser.add_option("-x", "--extra", action='store_true', help="Write extra HDUs with input spectra, xyw models")
 parser.add_option(      "--numcores", type="int", default=MP.cpu_count(), help="number of CPU cores to use [%default]")
 parser.add_option(      "--test", action='store_true', help="Run a suite of tests; ignore other options")
-### parser.add_option("-s", "--sky", type="string",  help="input sky spectra")
+parser.add_option("-s", "--sky", type="string",  help="input sky spectra")
 parser.add_option("-w", "--wavelength", type="string",
     help="wavelength range min,max in Angstroms")
 parser.add_option("-r", "--specrange", type="string",
@@ -152,6 +152,10 @@ objtype = spectra['objtype']
 if isinstance(objtype, str) and (flux.ndim == 2):
     objtype = N.array( [objtype,] * flux.shape[0] )
 
+if units.endswith('/A/arcsec^2'):
+    flux *= thru.fiberarea
+    units = units.replace('/A/arcsec^2', '/A')
+
 #- Resample spectra to match CCD sub-pixel resolution
 #- only do this for "per-Angstrom" units, not delta functions flux/phot at A
 #- BUG: what if we go partially off the CCD for some spectra but not others?
@@ -190,6 +194,20 @@ else:
     for i in range(photons.shape[0]):
         photons[i] = thru.photons(wavelength[i], flux[i], units, objtype=objtype[i])
 
+#- Add sky spectrum
+if opts.sky:
+    sky = specter.io.read_simspec(opts.sky)
+    if not units.endswith('/A') or not sky['units'].endswith('/A/arcsec^2'):
+        print "I don't know how to combine these units"
+        print units, sky['units']
+        sys.exit(1)
+    
+    for i in range(nspec):
+        wedges = psf.wavelength(i, y=yedges)
+        skyflux = specter.util.resample(wedges, sky['wavelength'], sky['flux'], xedges=True)
+        skyphot = thru.photons(wavelength[i], skyflux, sky['units'], objtype='SKY')
+        photons[i] += skyphot
+    
 if opts.trimxy:
     specrange = opts.specrange[0], opts.specrange[-1]+1
     waverange = opts.wavelength[0], opts.wavelength[-1]
