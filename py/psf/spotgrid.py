@@ -29,10 +29,8 @@ class SpotGridPSF(PSF):
         #- Load extensions specific to this PSF type
         fx = fitsio.FITS(filename)
         self._spots = fx['SPOTS'].read()  #- PSF spots
-        self._spotx  = fx['SPOTX'].read()   #- X location of spots
-        self._spoty  = fx['SPOTY'].read()   #- Y location of spots
-        # self._spotx  = fx['XCCD'].read()   #- X location of spots
-        # self._spoty  = fx['YCCD'].read()   #- Y location of spots
+        # self._spotx  = fx['SPOTX'].read()   #- X location of spots
+        # self._spoty  = fx['SPOTY'].read()   #- Y location of spots
         self._fiberpos = fx['FIBERPOS'].read()  #- Location of fibers on slit
         self._spotpos = fx['SPOTPOS'].read()    #- Slit loc of sampled spots
         self._spotwave = fx['SPOTWAVE'].read()  #- Wavelengths of spots
