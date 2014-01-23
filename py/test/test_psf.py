@@ -420,6 +420,15 @@ class TestPSF(unittest.TestCase):
                 self.assertLessEqual(xx.stop, xmax)
                 self.assertGreaterEqual(yy.start, ymin)
                 self.assertLessEqual(yy.stop, ymax)
+                
+        #- Test that extending off the chip is still ok
+        wmin = self.psf.wmin - 10
+        wmax = self.psf.wmax + 10
+        xmin, xmax, ymin, ymax = self.psf.xyrange(spec_range, (wmin, wmax))
+        self.assertEqual(ymin, 0)
+        self.assertEqual(ymax, self.psf.npix_y)
+        self.assertLess(xmin, xmax)
+        self.assertGreater(xmax, 0)
 
 #- Test Pixellated PSF format
 class TestPixPSF(TestPSF):

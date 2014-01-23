@@ -28,6 +28,7 @@ parser.add_option("-N", "--readnoise", type="float", default=3.0, help="readout 
 parser.add_option(      "--randseed", type="int", default=0, help="random number seed")
 parser.add_option("-G", "--gaussnoise", action='store_true', help="Use Gaussian photon shot noise instead of Poisson")
 parser.add_option("-g", "--gain", type="float", default=1.6, help="CCD gain [%default]")
+parser.add_option("-T", "--exptime", type="float", help="exposure time [default value in throughput/psf file]")
 parser.add_option("-x", "--extra", action='store_true', help="Write extra HDUs with input spectra, xyw models")
 parser.add_option(      "--numcores", type="int", default=MP.cpu_count(), help="number of CPU cores to use [%default]")
 parser.add_option(      "--test", action='store_true', help="Run a suite of tests; ignore other options")
@@ -92,6 +93,10 @@ if opts.throughput:
     thru = load_throughput(opts.throughput)
 else:
     thru = load_throughput(opts.psf)
+
+#- Override default exposure time if needed
+if opts.exptime is not None:
+    thru.exptime = opts.exptime
 
 #- Expand opts.specrange = first,last *inclusive* -> array of indices
 if opts.specrange is not None:

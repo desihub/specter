@@ -221,9 +221,9 @@ class PSF(object):
         if ymax is None:
             ymax = self.npix_y
 
-        if wavelength < self.wavelength(ispec, 0):
+        if wavelength < self.wavelength(ispec, -0.5):
             return slice(0,0), slice(0,0), N.zeros((0,0))
-        elif wavelength > self.wavelength(ispec, self.npix_y-1):
+        elif wavelength > self.wavelength(ispec, self.npix_y-0.5):
             return slice(0,0), slice(ymax, ymax), N.zeros((0,0))
         
         xx, yy, ccdpix = self._xypix(ispec, wavelength)
@@ -289,24 +289,30 @@ class PSF(object):
         #- Now for wavelength where x = min(x),
         #- while staying on CCD and within wavelength range
         w = self.wavelength(specmin)
-        ii = (wavemin < w) & (w < wavemax)
-        ww = N.concatenate( ([wavemin,], w[ii], [wavemax,]) )
-        x = self.x(specmin, ww)
+        if w[0] < wavemin:
+            w = w[wavemin <= w]
+        if wavemax < w[-1]:
+            w = w[w <= wavemax]
+        
+        x = self.x(specmin, w)
         if min(x) < 0:
             xmin = 0.0
         else:
-            wxmin = ww[N.argmin(x)]
+            wxmin = w[N.argmin(x)]  #- wavelength at x minimum
             xmin = self.xypix(specmin, wxmin)[0].start
             
         #- and wavelength where x = max(x)
         w = self.wavelength(specmax-1)
-        ii = (wavemin < w) & (w < wavemax)
-        ww = N.concatenate( ([wavemin,], w[ii], [wavemax,]) )
-        x = self.x(specmax-1, ww)
+        if w[0] < wavemin:
+            w = w[wavemin <= w]
+        if wavemax < w[-1]:
+            w = w[w <= wavemax]
+        
+        x = self.x(specmax-1, w)
         if max(x) > self.npix_x:
             xmax = self.npix_x
         else:
-            wxmax = ww[N.argmax(x)]
+            wxmax = w[N.argmax(x)]
             xmax = self.xypix(specmax-1, wxmax)[0].stop
                                         
         return (xmin, xmax, ymin, ymax)
