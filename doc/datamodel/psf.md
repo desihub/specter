@@ -4,19 +4,36 @@ PSF Formats
 Base PSF
 --------
 
-All PSF files have the same format for HDUs 0-2; additional extensions
-are specific to each subtype and contain whatever information in whatever
-format is needed to express the PSF in that parameterization.
+*NOTE*: we are in the process of switching the format of how x and y vs.
+wavelength are stored.  This will create incompatibilities between old and
+new PSFs.
 
-    HDU 0 : x[nspec, nwave]             EXTNAME="X"
-    HDU 1 : y[nspec, nwave]             EXTNAME="Y"
-    HDU 2 : wavelength[nspec, nwave]    EXTNAME="WAVELENGTH", or
-            loglam[nspec, nwave]        EXTNAME="LOGLAM"
-    HDU 3+ : specific to each subformat
+HDUs 0 and 1 contain the PSF centroid x and y location vs. wavelength
+stored as Legendre polynomial coefficients.
 
-Note: Any additional extensions should be read by EXTNAME, not by number;
-      the order of other extensions is arbitrary.
+    HDU 0 : XCOEFF[nspec, ncoeff]
+    HDU 1 : YCOEFF[nspec, ncoeff]
+    
+The header contains keywords WAVEMIN, WAVEMAX to define the wavelength
+range in Angstroms to map to domain [-1,1] for evaluating the Legendre
+polynomials.  e.g. the x position for spectrum i at wavelength:
 
+    w = 2.0*(w-WAVEMIN)/(WAVEMAX-WAVEMIN) - 1.0  #- Map to [-1,1]
+    x[i] = Sum_j XCOEFF[i,j] L_j(w)              #- evaluate Legendre series
+    
+Or in python:
+
+    import fitsio
+    from numpy.polynomial.legendre import legval
+    h = fitsio.read_header('psf.fits', 'XCOEFF')
+    xcoeff = fitsio.read('psf.fits', 'XCOEFF')
+    w = 2.0 * (wavelength-h['WAVEMIN']) / (h['WAVEMAX'] - h['WAVEMIN']) - 1.0
+    x = legval(w, xcoeff[i])
+    
+Additional HDUs contain data specific to various parameterizations of the
+PSF as listed below.  Any additional extensions should be read by EXTNAME,
+not by number -- the order and number of other extensions is arbitrary.
+    
 HDU 0 keywords:
 
   - NPIX\_X, NPIX\_Y : CCD dimensions in pixels
@@ -31,6 +48,19 @@ or bundled with the instrument PSF for convenience.
   
 If throughput isn't available, the PSF can still be used to project
 photons onto a CCD, but not flux in erg/s/cm^2/A .
+
+=== Old format for x and y ===
+
+The old base PSF format parameterized x and y vs. wavelength as:
+
+    HDU 0 : x[nspec, nwave]             EXTNAME="X"
+    HDU 1 : y[nspec, nwave]             EXTNAME="Y"
+    HDU 2 : wavelength[nspec, nwave]    EXTNAME="WAVELENGTH", or
+            loglam[nspec, nwave]        EXTNAME="LOGLAM"
+    HDU 3+ : specific to each subformat
+
+We may revive this format.
+
 
 Spot Grid PSF
 -------------
@@ -49,8 +79,8 @@ HDU 0-2 : Same as Base PSF: X, Y, wavelength or loglam of traces
         NAXIS3 = size of spot in the CCD y dimension
         NAXIS4 = size of spot in the CCD x direction
     
-    HDU SPOTX : spotx[NAXIS1, NAXIS2]   #- CCD X pixel location of spot pixel[0,0]
-    HDU SPOTY : spoty[NAXIS1, NAXIS2]   #- CCD Y pixel location of spot pixel[0,0]
+    HDU SPOTX : spotx[NAXIS1, NAXIS2]   #- CCD X pixel location of spot centroid
+    HDU SPOTY : spoty[NAXIS1, NAXIS2]   #- CCD Y pixel location of spot centroid
     HDU FIBERPOS : fiberpos[nspec]      #- Slit position of each fiber
     HDU SPOTPOS  : spotpos[NAXIS1]      #- Slit positions where spots are sampled
     HDU SPOTWAVE : spotwave[NAXIS2]     #- Wavelengths where spots are sampled

@@ -142,7 +142,7 @@ class Throughput:
             SKY   : fiber input losses are not applied
             other : all throughput losses are applied
         """
-        objtype = objtype.upper()
+        objtype = objtype.strip().upper()
         
         Tatm = 10**(-0.4*airmass*self._extinction)
         if objtype == ObjType.CALIB:
