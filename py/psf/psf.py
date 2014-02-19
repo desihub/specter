@@ -503,14 +503,12 @@ class PSF(object):
             else:
                 wspec = wavelength
                 
-            #- Only eval non-zero fluxes of wavelengths covered by this PSF
+            #- Evaluate positive photons within wavelength range
             wmin, wmax = self.wavelength(ispec, y=(0, self.npix_y))
             for j, w in enumerate(wspec):
-                if phot[i,j] > 0.0 and wmin <= w and w <= wmax:
+                if phot[i,j] > 0.0 and (wmin <= w <= wmax):
                     xx, yy, pix = self.xypix(ispec, w, \
                         xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
-                    # xx = slice(xx.start-xmin, xx.stop-xmin)
-                    # yy = slice(yy.start-ymin, yy.stop-ymin)
                     img[yy, xx] += pix * phot[i,j]
 
         return img
@@ -570,3 +568,4 @@ class PSF(object):
                     tmp[yslice, xslice] = 0.0
     
         return scipy.sparse.csr_matrix(A)    
+
