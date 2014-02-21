@@ -14,6 +14,7 @@ from numpy.polynomial.legendre import legval2d, legval
 
 import fitsio
 from specter.psf import PSF
+from specter.util import TraceSet
 
 def pgh(x, m=0, xc=0., sigma=1., dxlo=-0.5, dxhi=0.5):
     """
@@ -53,11 +54,11 @@ class GaussHermitePSF(PSF):
         See specter.psf.PSF for futher details
         """
         #- Use PSF class to Load Generic PSF values (x, y, wavelength, ...)
-        PSF.__init__(self, filename)
+        ### PSF.__init__(self, filename)
         
         #- Check that this file is a recent Gauss Hermite PSF
         fx = fitsio.FITS(filename)
-        hdr = fx[0].read_header()
+        hdr = fx[1].read_header()
         if 'PSFTYPE' not in hdr:
             raise ValueError, 'Missing PSFTYPE keyword'
             
@@ -70,57 +71,89 @@ class GaussHermitePSF(PSF):
         if hdr['PSFVER'] < '2':
             raise ValueError, "Only GAUSS-HERMITE versions 2.0 and greater are supported"
             
-        nspec = hdr['NSPEC']
+        #- HACK
+        self.nspec = hdr['FIBERMAX'] - hdr['FIBERMIN'] + 1
+        
+        #- Other necessary keywords
+        self.npix_x = hdr['NPIX_X']
+        self.npix_y = hdr['NPIX_Y']
         
         #- Load the parameters
+        #- Hack: need to assemble bundles
+        hdr = fx[1].read_header()
+        data = fx[1].read()
+
         self._coeff = dict()
-        self._polyparams = dict()
-        for bundle in fx[3:]:
-            hdr = bundle.read_header()
-            data = bundle.read()
-            ### for ispec in range(hdr['FIBERMIN'], hdr['FIBERMAX']+1):
-            for ispec in range(nspec):           #- HACK!
-                self._coeff[ispec] = data
-                self._polyparams[ispec] = hdr
+        self._polyparams = hdr
+        for p in data:
+            domain = (p['WAVEMIN'], p['WAVEMAX'])
+            for p in data:
+                name = p['PARAM'].strip()
+                self._coeff[name] = TraceSet(p['COEFF'], domain=domain)
+        
+        #- Pull out x and y as special tracesets
+        self._x = self._coeff['X']
+        self._y = self._coeff['Y']
+
+        #- Create inverse y -> wavelength mapping
+        self._w = self._y.invert()
+        self._wmin = N.min(self.wavelength(None, 0))
+        self._wmax = N.max(self.wavelength(None, self.npix_y-1))
+                
+        #- Filled only if needed
+        self._xsigma = None
+        self._ysigma = None
         
     def _xypix(self, ispec, wavelength):
-        c = self._coeff[ispec]
-        p = self._polyparams[ispec]
-        x, y = self.xy(ispec, wavelength)
-        
-        #- Convert x,y to range [-1,1] for Legendre
-        xx = 2.0*(x - p['LXMIN']) / (p['LXMAX'] - p['LXMIN']) - 1.0
-        yy = 2.0*(y - p['LYMIN']) / (p['LYMAX'] - p['LYMIN']) - 1.0
+                
+        # x, y = self.xy(ispec, wavelength)
+        x = self._coeff['X'].eval(ispec, wavelength)
+        y = self._coeff['Y'].eval(ispec, wavelength)
         
         #- CCD pixel ranges
-        halfsize = 5
-        xccd = N.arange(int(x-halfsize), int(x+halfsize))
-        yccd = N.arange(int(y-halfsize), int(y+halfsize))
+        hsizex = self._polyparams['HSIZEX']
+        hsizey = self._polyparams['HSIZEY']
+        xccd = N.arange(int(x-hsizex), int(x+hsizex))
+        yccd = N.arange(int(y-hsizey), int(y+hsizey))
         dx = xccd - x
         dy = yccd - y
         
-        #- Build Gauss-Hermite functions
-        xfuncs = N.zeros((p['GHDEGX']+1, len(xccd)), dtype=float)
-        yfuncs = N.zeros((p['GHDEGY']+1, len(yccd)), dtype=float)
-        for i in range(p['GHDEGX']+1):
-            xfuncs[i] = pgh(xccd, i, x, p['GHSIGX'])
-        for i in range(p['GHDEGY']+1):
-            yfuncs[i] = pgh(yccd, i, y, p['GHSIGY'])
+        #- Extract coefficients
+        degx = self._polyparams['GHDEGX']
+        degy = self._polyparams['GHDEGY']
+        sigx1 = self._coeff['GHSIGX'].eval(ispec, wavelength)
+        sigx2 = self._coeff['GHSIGX2'].eval(ispec, wavelength)
+        sigy1 = self._coeff['GHSIGY'].eval(ispec, wavelength)
+        sigy2 = self._coeff['GHSIGY2'].eval(ispec, wavelength)        
+        ghscal2 = self._coeff['GHSCAL2'].eval(ispec, wavelength)
         
-        # psfimg = N.zeros((len(yccd), len(xccd)))
+        #- Background tail image
+        tailxsca = self._coeff['TAILXSCA'].eval(ispec, wavelength)
+        tailysca = self._coeff['TAILYSCA'].eval(ispec, wavelength)
+        tailamp = self._coeff['TAILAMP'].eval(ispec, wavelength)
+        tailcore = self._coeff['TAILCORE'].eval(ispec, wavelength)
+        tailinde = self._coeff['TAILINDE'].eval(ispec, wavelength)
         
-        psfimg = list()
-        ghcoeff = list()
-        for igx in range(p['GHDEGX']+1):
-            for igy in range(p['GHDEGY']+1):
-                ghcoeff.append( legval2d(yy, xx, c[igy,igx]) )
-                psfimg.append( N.outer(yfuncs[igy], xfuncs[igx]) )
+        wings = N.zeros((len(yccd), len(xccd)))
+        for i, dyy in enumerate(dy):
+            for j, dxx in enumerate(dx):
+                r2 = (dxx/tailxsca)**2 + (dyy/tailysca)**2
+                wings[i,j] = tailamp * r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
         
-        psfimg = N.array(psfimg)
-        ghcoeff = N.array(ghcoeff)
-        
-        img = psfimg.T.dot(ghcoeff).T
-        
+        img = N.zeros((len(yccd), len(xccd)))
+        img += wings
+        for i in range(degx+1):
+            xfunc1 = pgh(xccd, i, x, sigx1)
+            xfunc2 = pgh(xccd, i, x, sigx2)
+            for j in range(degy+1):
+                yfunc1 = pgh(yccd, i, y, sigy1)
+                yfunc2 = pgh(yccd, i, y, sigy2)
+                paramname = 'GH-{}-{}'.format(i, j)
+                spot1 = N.outer(yfunc1, xfunc1)
+                spot2 = N.outer(yfunc2, xfunc2)
+                c = self._coeff[paramname].eval(ispec, wavelength)
+                img += c * ((1-ghscal2)*spot1 + ghscal2*spot2)
+                
         xslice = slice(xccd[0], xccd[-1]+1)
         yslice = slice(yccd[0], yccd[-1]+1)
         return xslice, yslice, img
