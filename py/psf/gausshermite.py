@@ -42,7 +42,6 @@ def pgh(x, m=0, xc=0., sigma=1., dxlo=-0.5, dxhi=0.5):
     else:
         return 0.5 * (sp.erf(uhi/N.sqrt(2.)) - sp.erf(ulo/N.sqrt(2.)))
 
-
 class GaussHermitePSF(PSF):
     """
     Model PSF with a linear interpolation of high resolution sampled spots
@@ -62,14 +61,14 @@ class GaussHermitePSF(PSF):
         if 'PSFTYPE' not in hdr:
             raise ValueError, 'Missing PSFTYPE keyword'
             
-        if hdr['PSFTYPE'] != 'GAUSS-HERMITE':
-            raise ValueError, 'PSFTYPE %s is not GAUSS-HERMITE' % hdr['PSFTYPE']
+        if hdr['PSFTYPE'] != 'GAUSS-HERMITE2':
+            raise ValueError, 'PSFTYPE %s is not GAUSS-HERMITE2' % hdr['PSFTYPE']
             
         if 'PSFVER' not in hdr:
             raise ValueError, "PSFVER missing; this version not supported"
             
-        if hdr['PSFVER'] < '2':
-            raise ValueError, "Only GAUSS-HERMITE versions 2.0 and greater are supported"
+        # if hdr['PSFVER'] < '1':
+        #     raise ValueError, "Only GAUSS-HERMITE versions 1.0 and greater are supported"
             
         #- HACK
         self.nspec = hdr['FIBERMAX'] - hdr['FIBERMIN'] + 1
@@ -119,13 +118,14 @@ class GaussHermitePSF(PSF):
         dy = yccd - y
         
         #- Extract coefficients
-        degx = self._polyparams['GHDEGX']
-        degy = self._polyparams['GHDEGY']
+        degx1 = self._polyparams['GHDEGX']
+        degy1 = self._polyparams['GHDEGY']
+        degx2 = self._polyparams['GHDEGX2']
+        degy2 = self._polyparams['GHDEGY2']
         sigx1 = self._coeff['GHSIGX'].eval(ispec, wavelength)
         sigx2 = self._coeff['GHSIGX2'].eval(ispec, wavelength)
         sigy1 = self._coeff['GHSIGY'].eval(ispec, wavelength)
         sigy2 = self._coeff['GHSIGY2'].eval(ispec, wavelength)        
-        ghscal2 = self._coeff['GHSCAL2'].eval(ispec, wavelength)
         
         #- Background tail image
         tailxsca = self._coeff['TAILXSCA'].eval(ispec, wavelength)
@@ -133,27 +133,33 @@ class GaussHermitePSF(PSF):
         tailamp = self._coeff['TAILAMP'].eval(ispec, wavelength)
         tailcore = self._coeff['TAILCORE'].eval(ispec, wavelength)
         tailinde = self._coeff['TAILINDE'].eval(ispec, wavelength)
-        
-        wings = N.zeros((len(yccd), len(xccd)))
+
+        #- Make tail image
+        #- TODO: This could be done faster by removing loops
+        img = N.zeros((len(yccd), len(xccd)))
         for i, dyy in enumerate(dy):
             for j, dxx in enumerate(dx):
-                r2 = (dxx/tailxsca)**2 + (dyy/tailysca)**2
-                wings[i,j] = tailamp * r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
-        
-        img = N.zeros((len(yccd), len(xccd)))
-        img += wings
-        for i in range(degx+1):
-            xfunc1 = pgh(xccd, i, x, sigx1)
-            xfunc2 = pgh(xccd, i, x, sigx2)
-            for j in range(degy+1):
-                yfunc1 = pgh(yccd, i, y, sigy1)
-                yfunc2 = pgh(yccd, i, y, sigy2)
-                paramname = 'GH-{}-{}'.format(i, j)
-                spot1 = N.outer(yfunc1, xfunc1)
-                spot2 = N.outer(yfunc2, xfunc2)
-                c = self._coeff[paramname].eval(ispec, wavelength)
-                img += c * ((1-ghscal2)*spot1 + ghscal2*spot2)
-                
+                r2 = (dxx*tailxsca)**2 + (dyy*tailysca)**2
+                img[i,j] = tailamp * r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
+
+        #- Create 1D GaussHermite functions in x and y
+        xfunc1 = [pgh(xccd, i, x, sigma=sigx1) for i in range(degx1+1)]
+        yfunc1 = [pgh(yccd, i, y, sigma=sigy1) for i in range(degy1+1)]        
+        for i in range(degx1+1):
+            for j in range(degy1+1):
+                spot1 = N.outer(yfunc1[j], xfunc1[i])
+                c1 = self._coeff['GH-{}-{}'.format(i,j)].eval(ispec, wavelength)
+                img += c1 * spot1
+
+        xfunc2 = [pgh(xccd, i, x, sigma=sigx2) for i in range(degx2+1)]
+        yfunc2 = [pgh(yccd, i, y, sigma=sigy2) for i in range(degy2+1)]
+        img2 = N.zeros((len(yccd), len(xccd)))
+        for i in range(degx2+1):
+            for j in range(degy2+1):
+                spot2 = N.outer(yfunc2[j], xfunc2[i])
+                c2 = self._coeff['GH2-{}-{}'.format(i,j)].eval(ispec, wavelength)
+                img += c2 * spot2
+
         xslice = slice(xccd[0], xccd[-1]+1)
         yslice = slice(yccd[0], yccd[-1]+1)
         return xslice, yslice, img
