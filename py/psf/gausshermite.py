@@ -150,42 +150,45 @@ class GaussHermitePSF(PSF):
         #- r2 = normalized distance from center of each pixel to PSF center
         r2 = N.tile((dx*tailxsca)**2, ny).reshape(ny, nx) + \
              N.repeat((dy*tailysca)**2, nx).reshape(ny, nx)
-        img = tailamp*r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
+        tails = tailamp*r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
         
         #- Create 1D GaussHermite functions in x and y
         xfunc1 = [self._pgh(xccd, i, x, sigma=sigx1) for i in range(degx1+1)]
         yfunc1 = [self._pgh(yccd, i, y, sigma=sigy1) for i in range(degy1+1)]        
         
         #- Create core PSF image
-        core = N.zeros((ny, nx))
+        core1 = N.zeros((ny, nx))
         for i in range(degx1+1):
             for j in range(degy1+1):
                 c1 = self.coeff['GH-{}-{}'.format(i,j)].eval(ispec, wavelength)
                 spot1 = N.outer(yfunc1[j], xfunc1[i])
-                core += c1 * spot1
+                core1 += c1 * spot1
         
         #- Zero out elements in the core beyond 3 sigma
         ghnsig = self.coeff['GHNSIG'].eval(ispec, wavelength)
         r2 = N.tile((dx/sigx1)**2, ny).reshape(ny, nx) + \
              N.repeat((dy/sigy1)**2, nx).reshape(ny, nx)
         
-        img += core * (r2<ghnsig**2)
+        core1 *= (r2<ghnsig**2)
         
         #- Add second wider core Gauss-Hermite term        
         xfunc2 = [self._pgh(xccd, i, x, sigma=sigx2) for i in range(degx2+1)]
         yfunc2 = [self._pgh(yccd, i, y, sigma=sigy2) for i in range(degy2+1)]
+        core2 = N.zeros((ny, nx))
         for i in range(degx2+1):
             for j in range(degy2+1):
                 spot2 = N.outer(yfunc2[j], xfunc2[i])
                 c2 = self.coeff['GH2-{}-{}'.format(i,j)].eval(ispec, wavelength)
-                img += c2 * spot2
+                core2 += c2 * spot2
 
         #- Clip negative values and normalize to 1.0
+        img = core1 + core2 + tails
         img = img.clip(0.0)
         img /= N.sum(img)
 
         xslice = slice(xccd[0], xccd[-1]+1)
         yslice = slice(yccd[0], yccd[-1]+1)
         return xslice, yslice, img
+        # return xslice, yslice, (core1, core2, tails)
         
 
