@@ -19,7 +19,7 @@ def load_psf(filename):
         return MonoSpotPSF(filename)
     elif hdr['PSFTYPE'].strip() == 'PCA-PIX':
         return PixPSF(filename)
-    elif hdr['PSFTYPE'].strip() == 'GAUSS-HERMITE':
+    elif hdr['PSFTYPE'].strip() == 'GAUSS-HERMITE2':
         return GaussHermitePSF(filename)
     else:
         print "Unknown PSFTYPE", hdr['PSFTYPE']
