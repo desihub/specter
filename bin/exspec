@@ -52,7 +52,6 @@ nwborder = int(round(wborder/dw))   #- number of border wavelength bins
 nwstep = int(round(wstep/dw))+1     #- number of core wavelength bins
 
 #- Diagonal elements of resolution matrix
-#+ TODO: update with border size
 ndiag = nwborder
 Rd = N.zeros( (nspec, 2*ndiag+1, nwave) )
 
@@ -70,12 +69,14 @@ for speclo in range(specmin, specmax, opts.bundlesize):
         subimg = img[ymin:ymax, xmin:xmax]
         subivar = imgivar[ymin:ymax, xmin:xmax]
     
+        #- Do the extraction (and time it)
         t0 = time()
         specflux, specivar, R = \
             ex2d(subimg, subivar, psf, specrange=specrange, wavelengths=ww,
                 xyrange=xyrange, regularize=opts.regularize)
         print '  --> %.1f' % (time() - t0, )
-                
+
+        #- Fill in the final output arrays
         iwlo = int(round((w-wmin)/dw))
         flux[speclo:spechi, iwlo:iwlo+nwstep] = specflux[:, nwborder:-nwborder]
         ivar[speclo:spechi, iwlo:iwlo+nwstep] = specivar[:, nwborder:-nwborder]
@@ -88,16 +89,8 @@ for speclo in range(specmin, specmax, opts.bundlesize):
             Rx = R[ii, ii]
             for j in range(nwborder,nw-nwborder):
                 Rd[i, :, iwlo+j-nwborder] = Rx[j-ndiag:j+ndiag+1, j]
-            
-            # for j in range(nwave):
-            #     #- Fill in diagonal R matrix elements, taking care with edges
-            #     if j < ndiag:
-            #         Rd[i, ndiag-j:, j] = Rx[0:ndiag+1+j, j]
-            #     elif ndiag <= j < nwave-ndiag:
-            #         Rd[i,:,j] = Rx[j-ndiag:j+ndiag+1,j]
-            #     else:
-            #         Rd[i, 0:ndiag+nwave-j, j] = Rx[j-ndiag:, j]
-                
+
+                            
 #- Write output
 hdr = list()
 hdr.append(dict(name='SPECMIN', value=specmin, comment='First spectrum'))
@@ -106,7 +99,7 @@ hdr.append(dict(name='NSPEC', value=specmax-specmin, comment='Number of spectra'
 hdr.append(dict(name='WAVEMIN', value=wmin, comment='First wavelength [Angstroms]'))
 hdr.append(dict(name='WAVEMAX', value=wmax, comment='Last wavelength [Angstroms]'))
 hdr.append(dict(name='WAVESTEP', value=dw, comment='Wavelength step size [Angstroms]'))
-hdr.append(dict(name='RESMATND', value=ndiag, comment='Number of off-diagonal from Res Matrix'))
+### hdr.append(dict(name='RESMATND', value=ndiag, comment='Number of off-diagonal from Res Matrix'))
 
 fitsio.write(opts.output, flux, extname='FLUX', header=hdr, clobber=True)
 fitsio.write(opts.output, ivar, extname='IVAR')
