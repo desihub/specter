@@ -1,0 +1,99 @@
+#!/usr/bin/env python
+
+"""
+Vanilla spectral extraction
+"""
+
+import sys
+import os
+import numpy as N
+
+import fitsio
+
+from specter.psf import load_psf
+from specter.extract import ex2d
+
+import optparse
+parser = optparse.OptionParser(usage = "%prog [options]")
+parser.add_option("-i", "--input", type="string",  help="input image")
+parser.add_option("-p", "--psf", type="string",  help="input psf")
+parser.add_option("-o", "--output", type="string",  help="output extracted spectra")
+parser.add_option("-w", "--wavelength", type="string",  help="wavemin,wavemax,wavestep", default="7990.0,8040.0,1.0")
+parser.add_option("-b", "--bundlesize", type="int",  help="num spectra per bundle", default=10)
+parser.add_option("-s", "--specrange", type="string",  help="specmin,specmax", default="0,20")
+parser.add_option("-r", "--regularize", type="float",  help="regularization amount (%default)", default="0.0")
+### parser.add_option("-x", "--xxx",   help="some flag", action="store_true")
+
+opts, args = parser.parse_args()
+
+#- Get wavelength grid from options
+wmin, wmax, dw = map(float, opts.wavelength.split(','))
+ww = N.arange(wmin, wmax+dw/2.0, dw)
+nwave = len(ww)
+
+#- Get specrange from options
+specmin, specmax = map(int, opts.specrange.split(','))
+nspec = specmax-specmin
+
+#- Load input files
+psf = load_psf(opts.psf)
+img = fitsio.read(opts.input, 0)
+imgivar = fitsio.read(opts.input, 1)
+
+#- Output arrays to fill
+flux = N.zeros( (nspec, nwave) )
+ivar = N.zeros( (nspec, nwave) )
+
+#- Diagonal elements of resolution matrix
+#+ TODO: update with border size
+ndiag = 7
+Rd = N.zeros( (nspec, 2*ndiag+1, nwave) )
+
+#- Let's do some extractions
+for speclo in range(specmin, specmax, opts.bundlesize):
+    spechi = speclo+opts.bundlesize
+    specrange = (speclo, spechi)
+
+    xyrange = xmin,xmax,ymin,ymax = psf.xyrange(specrange, (wmin, wmax))
+    subimg = img[ymin:ymax, xmin:xmax]
+    subivar = imgivar[ymin:ymax, xmin:xmax]
+    
+    print "Extracting", specrange
+    specflux, specivar, R = \
+            ex2d(subimg, subivar, psf, specrange=specrange, wavelengths=ww,
+                xyrange=xyrange, regularize=opts.regularize)
+                
+    flux[speclo:spechi] = specflux
+    ivar[speclo:spechi] = specivar
+    
+    #- Fill diagonals of resolution matrix
+    for i in range(speclo, spechi):
+        ii = slice(nwave*(i-speclo), nwave*(i-speclo+1))
+        Rx = R[ii, ii]  #- subregion of R for this spectrum
+        for j in range(nwave):
+            #- Fill in diagonal R matrix elements, taking care with edges
+            if j < ndiag:
+                Rd[i, ndiag-j:, j] = Rx[0:ndiag+1+j, j]
+            elif ndiag <= j < nwave-ndiag:
+                Rd[i,:,j] = Rx[j-ndiag:j+ndiag+1,j]
+            else:
+                Rd[i, 0:ndiag+nwave-j, j] = Rx[j-ndiag:, j]
+                
+#- Write output
+hdr = list()
+hdr.append(dict(name='SPECMIN', value=specmin, comment='First spectrum'))
+hdr.append(dict(name='SPECMAX', value=specmax-1, comment='Last spectrum'))
+hdr.append(dict(name='NSPEC', value=specmax-specmin, comment='Number of spectra'))
+hdr.append(dict(name='WAVEMIN', value=wmin, comment='First wavelength [Angstroms]'))
+hdr.append(dict(name='WAVEMAX', value=wmax, comment='Last wavelength [Angstroms]'))
+hdr.append(dict(name='WAVESTEP', value=dw, comment='Wavelength step size [Angstroms]'))
+hdr.append(dict(name='RESMATND', value=ndiag, comment='Number of off-diagonal from Res Matrix'))
+
+fitsio.write(opts.output, flux, extname='FLUX', header=hdr)
+fitsio.write(opts.output, ivar, extname='IVAR')
+fitsio.write(opts.output, ww, extname='WAVELENGTH')
+fitsio.write(opts.output, Rd, extname='RESOLUTION')
+
+
+
+

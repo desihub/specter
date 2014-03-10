@@ -14,7 +14,7 @@ import math
 
 from specter.util import gausspix, weighted_solve
 
-def extract1d(img, mask, psf, readnoise=2.5,
+def ex1d(img, mask, psf, readnoise=2.5,
               specrange=None, yrange=None,
               nspec_per_group=20, debug=False, model=False):
     """
