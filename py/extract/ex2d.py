@@ -1,5 +1,5 @@
 """
-2D Spectroperfectionism extractions in progress...
+2D Spectroperfectionism extractions
 """
 
 import numpy as N
