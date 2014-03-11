@@ -78,8 +78,10 @@ for speclo in range(specmin, specmax, opts.bundlesize):
 
         #- Fill in the final output arrays
         iwlo = int(round((w-wmin)/dw))
-        flux[speclo:spechi, iwlo:iwlo+nwstep] = specflux[:, nwborder:-nwborder]
-        ivar[speclo:spechi, iwlo:iwlo+nwstep] = specivar[:, nwborder:-nwborder]
+        
+        iispec = slice(speclo-specmin, spechi-specmin)
+        flux[iispec, iwlo:iwlo+nwstep] = specflux[:, nwborder:-nwborder]
+        ivar[iispec, iwlo:iwlo+nwstep] = specivar[:, nwborder:-nwborder]
     
         #- Fill diagonals of resolution matrix
         nw = len(ww)
@@ -87,8 +89,10 @@ for speclo in range(specmin, specmax, opts.bundlesize):
             #- subregion of R for this spectrum
             ii = slice(nw*(i-speclo), nw*(i-speclo+1))
             Rx = R[ii, ii]
+
             for j in range(nwborder,nw-nwborder):
-                Rd[i, :, iwlo+j-nwborder] = Rx[j-ndiag:j+ndiag+1, j]
+                Rd[i-specmin, :, iwlo+j-nwborder] = Rx[j-ndiag:j+ndiag+1, j]
+                    
 
                             
 #- Write output
