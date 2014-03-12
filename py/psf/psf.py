@@ -257,6 +257,10 @@ class PSF(object):
         
         xx = slice(xlo-xmin, xhi-xmin)
         yy = slice(ylo-ymin, yhi-ymin)
+        
+        #- Check if we are off the edge
+        if (xx.stop-xx.start == 0) or (yy.stop-yy.start == 0):
+            ccdpix = N.zeros( (0,0) )
                 
         return xx, yy, ccdpix
 
@@ -278,7 +282,10 @@ class PSF(object):
         else:
             specmin, specmax = spec_range
 
-        wavemin, wavemax = wavelengths[0], wavelengths[-1]
+        if isinstance(wavelengths, (int, float)):
+            wavemin = wavemax = wavelengths
+        else:
+            wavemin, wavemax = wavelengths[0], wavelengths[-1]
 
         #- Find the spectra with the smallest/largest y centroids
         ispec_ymin = specmin + N.argmin(self.y(None, wavemin)[specmin:specmax+1])
@@ -294,6 +301,9 @@ class PSF(object):
         if wavemax < w[-1]:
             w = w[w <= wavemax]
         
+        #- Add in wavemin and wavemax since w isn't perfect resolution
+        w = N.concatenate( (w, (wavemin, wavemax) ) )
+        
         x = self.x(specmin, w)
         if min(x) < 0:
             xmin = 0.0
@@ -308,6 +318,9 @@ class PSF(object):
         if wavemax < w[-1]:
             w = w[w <= wavemax]
         
+        #- Add in wavemin and wavemax since w isn't perfect resolution
+        w = N.concatenate( (w, (wavemin, wavemax) ) )
+
         x = self.x(specmax-1, w)
         if max(x) > self.npix_x:
             xmax = self.npix_x
@@ -561,7 +574,7 @@ class PSF(object):
                 xslice, yslice, pix = self.xypix(ispec, w, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
                 
                 #- If there is overlap with pix_range, put into sub-region of A
-                if pix.shape[0]>0 and pix.shape[1]>0:              
+                if pix.shape[0]>0 and pix.shape[1]>0:         
                     tmp[yslice, xslice] = pix
                     ij = (ispec-specmin)*nflux + iflux
                     A[:, ij] = tmp.ravel()

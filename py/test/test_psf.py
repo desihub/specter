@@ -135,6 +135,7 @@ class TestPSF(unittest.TestCase):
                 
     #- Test psf.xypix() using CCD pixel xmin/xmax, ymin/ymax options
     #- Doesn't test every possibility
+    #- TODO: Better tests when walking off edge
     def test_xypix_range(self):
         w = N.mean(self.psf.wavelength())
         i = self.psf.nspec/2
@@ -392,6 +393,7 @@ class TestPSF(unittest.TestCase):
     #     self.assertTrue(N.all(xyw[2] == w))
     
     #- Test getting xy pixel range where spectra would project
+    #+ TODO: Test case where input wavelength grid is sub-pixel
     def test_xyrange(self):
         ww = self.psf.wavelength(0)[0:10]
         spec_range = [0,10]
