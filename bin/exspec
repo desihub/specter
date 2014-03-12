@@ -21,8 +21,8 @@ parser.add_option("-p", "--psf", type="string",  help="input psf")
 parser.add_option("-o", "--output", type="string",  help="output extracted spectra")
 parser.add_option("-w", "--wavelength", type="string",  help="wavemin,wavemax,dw", default="8000.0,8200.0,1.0")
 parser.add_option("-b", "--bundlesize", type="int",  help="num spectra per bundle", default=20)
-parser.add_option("-s", "--specrange", type="string",  help="specmin,specmax", default="0,40")
-parser.add_option("-r", "--regularize", type="float",  help="regularization amount (%default)", default="0.0")
+parser.add_option("-s", "--specrange", type="string",  help="specmin,specmax", default="0,20")
+parser.add_option("-r", "--regularize", type="float",  help="regularization amount (%default)", default="1e-9")
 ### parser.add_option("-x", "--xxx",   help="some flag", action="store_true")
 
 opts, args = parser.parse_args()
@@ -46,7 +46,7 @@ flux = N.zeros( (nspec, nwave) )
 ivar = N.zeros( (nspec, nwave) )
 
 #+ TURN THESE INTO OPTIONS
-wborder = 10.0
+wborder = 30.0
 wstep = 40.0
 nwborder = int(round(wborder/dw))   #- number of border wavelength bins
 nwstep = int(round(wstep/dw))+1     #- number of core wavelength bins
@@ -64,8 +64,8 @@ for speclo in range(specmin, specmax, opts.bundlesize):
         ww = N.arange(w-wborder, w+wstep+wborder+dw/2, dw)
         print "Extracting spectra {} wavelengths {}".format(specrange, (w,w+wstep))
 
-        #- Identify subimage that covers these spectra and wavelengths
-        xyrange = xmin,xmax,ymin,ymax = psf.xyrange(specrange, ww)
+        #- Identify subimage that covers the core wavelengths
+        xyrange = xmin,xmax,ymin,ymax = psf.xyrange(specrange, (w, w+wstep))
         subimg = img[ymin:ymax, xmin:xmax]
         subivar = imgivar[ymin:ymax, xmin:xmax]
     
