@@ -33,7 +33,7 @@ for filename in args:
     specset.update( set(range(xhdr['SPECMIN'], xhdr['SPECMAX']+1)) )
 
 if len(specset) != nspec:
-    print "Input files are missing some spectra! {} instead of {}".format(len(specset), nspec)
+    print "Input files only have {} instead of {} spectra".format(len(specset), nspec)
     sys.exit(1)
 
 #- Read a file to get basic dimensions
