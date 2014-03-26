@@ -55,6 +55,22 @@ nwstep = int(round(wstep/dw))+1     #- number of core wavelength bins
 ndiag = 10
 Rd = N.zeros( (nspec, 2*ndiag+1, nwave) )
 
+#- Print parameters
+print """\
+#--- Extraction Parameters ---
+input:      {input}
+psf:        {psf}
+output:     {output}
+wavelength: {wmin} - {wmax} AA steps {dw}
+specrange:  {specmin} - {specmax}
+bundlesize: {bundlesize}
+regularize: {regularize}
+#-----------------------------\
+""".format(input=opts.input, psf=opts.psf, output=opts.output,
+    wmin=wmin, wmax=wmax, dw=dw,
+    specmin=specmin, specmax=specmax, bundlesize=opts.bundlesize,
+    regularize=opts.regularize)
+
 #- Let's do some extractions
 for speclo in range(specmin, specmax, opts.bundlesize):
     spechi = speclo+opts.bundlesize
