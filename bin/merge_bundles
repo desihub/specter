@@ -1,0 +1,78 @@
+#!/usr/bin/env python
+
+"""
+exspec extracts individual bundles of spectra with one bundle per output file.
+This script merges them back together into a single file combining all
+bundles.
+
+This workflow is hacky.  Release early, release often, but also refactor often.
+
+Stephen Bailey, LBL
+March 2014
+"""
+
+import sys
+import os
+import numpy as N
+
+import fitsio
+
+import optparse
+
+parser = optparse.OptionParser(usage = "%prog [options]")
+parser.add_option("-o", "--output", type="string",  help="output file name")
+parser.add_option("-d", "--delete", help="delete input files when done", action="store_true")
+
+opts, args = parser.parse_args()
+nspec = 500  #- Hardcode!
+
+#- Sanity check that all spectra are represented
+specset = set()
+for filename in args:
+    xhdr = fitsio.read_header(filename)    
+    specset.update( set(range(xhdr['SPECMIN'], xhdr['SPECMAX']+1)) )
+
+if len(specset) != nspec:
+    print "Input files only have {} instead of {} spectra".format(len(specset), nspec)
+    sys.exit(1)
+
+#- Read a file to get basic dimensions
+w = fitsio.read(args[0], 'WAVELENGTH')
+nwave = len(w)
+R1 = fitsio.read(args[0], 'RESOLUTION')
+ndiag = R1.shape[1]
+hdr = fitsio.read_header(args[0])
+hdr['SPECMIN'] = 0
+hdr['SPECMAX'] = nspec-1
+hdr['NSPEC'] = nspec
+
+#- Output arrays to fill
+flux = N.zeros( (nspec, nwave) )
+ivar = N.zeros( (nspec, nwave) )
+R = N.zeros( (nspec, ndiag, nwave) )
+
+#- Fill them!
+for filename in args:
+    xhdr = fitsio.read_header(filename)
+    xflux = fitsio.read(filename, 'FLUX')
+    xivar = fitsio.read(filename, 'IVAR')
+    xR = fitsio.read(filename, 'RESOLUTION')
+    
+    lo = xhdr['SPECMIN']
+    hi = xhdr['SPECMAX']+1
+    ### print filename, lo, hi
+    flux[lo:hi] = xflux
+    ivar[lo:hi] = xivar
+    R[lo:hi] = xR
+    
+#- Write it out
+print "Writing", opts.output
+fitsio.write(opts.output, flux, extname='FLUX', header=hdr, clobber=True)
+fitsio.write(opts.output, ivar, extname='IVAR')
+fitsio.write(opts.output, w, extname='WAVELENGTH')
+fitsio.write(opts.output, R, extname='RESOLUTION')
+
+#- Scary!  Delete input files
+if opts.delete:
+    for filename in args:
+        os.remove(filename)

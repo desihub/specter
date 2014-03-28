@@ -6,11 +6,13 @@ Vanilla spectral extraction
 
 import sys
 import os
+import os.path
 import numpy as N
 from time import time
 
 import fitsio
 
+import specter
 from specter.psf import load_psf
 from specter.extract import ex2d
 
@@ -22,7 +24,7 @@ parser.add_option("-o", "--output", type="string",  help="output extracted spect
 parser.add_option("-w", "--wavelength", type="string",  help="wavemin,wavemax,dw", default="8000.0,8200.0,1.0")
 parser.add_option("-b", "--bundlesize", type="int",  help="num spectra per bundle", default=20)
 parser.add_option("-s", "--specrange", type="string",  help="specmin,specmax", default="0,20")
-parser.add_option("-r", "--regularize", type="float",  help="regularization amount (%default)", default="1e-9")
+parser.add_option("-r", "--regularize", type="float",  help="regularization amount (%default)", default="1e-8")
 ### parser.add_option("-x", "--xxx",   help="some flag", action="store_true")
 
 opts, args = parser.parse_args()
@@ -38,7 +40,7 @@ nspec = specmax-specmin
 
 #- Load input files
 psf = load_psf(opts.psf)
-img = fitsio.read(opts.input, 0)
+img, imghdr = fitsio.read(opts.input, 0, header=True)
 imgivar = fitsio.read(opts.input, 1)
 
 #- Output arrays to fill
@@ -46,10 +48,17 @@ flux = N.zeros( (nspec, nwave) )
 ivar = N.zeros( (nspec, nwave) )
 
 #+ TURN THESE INTO OPTIONS
-wborder = 30.0
-wstep = 40.0
+wborder = 27.0
+wstep = 45.0
 nwborder = int(round(wborder/dw))   #- number of border wavelength bins
 nwstep = int(round(wstep/dw))+1     #- number of core wavelength bins
+
+#- Check the the spectral range fits into an integer number of wsteps.
+#+ TODO: relax this restriction and pack the last extraction correctly.
+blat = int((wmax-wmin)/wstep) - (wmax-wmin)/wstep
+if abs(blat) > 1e-3:
+    print "ERROR: spectral range must be evenly divisible by divide-and-conquer step {}".format(wstep)
+    sys.exit(2)
 
 #- Diagonal elements of resolution matrix
 ndiag = 10
@@ -90,7 +99,7 @@ for speclo in range(specmin, specmax, opts.bundlesize):
         specflux, specivar, R = \
             ex2d(subimg, subivar, psf, specrange=specrange, wavelengths=ww,
                 xyrange=xyrange, regularize=opts.regularize)
-        print '  --> %.1f' % (time() - t0, )
+        ### print '  --> %.1f' % (time() - t0, )
 
         #- Fill in the final output arrays
         iwlo = int(round((w-wmin)/dw))
@@ -108,20 +117,24 @@ for speclo in range(specmin, specmax, opts.bundlesize):
 
             for j in range(nwborder,nw-nwborder):
                 Rd[i-specmin, :, iwlo+j-nwborder] = Rx[j-ndiag:j+ndiag+1, j]
-                    
-
                             
 #- Write output
-hdr = list()
-hdr.append(dict(name='SPECMIN', value=specmin, comment='First spectrum'))
-hdr.append(dict(name='SPECMAX', value=specmax-1, comment='Last spectrum'))
-hdr.append(dict(name='NSPEC', value=specmax-specmin, comment='Number of spectra'))
-hdr.append(dict(name='WAVEMIN', value=wmin, comment='First wavelength [Angstroms]'))
-hdr.append(dict(name='WAVEMAX', value=wmax, comment='Last wavelength [Angstroms]'))
-hdr.append(dict(name='WAVESTEP', value=dw, comment='Wavelength step size [Angstroms]'))
+imghdr.add_record(dict(name='SPECMIN', value=specmin, comment='First spectrum'))
+imghdr.add_record(dict(name='SPECMAX', value=specmax-1, comment='Last spectrum'))
+imghdr.add_record(dict(name='NSPEC', value=specmax-specmin, comment='Number of spectra'))
+imghdr.add_record(dict(name='WAVEMIN', value=wmin, comment='First wavelength [Angstroms]'))
+imghdr.add_record(dict(name='WAVEMAX', value=wmax, comment='Last wavelength [Angstroms]'))
+imghdr.add_record(dict(name='WAVESTEP', value=dw, comment='Wavelength step size [Angstroms]'))
+imghdr.add_record(dict(name='SPECTER', value=specter.__version__, comment='https://github.com/sbailey/specter'))
+imghdr.add_record(dict(name='IN_PSF', value="..."+opts.psf[-40:], comment='Input spectral PSF'))
+imghdr.add_record(dict(name='IN_IMG', value="..."+opts.input[-40:], comment='Input image'))
 ### hdr.append(dict(name='RESMATND', value=ndiag, comment='Number of off-diagonal from Res Matrix'))
 
-fitsio.write(opts.output, flux, extname='FLUX', header=hdr, clobber=True)
+outdir = os.path.dirname(opts.output)
+if not os.path.exists(outdir):
+    os.makedirs(outdir)
+
+fitsio.write(opts.output, flux, extname='FLUX', header=imghdr, clobber=True)
 fitsio.write(opts.output, ivar, extname='IVAR')
 fitsio.write(opts.output, wavelengths, extname='WAVELENGTH')
 fitsio.write(opts.output, Rd, extname='RESOLUTION')
