@@ -48,8 +48,8 @@ flux = N.zeros( (nspec, nwave) )
 ivar = N.zeros( (nspec, nwave) )
 
 #+ TURN THESE INTO OPTIONS
-wborder = 30.0
-wstep = 40.0
+wborder = 27.0
+wstep = 45.0
 nwborder = int(round(wborder/dw))   #- number of border wavelength bins
 nwstep = int(round(wstep/dw))+1     #- number of core wavelength bins
 
