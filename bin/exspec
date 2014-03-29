@@ -47,8 +47,11 @@ imgivar = fitsio.read(opts.input, 1)
 flux = N.zeros( (nspec, nwave) )
 ivar = N.zeros( (nspec, nwave) )
 
+#- Determine how much wavelength border to use
+y = psf.y(specmin, wmax) + psf.pix(specmin, wmax).shape[0]
+wborder = int((psf.wavelength(specmin, y) - wmax)/dw)*dw
+
 #+ TURN THESE INTO OPTIONS
-wborder = 27.0
 wstep = 45.0
 nwborder = int(round(wborder/dw))   #- number of border wavelength bins
 nwstep = int(round(wstep/dw))+1     #- number of core wavelength bins
@@ -71,12 +74,14 @@ input:      {input}
 psf:        {psf}
 output:     {output}
 wavelength: {wmin} - {wmax} AA steps {dw}
+waveborder: {wborder}
 specrange:  {specmin} - {specmax}
 bundlesize: {bundlesize}
 regularize: {regularize}
 #-----------------------------\
 """.format(input=opts.input, psf=opts.psf, output=opts.output,
     wmin=wmin, wmax=wmax, dw=dw,
+    wborder=wborder,
     specmin=specmin, specmax=specmax, bundlesize=opts.bundlesize,
     regularize=opts.regularize)
 
