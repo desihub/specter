@@ -117,6 +117,13 @@ for speclo in range(specmin, specmax, opts.bundlesize):
 
             for j in range(nwborder,nw-nwborder):
                 Rd[i-specmin, :, iwlo+j-nwborder] = Rx[j-ndiag:j+ndiag+1, j]
+
+#+ TODO: what should this do to R in the case of non-uniform bins?
+#+       maybe should do everything in photons/A from the start.            
+#- Convert flux to photons/A instead of photons/bin
+dw = N.gradient(wavelengths)
+flux /= dw
+ivar *= dw**2
                             
 #- Write output
 imghdr.add_record(dict(name='SPECMIN', value=specmin, comment='First spectrum'))

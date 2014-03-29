@@ -30,7 +30,7 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
         ivar[nspec, nwave] = inverse variance of flux
         R : 2D resolution matrix to convert
     """
-    
+
     #- Range of image to consider
     waverange = (wavelengths[0], wavelengths[-1])
     
