@@ -14,7 +14,7 @@ import math
 
 from specter.util import gausspix, weighted_solve
 
-def extract1d(img, mask, psf, readnoise=2.5,
+def ex1d(img, mask, psf, readnoise=2.5,
               specrange=None, yrange=None,
               nspec_per_group=20, debug=False, model=False):
     """
@@ -119,10 +119,7 @@ def extract1d(img, mask, psf, readnoise=2.5,
 
             if model:
                 imgmodel[row, xmin:xmax] = A.dot(tmpspec)
-        
-            #- TODO: Should repeat extraction using model to derive errors
-            #- Requires read noise as an input parameter
-        
+                
             spectra[speclo-specmin:spechi-specmin, row-ymin] = tmpspec
             specivar[speclo-specmin:spechi-specmin, row-ymin] = iCov.diagonal()   
             

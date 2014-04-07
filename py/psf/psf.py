@@ -15,10 +15,10 @@ Stephen Bailey, Fall 2012
 import numpy as N
 ### import scipy.sparse
 from scipy.ndimage import center_of_mass
-from numpy.polynomial.legendre import Legendre
+from numpy.polynomial.legendre import Legendre, legval, legfit
 import scipy.optimize
 
-from specter.util import gausspix
+from specter.util import gausspix, TraceSet
 import fitsio
 
 class PSF(object):
@@ -46,30 +46,23 @@ class PSF(object):
         to access the projection of this PSF into pixels.
         """
         
-        #- Open fits file
-        fx = fitsio.FITS(filename)
-        hdr = fx[0].read_header()
-        
         #- Load basic dimensions
+        hdr = fitsio.read_header(filename)
         self.npix_x = hdr['NPIX_X']
         self.npix_y = hdr['NPIX_Y']
-        self.nspec  = hdr['NAXIS2']
-        self.nwave  = hdr['NAXIS1']
+        self.nspec  = hdr['NSPEC']
         
-        #- Load x, y, loglam arrays
-        self._x = fx[0].read()
-        self._y = fx[1].read()
-        if fx[2].get_extname() == 'WAVELENGTH':
-            self._wavelength = fx[2].read()
-            self._loglam = N.log10(self._wavelength)
-        else:
-            self._loglam = fx[2].read()
-            self._wavelength = 10**self._loglam
-            
-        #- Cache some ranges
-        self._wmin = self._wavelength.min()
-        self._wmax = self._wavelength.max()
-            
+        #- Load x, y legendre coefficient tracesets
+        xc, hdr = fitsio.read(filename, 'XCOEFF', header=True)
+        self._x = TraceSet(xc, domain=(hdr['WAVEMIN'], hdr['WAVEMAX']))
+        yc, hdr = fitsio.read(filename, 'YCOEFF', header=True)
+        self._y = TraceSet(yc, domain=(hdr['WAVEMIN'], hdr['WAVEMAX']))
+        
+        #- Create inverse y -> wavelength mapping
+        self._w = self._y.invert()
+        self._wmin = N.min(self.wavelength(None, 0))
+        self._wmax = N.max(self.wavelength(None, self.npix_y-1))
+                
         #- Filled only if needed
         self._xsigma = None
         self._ysigma = None
@@ -228,9 +221,9 @@ class PSF(object):
         if ymax is None:
             ymax = self.npix_y
 
-        if wavelength < self._wavelength[ispec, 0]:
+        if wavelength < self.wavelength(ispec, -0.5):
             return slice(0,0), slice(0,0), N.zeros((0,0))
-        elif wavelength > self._wavelength[ispec, -1]:
+        elif wavelength > self.wavelength(ispec, self.npix_y-0.5):
             return slice(0,0), slice(ymax, ymax), N.zeros((0,0))
         
         xx, yy, ccdpix = self._xypix(ispec, wavelength)
@@ -264,6 +257,10 @@ class PSF(object):
         
         xx = slice(xlo-xmin, xhi-xmin)
         yy = slice(ylo-ymin, yhi-ymin)
+        
+        #- Check if we are off the edge
+        if (xx.stop-xx.start == 0) or (yy.stop-yy.start == 0):
+            ccdpix = N.zeros( (0,0) )
                 
         return xx, yy, ccdpix
 
@@ -285,7 +282,10 @@ class PSF(object):
         else:
             specmin, specmax = spec_range
 
-        wavemin, wavemax = wavelengths[0], wavelengths[-1]
+        if isinstance(wavelengths, (int, float)):
+            wavemin = wavemax = wavelengths
+        else:
+            wavemin, wavemax = wavelengths[0], wavelengths[-1]
 
         #- Find the spectra with the smallest/largest y centroids
         ispec_ymin = specmin + N.argmin(self.y(None, wavemin)[specmin:specmax+1])
@@ -296,24 +296,36 @@ class PSF(object):
         #- Now for wavelength where x = min(x),
         #- while staying on CCD and within wavelength range
         w = self.wavelength(specmin)
-        ii = (wavemin < w) & (w < wavemax)
-        ww = N.concatenate( ([wavemin,], w[ii], [wavemax,]) )
-        x = self.x(specmin, ww)
+        if w[0] < wavemin:
+            w = w[wavemin <= w]
+        if wavemax < w[-1]:
+            w = w[w <= wavemax]
+        
+        #- Add in wavemin and wavemax since w isn't perfect resolution
+        w = N.concatenate( (w, (wavemin, wavemax) ) )
+        
+        x = self.x(specmin, w)
         if min(x) < 0:
             xmin = 0.0
         else:
-            wxmin = ww[N.argmin(x)]
+            wxmin = w[N.argmin(x)]  #- wavelength at x minimum
             xmin = self.xypix(specmin, wxmin)[0].start
             
         #- and wavelength where x = max(x)
         w = self.wavelength(specmax-1)
-        ii = (wavemin < w) & (w < wavemax)
-        ww = N.concatenate( ([wavemin,], w[ii], [wavemax,]) )
-        x = self.x(specmax-1, ww)
+        if w[0] < wavemin:
+            w = w[wavemin <= w]
+        if wavemax < w[-1]:
+            w = w[w <= wavemax]
+        
+        #- Add in wavemin and wavemax since w isn't perfect resolution
+        w = N.concatenate( (w, (wavemin, wavemax) ) )
+
+        x = self.x(specmax-1, w)
         if max(x) > self.npix_x:
             xmax = self.npix_x
         else:
-            wxmax = ww[N.argmax(x)]
+            wxmax = w[N.argmax(x)]
             xmax = self.xypix(specmax-1, wxmax)[0].stop
                                         
         return (xmin, xmax, ymin, ymax)
@@ -321,119 +333,113 @@ class PSF(object):
     #-------------------------------------------------------------------------
     #- Shift PSF to a new x,y grid, e.g. to account for flexure
     
-    def shift_xy(self, dx, dy):        
+    def shift_xy(self, dx, dy):
         """
         Shift the x,y trace locations of this PSF while preserving
         wavelength grid:  xnew = x + dx, ynew = y + dy
         """
-        self._x += dx
-        self._y += dy
+        raise NotImplementedError
     
     #-------------------------------------------------------------------------
-    #- accessors for x, y, wavelength, loglam
-        
-    def x(self, ispec=None, wavelength=None, copy=False):
+    #- accessors for x, y, wavelength
+                
+    def x(self, ispec=None, wavelength=None):
         """
         Return CCD X centroid of spectrum ispec at given wavelength(s).
         
-        ispec can be None or scalar
-        wavelength can be None, scalar, or a vector
+        ispec can be None, scalar, or vector
+        wavelength can be None, scalar or a vector
         
-        May return a view of the underlying array; do not modify unless
-        specifying copy=True to get a copy of the data.
+        ispec   wavelength  returns
+        +-------+-----------+------
+        None    None        array[nspec, npix_y]
+        None    scalar      vector[nspec]
+        None    vector      array[nspec, nwave]
+        scalar  None        array[npix_y]
+        scalar  scalar      scalar
+        scalar  vector      vector[nwave]
+        vector  None        array[nspec, npix_y]
+        vector  scalar      vector[nspec]
+        vector  vector      array[nspec, nwave]
         """
-        if ispec is None:
-            if wavelength is None:
-                result = self._x
-            else:
-                result = N.array([self.x(i, wavelength) for i in range(self.nspec)])
-        else:
-            if wavelength is None:
-                result = self._x[ispec]
-            else:
-                result = N.interp(wavelength, self._wavelength[ispec], self._x[ispec])
-                
-        if copy and isinstance(result, N.ndarray):
-            return N.copy(result)
-        else:
-            return result
-
-    def y(self, ispec=None, wavelength=None, copy=False):
+        
+        if wavelength is None:
+            #- ispec=None -> ispec=every spectrum
+            if ispec is None:
+                ispec = N.arange(self.nspec)
+            
+            #- ispec is an array; sample at every row
+            if isinstance(ispec, (N.ndarray, list, tuple)):
+                x = list()
+                for i in ispec:
+                    w = self.wavelength(i)
+                    x.append(self._x.eval(i, w))
+                return N.array(x)
+            else:  #- scalar ispec, make wavelength an array
+                wavelength = self.wavelength(ispec)
+            
+        return self._x.eval(ispec, wavelength)
+            
+    def y(self, ispec=None, wavelength=None):
         """
         Return CCD Y centroid of spectrum ispec at given wavelength(s).
-        wavelength can be None, scalar, or a vector
-
-        May return a view of the underlying array; do not modify unless
-        specifying copy=True to get a copy of the data.
+        
+        ispec can be None, scalar, or vector
+        wavelength can be scalar or a vector (but not None)
+        
+        ispec   wavelength  returns
+        +-------+-----------+------
+        None    scalar      vector[nspec]
+        None    vector      array[nspec,nwave]
+        scalar  scalar      scalar
+        scalar  vector      vector[nwave]
+        vector  scalar      vector[nspec]
+        vector  vector      array[nspec, nwave]
         """
+        if wavelength is None:
+            raise ValueError, "PSF.y requires wavelength scalar or vector"
+            
+        if ispec is None:
+            ispec = N.arange(self.nspec)
+            
+        return self._y.eval(ispec, wavelength)
+        
         if ispec is None:
             if wavelength is None:
-                result = self._y
+                return N.tile(N.arange(self.npix_y), self.nspec).reshape(self.nspec, self.npix_y)
             else:
-                result = N.array([self.y(i, wavelength) for i in range(self.nspec)])                
-        else:
-            if wavelength is None:
-                result = self._y[ispec]
-            else:
-                result = N.interp(wavelength, self._wavelength[ispec], self._y[ispec])
+                ispec = N.arange(self.nspec)
+        
+        if wavelength is None:
+            wavelength = self.wavelength(ispec)
 
-        if copy and isinstance(result, N.ndarray):
-            return N.copy(result)
-        else:
-            return result
+        return self._y.eval(ispec, wavelength)
             
-    def xy(self, ispec=None, wavelength=None, copy=False):
+    def xy(self, ispec=None, wavelength=None):
         """
         Utility function to return self.x(...) and self.y(...) in one call
         """
-        x = self.x(ispec, wavelength, copy=copy)
-        y = self.y(ispec, wavelength, copy=copy)
+        x = self.x(ispec, wavelength)
+        y = self.y(ispec, wavelength)
         return x, y
 
-    def xyw(self, ispec=None, copy=False):
-        """
-        Utility function to return x, y, and wavelength arrays for
-        spectrum number ispec.  Set copy=True to get copies of the
-        arrays instead of references to the originals.
-        """
-        x = self.x(ispec, copy=copy)
-        y = self.y(ispec, copy=copy)
-        w = self.wavelength(ispec, copy=copy)
-        return x, y, w
-
-    def loglam(self, ispec=None, y=None, copy=False):
-        """
-        Return log10(wavelength) of spectrum[ispec] evaluated at y.
-        y can be None, scalar, or vector
-        
-        TODO: Directly interpolate on loglam grid?
-        """
-        return N.log10(self.wavelength(ispec, y, copy=copy))
-    
-    def wavelength(self, ispec=None, y=None, copy=False):
+    def wavelength(self, ispec=None, y=None):
         """
         Return wavelength of spectrum[ispec] evaluated at y.
         
-        ispec can be None or scalar; y can be None, scalar, or vector
+        ispec can be None, scalar, or vector
+        y can be None, scalar, or vector
 
         May return a view of the underlying array; do not modify unless
         specifying copy=True to get a copy of the data.
         """
+        if y is None:
+            y = N.arange(0, self.npix_y)
+        
         if ispec is None:
-            if y is None:
-                result = self._wavelength
-            else:
-                result = N.array([self.wavelength(i,y) for i in range(self.nspec)])
-        else:
-            if y is None:
-                result = self._wavelength[ispec]
-            else:
-                result = N.interp(y, self._y[ispec], self._wavelength[ispec])
-                
-        if copy:
-            return N.copy(result)
-        else:
-            return result
+            ispec = N.arange(self.nspec)
+            
+        return self._w.eval(ispec, y)
     
     def angstroms_per_pixel(self, ispec, wavelength):
         """
@@ -510,14 +516,12 @@ class PSF(object):
             else:
                 wspec = wavelength
                 
-            #- Only eval non-zero fluxes of wavelengths covered by this PSF
+            #- Evaluate positive photons within wavelength range
             wmin, wmax = self.wavelength(ispec, y=(0, self.npix_y))
             for j, w in enumerate(wspec):
-                if phot[i,j] > 0.0 and wmin <= w and w <= wmax:
+                if phot[i,j] > 0.0 and (wmin <= w <= wmax):
                     xx, yy, pix = self.xypix(ispec, w, \
                         xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
-                    # xx = slice(xx.start-xmin, xx.stop-xmin)
-                    # yy = slice(yy.start-ymin, yy.stop-ymin)
                     img[yy, xx] += pix * phot[i,j]
 
         return img
@@ -570,10 +574,11 @@ class PSF(object):
                 xslice, yslice, pix = self.xypix(ispec, w, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
                 
                 #- If there is overlap with pix_range, put into sub-region of A
-                if pix.shape[0]>0 and pix.shape[1]>0:              
+                if pix.shape[0]>0 and pix.shape[1]>0:         
                     tmp[yslice, xslice] = pix
                     ij = (ispec-specmin)*nflux + iflux
                     A[:, ij] = tmp.ravel()
                     tmp[yslice, xslice] = 0.0
     
         return scipy.sparse.csr_matrix(A)    
+
