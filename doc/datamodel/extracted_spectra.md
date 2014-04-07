@@ -46,6 +46,6 @@ The format is designed such that the following python code will create a sparse 
     offsets = range(nband//2,-nband//2,-1)
     R = scipy.sparse.dia_matrix((data[i], offsets), (nwave,nwave))
     
-Also see ex2d_ResMatrix.pdf for how this is created from the divide-and-conquer extractions.
+Also see [ex2d_ResMatrix.pdf](ex2d_ResMatrix.pdf) for how this is created from the divide-and-conquer extractions.
 
 Cross terms between fibers are not stored.
