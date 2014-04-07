@@ -64,6 +64,7 @@ if abs(blat) > 1e-3:
     sys.exit(2)
 
 #- Diagonal elements of resolution matrix
+#+ AUTO CALCULATE BEST SIZE OR TURN INTO OPTION
 ndiag = 10
 Rd = N.zeros( (nspec, 2*ndiag+1, nwave) )
 
