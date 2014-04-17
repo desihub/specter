@@ -30,9 +30,13 @@ parser.add_option("-r", "--regularize", type="float",  help="regularization amou
 opts, args = parser.parse_args()
 
 #- Get wavelength grid from options
-wmin, wmax, dw = map(float, opts.wavelength.split(','))
-wavelengths = N.arange(wmin, wmax+dw/2.0, dw)
+wstart, wstop, dw = map(float, opts.wavelength.split(','))
+wavelengths = N.arange(wstart, wstop+dw/2.0, dw)
 nwave = len(wavelengths)
+
+#+ TURN THIS INTO AN OPTION
+#- Number of core wavelength bins to solve in each step
+nwstep = 50
 
 #- Get specrange from options
 specmin, specmax = map(int, opts.specrange.split(','))
@@ -47,22 +51,6 @@ imgivar = fitsio.read(opts.input, 1)
 flux = N.zeros( (nspec, nwave) )
 ivar = N.zeros( (nspec, nwave) )
 
-#- Determine how much wavelength border to use
-y = psf.y(specmin, wmax) + psf.pix(specmin, wmax).shape[0]
-wborder = int((psf.wavelength(specmin, y) - wmax)/dw)*dw
-
-#+ TURN THESE INTO OPTIONS
-wstep = 45.0
-nwborder = int(round(wborder/dw))   #- number of border wavelength bins
-nwstep = int(round(wstep/dw))+1     #- number of core wavelength bins
-
-#- Check the the spectral range fits into an integer number of wsteps.
-#+ TODO: relax this restriction and pack the last extraction correctly.
-blat = int((wmax-wmin)/wstep) - (wmax-wmin)/wstep
-if abs(blat) > 1e-3:
-    print "ERROR: spectral range must be evenly divisible by divide-and-conquer step {}".format(wstep)
-    sys.exit(2)
-
 #- Diagonal elements of resolution matrix
 #+ AUTO CALCULATE BEST SIZE OR TURN INTO OPTION
 ndiag = 10
@@ -74,15 +62,13 @@ print """\
 input:      {input}
 psf:        {psf}
 output:     {output}
-wavelength: {wmin} - {wmax} AA steps {dw}
-waveborder: {wborder}
+wavelength: {wstart} - {wstop} AA steps {dw}
 specrange:  {specmin} - {specmax}
 bundlesize: {bundlesize}
 regularize: {regularize}
 #-----------------------------\
 """.format(input=opts.input, psf=opts.psf, output=opts.output,
-    wmin=wmin, wmax=wmax, dw=dw,
-    wborder=wborder,
+    wstart=wstart, wstop=wstop, dw=dw,
     specmin=specmin, specmax=specmax, bundlesize=opts.bundlesize,
     regularize=opts.regularize)
 
@@ -91,15 +77,31 @@ for speclo in range(specmin, specmax, opts.bundlesize):
     spechi = speclo+opts.bundlesize
     specrange = (speclo, spechi)
 
-    for w in N.arange(wmin, wmax, wstep):
-        ww = N.arange(w-wborder, w+wstep+wborder+dw/2, dw)
-        print "Extracting spectra {} wavelengths {}".format(specrange, (w,w+wstep))
-
+    for iwave in range(0, len(wavelengths), nwstep):
+        #- Low and High wavelengths for the core region
+        wlo = wavelengths[iwave]
+        whi = min(wavelengths[-1], wlo + nwstep*dw)
+        
         #- Identify subimage that covers the core wavelengths
-        xyrange = xmin,xmax,ymin,ymax = psf.xyrange(specrange, (w, w+wstep))
-        subimg = img[ymin:ymax, xmin:xmax]
-        subivar = imgivar[ymin:ymax, xmin:xmax]
+        xyrange = xlo,xhi,ylo,yhi = psf.xyrange(specrange, (wlo, whi))
+        subimg = img[ylo:yhi, xlo:xhi]
+        subivar = imgivar[ylo:yhi, xlo:xhi]
     
+        #- Determine extra border wavelength extent
+        ny, nx = psf.pix(speclo, wlo).shape
+        ymin = ylo-ny+1
+        ymax = yhi+ny-1
+        
+        nlo = int((wlo - psf.wavelength(speclo, ymin))/dw)-1
+        nhi = int((psf.wavelength(speclo, ymax) - whi)/dw)-1
+        ww = N.arange(wlo-nlo*dw, whi+(nhi+0.5)*dw, dw)
+        wmin, wmax = ww[0], ww[-1]
+        nw = len(ww)
+        
+        print "Extracting spectra {specrange} wavelengths ({wmin:.2f}, {wmax:.2f}) -> ({wlo:.2f}, {whi:.2f})".format(\
+            specrange=specrange, wmin=wmin, wmax=wmax, wlo=wlo, whi=whi)
+        ### print nlo, nwstep, nhi, nw
+
         #- Do the extraction (and time it)
         t0 = time()
         specflux, specivar, R = \
@@ -108,21 +110,19 @@ for speclo in range(specmin, specmax, opts.bundlesize):
         ### print '  --> %.1f' % (time() - t0, )
 
         #- Fill in the final output arrays
-        iwlo = int(round((w-wmin)/dw))
-        
         iispec = slice(speclo-specmin, spechi-specmin)
-        flux[iispec, iwlo:iwlo+nwstep] = specflux[:, nwborder:-nwborder]
-        ivar[iispec, iwlo:iwlo+nwstep] = specivar[:, nwborder:-nwborder]
+        flux[iispec, iwave:iwave+nwstep+1] = specflux[:, nlo:-nhi]
+        ivar[iispec, iwave:iwave+nwstep+1] = specivar[:, nlo:-nhi]
     
         #- Fill diagonals of resolution matrix
-        nw = len(ww)
-        for i in range(speclo, spechi):
+        for ispec in range(speclo, spechi):
             #- subregion of R for this spectrum
-            ii = slice(nw*(i-speclo), nw*(i-speclo+1))
+            ii = slice(nw*(ispec-speclo), nw*(ispec-speclo+1))
             Rx = R[ii, ii]
 
-            for j in range(nwborder,nw-nwborder):
-                Rd[i-specmin, :, iwlo+j-nwborder] = Rx[j-ndiag:j+ndiag+1, j]
+            for j in range(nlo,nw-nhi):
+                # Rd dimensions [nspec, 2*ndiag+1, nwave]
+                Rd[ispec-specmin, :, iwave+j-nlo] = Rx[j-ndiag:j+ndiag+1, j]
 
 #+ TODO: what should this do to R in the case of non-uniform bins?
 #+       maybe should do everything in photons/A from the start.            
