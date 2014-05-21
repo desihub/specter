@@ -89,8 +89,8 @@ for speclo in range(specmin, specmax, opts.bundlesize):
     
         #- Determine extra border wavelength extent
         ny, nx = psf.pix(speclo, wlo).shape
-        ymin = ylo-ny+1
-        ymax = yhi+ny-1
+        ymin = ylo-ny+2
+        ymax = yhi+ny-2
         
         nlo = int((wlo - psf.wavelength(speclo, ymin))/dw)-1
         nhi = int((psf.wavelength(speclo, ymax) - whi)/dw)-1
