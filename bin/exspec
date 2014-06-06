@@ -23,7 +23,7 @@ parser.add_option("-p", "--psf", type="string",  help="input psf")
 parser.add_option("-o", "--output", type="string",  help="output extracted spectra")
 parser.add_option("-w", "--wavelength", type="string",  help="wavemin,wavemax,dw", default="8000.0,8200.0,1.0")
 parser.add_option("-b", "--bundlesize", type="int",  help="num spectra per bundle", default=20)
-parser.add_option("-s", "--specrange", type="string",  help="specmin,specmax", default="0,20")
+parser.add_option("-s", "--specrange", type="string",  help="specmin,specmax", default="0,19")
 parser.add_option("-r", "--regularize", type="float",  help="regularization amount (%default)", default="1e-8")
 ### parser.add_option("-x", "--xxx",   help="some flag", action="store_true")
 
@@ -74,7 +74,7 @@ regularize: {regularize}
 
 #- Let's do some extractions
 for speclo in range(specmin, specmax, opts.bundlesize):
-    spechi = speclo+opts.bundlesize
+    spechi = min(speclo+opts.bundlesize, specmax)
     specrange = (speclo, spechi)
 
     for iwave in range(0, len(wavelengths), nwstep):
@@ -132,6 +132,7 @@ flux /= dw
 ivar *= dw**2
                             
 #- Write output
+imghdr['EXTNAME'] = 'FLUX'
 imghdr.add_record(dict(name='SPECMIN', value=specmin, comment='First spectrum'))
 imghdr.add_record(dict(name='SPECMAX', value=specmax-1, comment='Last spectrum'))
 imghdr.add_record(dict(name='NSPEC', value=specmax-specmin, comment='Number of spectra'))
@@ -144,7 +145,7 @@ imghdr.add_record(dict(name='IN_IMG', value="..."+opts.input[-40:], comment='Inp
 ### hdr.append(dict(name='RESMATND', value=ndiag, comment='Number of off-diagonal from Res Matrix'))
 
 outdir = os.path.dirname(opts.output)
-if not os.path.exists(outdir):
+if (outdir != '') and (not os.path.exists(outdir)):
     os.makedirs(outdir)
 
 fitsio.write(opts.output, flux, extname='FLUX', header=imghdr, clobber=True)
