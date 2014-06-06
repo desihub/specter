@@ -229,6 +229,7 @@ class Throughput:
         units = units.replace("Angstroms", "A")
         units = units.replace("Angstrom", "A")
         units = units.replace("**", "^")
+        units = units.replace("cm2", "cm^2")
         
         #- Check for units prefactor like "1e-17 erg/s/cm^2/A"
         scale = 1.0
