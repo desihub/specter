@@ -127,9 +127,9 @@ for speclo in range(specmin, specmax, opts.bundlesize):
 #+ TODO: what should this do to R in the case of non-uniform bins?
 #+       maybe should do everything in photons/A from the start.            
 #- Convert flux to photons/A instead of photons/bin
-dw = N.gradient(wavelengths)
-flux /= dw
-ivar *= dw**2
+dwave = N.gradient(wavelengths)
+flux /= dwave
+ivar *= dwave**2
                             
 #- Write output
 imghdr['EXTNAME'] = 'FLUX'
