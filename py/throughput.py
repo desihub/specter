@@ -40,19 +40,28 @@ def load_throughput(filename):
     else:
         raise ValueError, 'throughput must include wavelength or loglam'
         
+    if 'GEOMAREA' in hdr:
+        area = hdr['GEOMAREA']
+    elif 'EFFAREA' in hdr:
+        area = hdr['EFFAREA']  #- misnomer, but for backwards compatibility
+    elif 'AREA' in hdr:
+        area = hdr['AREA']
+    else:
+        raise ValueError("throughput file missing GEOMAREA keyword")
+        
     return Throughput(
         wave = w,
         throughput = thru['throughput'],
         extinction = thru['extinction'],
         fiberinput = thru['fiberinput'],
-        exptime  = hdr['EXPTIME'],
-        effarea  = hdr['EFFAREA'],
-        fiberdia = hdr['FIBERDIA'],
+        exptime    = hdr['EXPTIME'],
+        area       = area,
+        fiberdia   = hdr['FIBERDIA'],
         )
 
 class Throughput:
     def __init__(self, wave, throughput, extinction,
-        exptime, effarea, fiberdia, fiberinput=None):
+        exptime, area, fiberdia, fiberinput=None):
         """
         Create Throughput object
         
@@ -63,8 +72,8 @@ class Throughput:
             all types of sources, e.g. mirrors, lenses, CCD efficiency
         extinction : atmospheric extinction array [mags/airmass]
         
-        exptime: float, default exposure time [sec]
-        effarea: float, primary mirror effective area [cm^2]
+        exptime:  float, default exposure time [sec]
+        area:     float, input geometric area [cm^2]
         fiberdia: float, fiber diameter [arcsec]
         
         Optional Inputs
@@ -83,7 +92,7 @@ class Throughput:
         self._extinction  = N.copy(extinction)
         
         self.exptime = float(exptime)
-        self.effarea = float(effarea)
+        self.area = float(area)
         self.fiberdia = float(fiberdia)
         
         #- Flux -> photons conversion constant
@@ -265,19 +274,19 @@ class Throughput:
         
         #- erg/s/cm^2/A (i.e. Flambda, astronomical object)
         if units == "erg/s/cm^2/A":
-            return phot * exptime * self.effarea * dw
+            return phot * exptime * self.area * dw
             
         #- erg/s/cm^2/A/arcsec^2 (e.g. sky)
         elif units == "erg/s/cm^2/A/arcsec^2":
-            return phot * exptime * self.effarea * dw * self.fiberarea
+            return phot * exptime * self.area * dw * self.fiberarea
             
         #- erg/s/cm^2 (not per A; flux delta functions at given wavelengths)
         elif units == "erg/s/cm^2":
-            return phot * exptime * self.effarea
+            return phot * exptime * self.area
 
         #- erg/s/cm^2/arcsec^2 (not per A; intensity delta functions)
         elif units == "erg/s/cm^2/arcsec^2":
-            return phot * exptime * self.effarea * self.fiberarea
+            return phot * exptime * self.area * self.fiberarea
             
         else:
             raise ValueError, "Unrecognized units " + units

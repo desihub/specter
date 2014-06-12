@@ -74,13 +74,13 @@ The second interpolation dimension is wavelength.
 HDU 0-2 : Same as Base PSF: X, Y, wavelength or loglam of traces
 
     HDU SPOTS : spot[i, j, iy, ix]    #- 2D PSF spots
-        NAXIS1 = number of spot samples in the spectrum number dimension
-        NAXIS2 = number of spot samples in the wavelength direction
-        NAXIS3 = size of spot in the CCD y dimension
-        NAXIS4 = size of spot in the CCD x direction
+        NAXIS1 = i  = number of spot samples in the spectrum number dimension
+        NAXIS2 = j  = number of spot samples in the wavelength direction
+        NAXIS3 = iy = size of spot in the CCD y dimension
+        NAXIS4 = ix = size of spot in the CCD x direction
     
-    HDU SPOTX : spotx[NAXIS1, NAXIS2]   #- CCD X pixel location of spot centroid
-    HDU SPOTY : spoty[NAXIS1, NAXIS2]   #- CCD Y pixel location of spot centroid
+    HDU SPOTX : spotx[NAXIS1, NAXIS2]   #- CCD X pixel loc of spot centroid
+    HDU SPOTY : spoty[NAXIS1, NAXIS2]   #- CCD Y pixel loc of spot centroid
     HDU FIBERPOS : fiberpos[nspec]      #- Slit position of each fiber
     HDU SPOTPOS  : spotpos[NAXIS1]      #- Slit positions where spots are sampled
     HDU SPOTWAVE : spotwave[NAXIS2]     #- Wavelengths where spots are sampled

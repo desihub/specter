@@ -132,6 +132,10 @@ flux /= dwave
 ivar *= dwave**2
                             
 #- Write output
+def trim(filepath, maxchar=40):
+    if len(filepath) > maxchar:
+        return '...'+filepath[-maxchar:]
+
 imghdr['EXTNAME'] = 'FLUX'
 imghdr.add_record(dict(name='SPECMIN', value=specmin, comment='First spectrum'))
 imghdr.add_record(dict(name='SPECMAX', value=specmax-1, comment='Last spectrum'))
@@ -140,8 +144,8 @@ imghdr.add_record(dict(name='WAVEMIN', value=wmin, comment='First wavelength [An
 imghdr.add_record(dict(name='WAVEMAX', value=wmax, comment='Last wavelength [Angstroms]'))
 imghdr.add_record(dict(name='WAVESTEP', value=dw, comment='Wavelength step size [Angstroms]'))
 imghdr.add_record(dict(name='SPECTER', value=specter.__version__, comment='https://github.com/sbailey/specter'))
-imghdr.add_record(dict(name='IN_PSF', value="..."+opts.psf[-40:], comment='Input spectral PSF'))
-imghdr.add_record(dict(name='IN_IMG', value="..."+opts.input[-40:], comment='Input image'))
+imghdr.add_record(dict(name='IN_PSF', value=trim(opts.psf), comment='Input spectral PSF'))
+imghdr.add_record(dict(name='IN_IMG', value=trim(opts.input), comment='Input image'))
 ### hdr.append(dict(name='RESMATND', value=ndiag, comment='Number of off-diagonal from Res Matrix'))
 
 outdir = os.path.dirname(opts.output)
