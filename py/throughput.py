@@ -237,6 +237,7 @@ class Throughput:
         units = units.replace("photons", "photon")
         units = units.replace("Angstroms", "A")
         units = units.replace("Angstrom", "A")
+        units = units.replace("Ang", "A")
         units = units.replace("**", "^")
         units = units.replace("cm2", "cm^2")
         
