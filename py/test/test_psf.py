@@ -240,7 +240,24 @@ class TestPSF(unittest.TestCase):
         #- Clear subimage region and test that everything is 0
         img[ymin:ymax, xmin:xmax] = 0.0
         self.assertTrue(N.all(img == 0.0))
+
+    #- Test projection with an xyrange that is smaller than wavelength range
+    def test_project_small_xyrange(self):
+        #- Find the xyrange for a small range of wavelengths
+        nspec = 5
+        nw = 5
+        ww = self.psf.wavelength(0)[1000:1000+nw]
+        spec_range = (0, nspec)        
+        xyrange = xmin,xmax,ymin,ymax = self.psf.xyrange(spec_range, ww)
+
+        #- Now create a spectrum with larger wavelength coverage
+        ww = self.psf.wavelength(0)[1000-5*nw:1000+5*nw]
+        nw = len(ww)
+        phot = N.random.uniform(0,100,nw)               #- 1D
+        phot = N.tile(phot, nspec).reshape(nspec, nw)   #- 2D
         
+        subimg = self.psf.project(phot, ww, xyrange=xyrange, verbose=False)
+
     #- Test the projection matrix gives same answer as psf.project()
     def test_projection_matrix(self):
         nspec = 5
@@ -455,6 +472,9 @@ if __name__ == '__main__':
     s3 = unittest.defaultTestLoader.loadTestsFromTestCase(TestMonoSpotPSF)
     suite = unittest.TestSuite([s1, s2, s3])
     unittest.TextTestRunner(verbosity=2).run(suite)
+
+    ### unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite([s1, ]))
+
     # suite = unittest.TestSuite()
     # suite.addTest(TestPixPSF())
     # suite.addTest(TestSpotPSF())

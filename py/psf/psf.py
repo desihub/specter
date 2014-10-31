@@ -528,7 +528,8 @@ class PSF(object):
                 if phot[i,j] > 0.0 and (wmin <= w <= wmax):
                     xx, yy, pix = self.xypix(ispec, w, \
                         xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
-                    img[yy, xx] += pix * phot[i,j]
+                    if (xx.stop > xx.start) and (yy.stop > yy.start):
+                        img[yy, xx] += pix * phot[i,j]
 
         return img
     
