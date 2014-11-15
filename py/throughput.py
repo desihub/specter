@@ -13,7 +13,7 @@ How to handle fiber size and sky units?
 
 import sys
 import os
-import numpy as N
+import numpy as np
 import fitsio
 import scipy.linalg
 from specter import util
@@ -87,9 +87,9 @@ class Throughput:
         fiberinput is a placeholder, since it really depends upon the
         spatial extent of the object and the seeing.
         """
-        self._wave = N.copy(wave)
-        self._thru = N.copy(throughput)
-        self._extinction  = N.copy(extinction)
+        self._wave = np.copy(wave)
+        self._thru = np.copy(throughput)
+        self._extinction  = np.copy(extinction)
         
         self.exptime = float(exptime)
         self.area = float(area)
@@ -101,22 +101,22 @@ class Throughput:
         
         if fiberinput is not None:
             if isinstance(fiberinput, float):
-                self._fiberinput = N.ones(len(wave)) * fiberinput
+                self._fiberinput = np.ones(len(wave)) * fiberinput
             else:
-                self._fiberinput = N.copy(fiberinput)
+                self._fiberinput = np.copy(fiberinput)
         else:
-            self._fiberinput = N.ones(len(wave))
+            self._fiberinput = np.ones(len(wave))
     
     @property
     def fiberarea(self):
-        return N.pi * self.fiberdia**2 / 4.0
+        return np.pi * self.fiberdia**2 / 4.0
         
     def extinction(self, wavelength):
         """
         Return atmospheric extinction [magnitudes/airmass]
         evaluated at wavelength (float or array)
         """
-        return N.interp(wavelength, self._wave, self._extinction)
+        return np.interp(wavelength, self._wave, self._extinction)
     
     def atmospheric_throughput(self, wavelength, airmass=1.0):
         """
@@ -131,7 +131,7 @@ class Throughput:
         Return fiber input geometric throughput [0 - 1]
         evaluated at wavelength (float or array)
         """
-        return N.interp(wavelength, self._wave, self._fiberinput)
+        return np.interp(wavelength, self._wave, self._fiberinput)
         
     def hardware_throughput(self, wavelength):
         """
@@ -139,7 +139,7 @@ class Throughput:
         not including atmosphere or geometric fiber input losses)
         evaluated at wavelength (float or array)        
         """
-        return N.interp(wavelength, self._wave, self._thru, left=0.0, right=0.0)
+        return np.interp(wavelength, self._wave, self._thru, left=0.0, right=0.0)
         
     def _throughput(self, objtype=ObjType.STAR, airmass=1.0):
         """
@@ -174,7 +174,7 @@ class Throughput:
         """
 
         T = self._throughput(objtype=objtype, airmass=airmass)
-        return N.interp(wavelength, self._wave, T, left=0.0, right=0.0)
+        return np.interp(wavelength, self._wave, T, left=0.0, right=0.0)
 
     def thru(self, *args, **kwargs):
         """
@@ -229,7 +229,7 @@ class Throughput:
         """
         
         #- Wavelength bin size
-        dw = N.gradient(wavelength)
+        dw = np.gradient(wavelength)
         
         #- Standardize units; allow some sloppiness
         units = units.strip()  #- FITS pads short strings with spaces (!)
@@ -296,6 +296,34 @@ class Throughput:
         """
         Returns flux array with throughputs applied for given
         objtype and airmass.
+        
+        TODO: this is a simple throughput model that can be wrong if there
+        is meaningful structure smaller than the wavelength sampling.
+        """
+
+        if flux.ndim == 1 or isinstance(objtype, str):
+            thru = self.thru(wavelength, objtype=objtype, airmass=airmass)
+            return flux * thru
+        else:
+            assert flux.ndim == 2
+            assert flux.shape[0] == len(objtype)
+
+            t = dict()
+            objtype = np.array(objtype)
+            outflux = flux.copy()
+            for xt in set(objtype):
+                thru = self.thru(wavelength, objtype=xt, airmass=airmass)
+                ii = np.where(objtype == xt)[0]
+                outflux[ii] *= thru
+                
+            return outflux
+        
+    def _apply_throughput_binned(self, wavelength, flux, objtype="STAR", airmass=1.0):
+        """
+        Experimental: uses pixel spline model to sub-sample.
+        
+        Returns flux array with throughputs applied for given
+        objtype and airmass.
         """
 
         #- Find function which integrates to each bin flux
@@ -303,19 +331,19 @@ class Throughput:
         
         #- Apply throughput, sampling at both input wavelengths and
         #- at native throughput wavelengths.
-        ww = N.concatenate( (wavelength, self._wave) )
-        yflux = N.interp(ww, wavelength, y)
+        ww = np.concatenate( (wavelength, self._wave) )
+        yflux = np.interp(ww, wavelength, y)
         t = self.thru(ww, objtype=objtype, airmass=airmass)
         yflux *= t
         
         #- HACK: Only apply throughput to positive fluxes
-        # ii = N.where(yflux>0)
+        # ii = np.where(yflux>0)
         # yflux[ii] *= t[ii]
         
         #- Resample back to input wavelength binning
         edges = util.get_bin_edges(wavelength)
-        binwidths = N.diff(edges)
-        ii = N.argsort(ww)
+        binwidths = np.diff(edges)
+        ii = np.argsort(ww)
         binnedflux = util.trapz(edges, ww[ii], yflux[ii]) / binwidths
         return binnedflux
 
