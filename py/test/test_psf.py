@@ -187,7 +187,7 @@ class TestPSF(unittest.TestCase):
     def test_project11(self):
         ww = self.psf.wavelength(0)[0:10]
         phot = N.random.uniform(0,100,len(ww))
-        img = self.psf.project(phot, ww, verbose=False)
+        img = self.psf.project(ww, phot, verbose=False)
         self.assertEquals(img.shape, (self.psf.npix_y, self.psf.npix_x))
     
     #- Test projection of 2D spectrum with shared 1D wavelength vector
@@ -195,7 +195,7 @@ class TestPSF(unittest.TestCase):
         ww = self.psf.wavelength(0)[0:10]
         phot = N.random.uniform(0,100,len(ww))
         phot = N.tile(phot, 5).reshape(5, len(ww))
-        img = self.psf.project(phot, ww, verbose=False)
+        img = self.psf.project(ww, phot, verbose=False)
         self.assertEquals(img.shape, (self.psf.npix_y, self.psf.npix_x))
 
     #- Test projection of 2D spectrum with 2D wavelength vector
@@ -205,20 +205,20 @@ class TestPSF(unittest.TestCase):
         ww = N.tile(ww, 5).reshape(5, nw)
         phot = N.random.uniform(0,100,nw)
         phot = N.tile(phot, 5).reshape(5, nw)
-        img = self.psf.project(phot, ww, verbose=False)
+        img = self.psf.project(ww, phot, verbose=False)
         self.assertEquals(img.shape, (self.psf.npix_y, self.psf.npix_x))
     
     #- Test projection starting at specmin != 0
     def test_project_specmin(self):
         ww = self.psf.wavelength(0)[0:10]
         phot = N.random.uniform(0,100,len(ww))
-        img = self.psf.project(phot, ww, specmin=1, verbose=False)
+        img = self.psf.project(ww, phot, specmin=1, verbose=False)
         self.assertEquals(img.shape, (self.psf.npix_y, self.psf.npix_x))
         
         #- specmin >= nspec should raise an error
         with self.assertRaises(IndexError):
             i = self.psf.nspec
-            img = self.psf.project(phot, ww, specmin=i, verbose=False)
+            img = self.psf.project(ww, phot, specmin=i, verbose=False)
 
     #- Test projecting to a subgrid of CCD pixels
     def test_project_xyrange(self):
@@ -231,8 +231,8 @@ class TestPSF(unittest.TestCase):
         spec_range = (0, nspec)
         
         xyrange = xmin,xmax,ymin,ymax = self.psf.xyrange(spec_range, ww)
-        img = self.psf.project(phot, ww, verbose=False)
-        subimg = self.psf.project(phot, ww, xyrange=xyrange, verbose=False)
+        img = self.psf.project(ww, phot, verbose=False)
+        subimg = self.psf.project(ww, phot, xyrange=xyrange, verbose=False)
 
         #- Does subimage match corresponding range for full image?
         self.assertTrue(N.all(subimg == img[ymin:ymax, xmin:xmax]))
@@ -256,7 +256,7 @@ class TestPSF(unittest.TestCase):
         phot = N.random.uniform(0,100,nw)               #- 1D
         phot = N.tile(phot, nspec).reshape(nspec, nw)   #- 2D
         
-        subimg = self.psf.project(phot, ww, xyrange=xyrange, verbose=False)
+        subimg = self.psf.project(ww, phot, xyrange=xyrange, verbose=False)
 
     #- Test the projection matrix gives same answer as psf.project()
     def test_projection_matrix(self):
@@ -274,7 +274,7 @@ class TestPSF(unittest.TestCase):
                 nx = xmax-xmin
                 ny = ymax-ymin
 
-                img1 = self.psf.project(phot, ww, xyrange=xyrange, \
+                img1 = self.psf.project(ww, phot, xyrange=xyrange, \
                                         specmin=specmin, verbose=False)
 
                 A = self.psf.projection_matrix(specrange, ww, xyrange)

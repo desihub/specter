@@ -474,12 +474,12 @@ class PSF(object):
     #     specrange = (specmin, specmax)
     #     waverange = (N.min(wavelength), N.max(wavelegth))
     #     xmin, xmax, ymin, ymax = xyrange = self.xyrange(specrange, waverange)
-    #     image = self.project(phot, wavelength, specmin=specmin, \
+    #     image = self.project(wavelength, phot, specmin=specmin, \
     #         xr=(xmin,xmax), yr=(ymin, ymax), verbose=verbose)
     #         
     #     return image, xyrange
 
-    def project(self, phot, wavelength, specmin=0, xyrange=None, verbose=False):
+    def project(self, wavelength, phot, specmin=0, xyrange=None, verbose=False):
         """
         Returns 2D image of spectra projected onto the CCD
 
