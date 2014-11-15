@@ -28,7 +28,7 @@ class TestExtract(unittest.TestCase):
         
         phot_shape = (nspec, nwave)
         phot = N.random.uniform(1, 1000, size=phot_shape)
-        image_orig = psf.project(phot, ww, verbose=False)
+        image_orig = psf.project(ww, phot, verbose=False)
         var = 1.0 + image_orig
         image = image_orig + N.random.normal(scale=N.sqrt(var))
                 
@@ -75,7 +75,7 @@ class TestExtract(unittest.TestCase):
         rphot = R.dot(self.phot.ravel()).reshape(flux.shape)
         
         #- extracted flux projected back to image
-        ximg = self.psf.project(xflux, self.ww, verbose=False)
+        ximg = self.psf.project(self.ww, xflux, verbose=False)
         
         #- Compare inputs to outputs
         bias = (flux - rphot)/rphot
@@ -102,7 +102,7 @@ class TestExtract(unittest.TestCase):
         xmin, xmax, ymin, ymax = xyrange = self.psf.xyrange(specrange, waverange)
         nx, ny = xmax-xmin, ymax-ymin
         xflux = d['xflux']   #- original extracted flux
-        ### ximage = self.psf.project(xflux, self.ww, verbose=False)
+        ### ximage = self.psf.project(self.ww, xflux, verbose=False)
         ximage = d['A'].dot(xflux.ravel()).reshape((ny,nx))
         subimg = self.image[ymin:ymax, xmin:xmax]
         subivar = self.ivar[ymin:ymax, xmin:xmax]
