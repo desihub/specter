@@ -45,6 +45,9 @@ class LinearInterp2D(object):
         """
         Evaluate data at (x,y)
         """
+        #- TODO: compare speed to solution at
+        #- http://stackoverflow.com/questions/12729228/simple-efficient-bilinear-interpolation-of-images-in-numpy-and-python
+        
         #- Find where we are in grid
         #- clip to 1 because we will use i and i-1
         #- clip to len(x)-1 to allow extrapolation beyond grid boundary
