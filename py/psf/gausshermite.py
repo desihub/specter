@@ -31,8 +31,8 @@ class GaussHermitePSF(PSF):
         if 'PSFTYPE' not in hdr:
             raise ValueError, 'Missing PSFTYPE keyword'
             
-        if hdr['PSFTYPE'] != 'GAUSS-HERMITE2':
-            raise ValueError, 'PSFTYPE %s is not GAUSS-HERMITE2' % hdr['PSFTYPE']
+        if hdr['PSFTYPE'] != 'GAUSS-HERMITE':
+            raise ValueError, 'PSFTYPE %s is not GAUSS-HERMITE' % hdr['PSFTYPE']
             
         if 'PSFVER' not in hdr:
             raise ValueError, "PSFVER missing; this version not supported"
