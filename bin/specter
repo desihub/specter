@@ -223,13 +223,13 @@ else:
 #- Project spectra onto the CCD
 print "Projecting spectra onto CCD"
 if opts.numcores == 1:
-    img = psf.project(photons, wavelength, specmin=opts.specrange[0], xyrange=xyrange)
+    img = psf.project(wavelength, photons, specmin=opts.specrange[0], xyrange=xyrange)
 else:
     #- Parallel version uses function passed to parallel map
     #- Input dictionary provides parameters
     def project(args):
         psf = args['psf']
-        return psf.project(args['photons'], args['wavelength'], args['specmin'], args['xyrange'])
+        return psf.project(args['wavelength'], args['photons'], args['specmin'], args['xyrange'])
     
     #- Setup list of dictionaries with arguments
     arglist = list()

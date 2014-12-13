@@ -23,7 +23,7 @@ parser.add_option("-p", "--psf", type="string",  help="input psf")
 parser.add_option("-o", "--output", type="string",  help="output extracted spectra")
 parser.add_option("-w", "--wavelength", type="string",  help="wavemin,wavemax,dw", default="8000.0,8200.0,1.0")
 parser.add_option("-b", "--bundlesize", type="int",  help="num spectra per bundle", default=20)
-parser.add_option("-s", "--specrange", type="string",  help="specmin,specmax", default="0,20")
+parser.add_option("-s", "--specrange", type="string",  help="specmin,specmax", default="0,19")
 parser.add_option("-r", "--regularize", type="float",  help="regularization amount (%default)", default="1e-8")
 ### parser.add_option("-x", "--xxx",   help="some flag", action="store_true")
 
@@ -74,7 +74,7 @@ regularize: {regularize}
 
 #- Let's do some extractions
 for speclo in range(specmin, specmax, opts.bundlesize):
-    spechi = speclo+opts.bundlesize
+    spechi = min(speclo+opts.bundlesize, specmax)
     specrange = (speclo, spechi)
 
     for iwave in range(0, len(wavelengths), nwstep):
@@ -127,11 +127,16 @@ for speclo in range(specmin, specmax, opts.bundlesize):
 #+ TODO: what should this do to R in the case of non-uniform bins?
 #+       maybe should do everything in photons/A from the start.            
 #- Convert flux to photons/A instead of photons/bin
-dw = N.gradient(wavelengths)
-flux /= dw
-ivar *= dw**2
+dwave = N.gradient(wavelengths)
+flux /= dwave
+ivar *= dwave**2
                             
 #- Write output
+def trim(filepath, maxchar=40):
+    if len(filepath) > maxchar:
+        return '...'+filepath[-maxchar:]
+
+imghdr['EXTNAME'] = 'FLUX'
 imghdr.add_record(dict(name='SPECMIN', value=specmin, comment='First spectrum'))
 imghdr.add_record(dict(name='SPECMAX', value=specmax-1, comment='Last spectrum'))
 imghdr.add_record(dict(name='NSPEC', value=specmax-specmin, comment='Number of spectra'))
@@ -139,12 +144,12 @@ imghdr.add_record(dict(name='WAVEMIN', value=wmin, comment='First wavelength [An
 imghdr.add_record(dict(name='WAVEMAX', value=wmax, comment='Last wavelength [Angstroms]'))
 imghdr.add_record(dict(name='WAVESTEP', value=dw, comment='Wavelength step size [Angstroms]'))
 imghdr.add_record(dict(name='SPECTER', value=specter.__version__, comment='https://github.com/sbailey/specter'))
-imghdr.add_record(dict(name='IN_PSF', value="..."+opts.psf[-40:], comment='Input spectral PSF'))
-imghdr.add_record(dict(name='IN_IMG', value="..."+opts.input[-40:], comment='Input image'))
+imghdr.add_record(dict(name='IN_PSF', value=trim(opts.psf), comment='Input spectral PSF'))
+imghdr.add_record(dict(name='IN_IMG', value=trim(opts.input), comment='Input image'))
 ### hdr.append(dict(name='RESMATND', value=ndiag, comment='Number of off-diagonal from Res Matrix'))
 
 outdir = os.path.dirname(opts.output)
-if not os.path.exists(outdir):
+if (outdir != '') and (not os.path.exists(outdir)):
     os.makedirs(outdir)
 
 fitsio.write(opts.output, flux, extname='FLUX', header=imghdr, clobber=True)

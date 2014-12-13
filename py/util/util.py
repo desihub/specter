@@ -45,6 +45,9 @@ class LinearInterp2D(object):
         """
         Evaluate data at (x,y)
         """
+        #- TODO: compare speed to solution at
+        #- http://stackoverflow.com/questions/12729228/simple-efficient-bilinear-interpolation-of-images-in-numpy-and-python
+        
         #- Find where we are in grid
         #- clip to 1 because we will use i and i-1
         #- clip to len(x)-1 to allow extrapolation beyond grid boundary
@@ -180,6 +183,8 @@ def _sincfunc(x, dx, dampfac=3.25):
         xx[len(x)/2] = 1.0
         return xx
 
+#- Implementation note: the typical PSF image is 15x15.
+#- fftconvolve is not faster than convolve for images this small
 def sincshift(image, dx, dy, sincrad=10, dampfac=3.25):
     """
     Return image shifted by dx, dy using sinc interpolation.

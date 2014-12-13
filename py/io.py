@@ -105,6 +105,8 @@ def read_simspec_table(filename):
         units = header[key].strip()
     elif 'FLUXUNIT' in header:
         units = header['FLUXUNIT'].strip()
+    elif 'BUNIT' in header:
+        units = header['BUNIT'].strip()
     else:
         print >> sys.stderr, 'WARNING: using default flux units of erg/s/cm^2/A'
         units = 'erg/s/cm^2/A'

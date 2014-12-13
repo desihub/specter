@@ -292,7 +292,7 @@ class PSF(object):
         ispec_ymax = specmin + N.argmax(self.y(None, wavemax)[specmin:specmax+1])
         ymin = self.xypix(ispec_ymin, wavemin)[1].start
         ymax = self.xypix(ispec_ymax, wavemax)[1].stop
-        
+                
         #- Now for wavelength where x = min(x),
         #- while staying on CCD and within wavelength range
         w = self.wavelength(specmin)
@@ -304,7 +304,10 @@ class PSF(object):
         #- Add in wavemin and wavemax since w isn't perfect resolution
         w = N.concatenate( (w, (wavemin, wavemax) ) )
         
-        x = self.x(specmin, w)
+        x, y = self.xy(specmin, w)
+        onccd = (0 <= y) & (y < self.npix_y)
+        x = x[onccd]
+        w = w[onccd]
         if min(x) < 0:
             xmin = 0.0
         else:
@@ -320,14 +323,17 @@ class PSF(object):
         
         #- Add in wavemin and wavemax since w isn't perfect resolution
         w = N.concatenate( (w, (wavemin, wavemax) ) )
-
-        x = self.x(specmax-1, w)
+        
+        x, y = self.xy(specmax-1, w)
+        onccd = (0 <= y) & (y < self.npix_y)
+        x = x[onccd]
+        w = w[onccd]
         if max(x) > self.npix_x:
             xmax = self.npix_x
         else:
             wxmax = w[N.argmax(x)]
             xmax = self.xypix(specmax-1, wxmax)[0].stop
-                                        
+                                                                                
         return (xmin, xmax, ymin, ymax)
     
     #-------------------------------------------------------------------------
@@ -468,12 +474,12 @@ class PSF(object):
     #     specrange = (specmin, specmax)
     #     waverange = (N.min(wavelength), N.max(wavelegth))
     #     xmin, xmax, ymin, ymax = xyrange = self.xyrange(specrange, waverange)
-    #     image = self.project(phot, wavelength, specmin=specmin, \
+    #     image = self.project(wavelength, phot, specmin=specmin, \
     #         xr=(xmin,xmax), yr=(ymin, ymax), verbose=verbose)
     #         
     #     return image, xyrange
 
-    def project(self, phot, wavelength, specmin=0, xyrange=None, verbose=False):
+    def project(self, wavelength, phot, specmin=0, xyrange=None, verbose=False):
         """
         Returns 2D image of spectra projected onto the CCD
 
@@ -522,7 +528,8 @@ class PSF(object):
                 if phot[i,j] > 0.0 and (wmin <= w <= wmax):
                     xx, yy, pix = self.xypix(ispec, w, \
                         xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
-                    img[yy, xx] += pix * phot[i,j]
+                    if (xx.stop > xx.start) and (yy.stop > yy.start):
+                        img[yy, xx] += pix * phot[i,j]
 
         return img
     

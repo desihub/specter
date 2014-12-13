@@ -19,8 +19,8 @@ class TestThroughput(unittest.TestCase):
         self.flux = N.random.uniform(1,2, size=self.w.shape) * 1e-17
         self.photflux = N.random.uniform(0,1, size=self.w.shape)
         
-    def test_effarea(self):
-        self.assertTrue(self.thru.effarea > 0)
+    def test_area(self):
+        self.assertTrue(self.thru.area > 0)
 
     def test_exptime(self):
         self.assertTrue(self.thru.exptime > 0)
