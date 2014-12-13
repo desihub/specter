@@ -321,12 +321,12 @@ class Throughput:
             return outflux
         
     @property
-    def wavemin():
+    def wavemin(self):
         """Minimum wavelength [Angstroms] covered by this throughput model"""
         return self._wave[0]
         
     @property
-    def wavemax():
+    def wavemax(self):
         """Maximum wavelength [Angstroms] covered by this throughput model"""
         return self._wave[-1]
 
