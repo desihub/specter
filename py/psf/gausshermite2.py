@@ -5,6 +5,9 @@ by the specex package at https://github.com/julienguy/specex
 
 Stephen Bailey
 December 2013
+
+TODO: GaussHermitePSF (no 2) was copied and pasted from this and then
+      modified.  Can they be refactored to share code?
 """
 
 import sys
@@ -16,7 +19,7 @@ import fitsio
 from specter.psf import PSF
 from specter.util import TraceSet
 
-class GaussHermitePSF(PSF):
+class GaussHermite2PSF(PSF):
     """
     Model PSF with two central Gauss-Hermite cores with different sigmas
     plus power law wings.
@@ -31,7 +34,7 @@ class GaussHermitePSF(PSF):
         if 'PSFTYPE' not in hdr:
             raise ValueError, 'Missing PSFTYPE keyword'
             
-        if hdr['PSFTYPE'] != 'GAUSS-HERMITE':
+        if hdr['PSFTYPE'] != 'GAUSS-HERMITE2':
             raise ValueError, 'PSFTYPE %s is not GAUSS-HERMITE' % hdr['PSFTYPE']
             
         if 'PSFVER' not in hdr:
