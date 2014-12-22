@@ -85,8 +85,9 @@ class SpotGridPSF(PSF):
         ccdpix /= N.sum(ccdpix)
 
         #- Find where the [0,0] pixel goes on the CCD 
-        xccd = int(xc - ccdpix.shape[1]/2 + 1)
-        yccd = int(yc - ccdpix.shape[0]/2 + 1)
+        #- Use floor() to get negative limits at edge of CCD correct
+        xccd = int(N.floor(xc - ccdpix.shape[1]/2 + 1))
+        yccd = int(N.floor(yc - ccdpix.shape[0]/2 + 1))
         
         xx = slice(xccd, xccd+ccdpix.shape[1])
         yy = slice(yccd, yccd+ccdpix.shape[0])

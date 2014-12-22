@@ -109,6 +109,7 @@ class Throughput:
     
     @property
     def fiberarea(self):
+        """Average fiber area [arcsec^2] used for fiber input calculations"""
         return np.pi * self.fiberdia**2 / 4.0
         
     def extinction(self, wavelength):
@@ -319,6 +320,16 @@ class Throughput:
                 
             return outflux
         
+    @property
+    def wavemin(self):
+        """Minimum wavelength [Angstroms] covered by this throughput model"""
+        return self._wave[0]
+        
+    @property
+    def wavemax(self):
+        """Maximum wavelength [Angstroms] covered by this throughput model"""
+        return self._wave[-1]
+
     def _apply_throughput_binned(self, wavelength, flux, objtype="STAR", airmass=1.0):
         """
         Experimental: uses pixel spline model to sub-sample.
