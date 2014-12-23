@@ -58,10 +58,17 @@ def read_simspec_image(filename):
         objtype = header['OBJTYPE']
     else:
         objtype = 'STAR'
+
+    if 'BUNIT' in header:
+        fluxunits = header['BUNIT']
+    elif 'FLUXUNIT' in header:
+        fluxunits = header['FLUXUNIT']
+    else:
+        raise ValueError("Unable to determine flux units; need either BUNIT or FLUXUNIT keyword")
         
     #- Get object type (CALIB, SKY, etc.)
     return dict(flux=flux, wavelength=w,
-                units=header['FLUXUNIT'], objtype=objtype)
+                units=fluxunits, objtype=objtype)
 
 def read_simspec_table(filename):
     """
