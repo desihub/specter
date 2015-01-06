@@ -290,6 +290,16 @@ class TestPSF(unittest.TestCase):
         xyr2 = self.psf.xyrange((ispec, ispec+1), ww)
         self.assertTrue(xyr1 == xyr2)
     
+    #- Test xyrange on edges of CCD
+    def test_xyrange_edges(self):
+        psf = self.psf
+        y = N.arange(-1, psf.npix_y, 0.2)
+        for i in range(0, psf.nspec, psf.nspec/10):
+            w = psf.wavelength(i, y)
+            xmin, xmax, ymin, ymax = psf.xyrange(i, w)
+            self.assertTrue(xmin <= xmax)
+            self.assertTrue(ymin <= ymax)
+    
     #- Test projection matrix with scalar vs. tuple spec_range
     def test_projmat_ispec(self):
         ispec = 0
@@ -470,10 +480,9 @@ if __name__ == '__main__':
     s1 = unittest.defaultTestLoader.loadTestsFromTestCase(TestPixPSF)
     s2 = unittest.defaultTestLoader.loadTestsFromTestCase(TestSpotPSF)
     s3 = unittest.defaultTestLoader.loadTestsFromTestCase(TestMonoSpotPSF)
-    suite = unittest.TestSuite([s1, s2, s3])
-    unittest.TextTestRunner(verbosity=2).run(suite)
 
     ### unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite([s1, ]))
+    unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite([s1, s2, s3]))
 
     # suite = unittest.TestSuite()
     # suite.addTest(TestPixPSF())

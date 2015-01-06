@@ -304,8 +304,10 @@ class PSF(object):
         #- Add in wavemin and wavemax since w isn't perfect resolution
         w = N.concatenate( (w, (wavemin, wavemax) ) )
         
+        #- Trim xy to where specmin is on the CCD
+        #- Note: Pixel coordinates are from *center* of pixel, thus -0.5
         x, y = self.xy(specmin, w)
-        onccd = (0 <= y) & (y < self.npix_y)
+        onccd = (0 <= y-0.5) & (y < self.npix_y-0.5)
         x = x[onccd]
         w = w[onccd]
         if min(x) < 0:
@@ -324,8 +326,10 @@ class PSF(object):
         #- Add in wavemin and wavemax since w isn't perfect resolution
         w = N.concatenate( (w, (wavemin, wavemax) ) )
         
+        #- Trim xy to where specmax-1 is on the CCD
+        #- Note: Pixel coordinates are from *center* of pixel, thus -0.5
         x, y = self.xy(specmax-1, w)
-        onccd = (0 <= y) & (y < self.npix_y)
+        onccd = (0 <= y-0.5) & (y < self.npix_y-0.5)
         x = x[onccd]
         w = w[onccd]
         if max(x) > self.npix_x:
