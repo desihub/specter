@@ -286,7 +286,13 @@ class PSF(object):
             wavemin = wavemax = wavelengths
         else:
             wavemin, wavemax = wavelengths[0], wavelengths[-1]
-
+            
+        if wavemin < self.wmin:
+            wavemin = self.wmin
+            
+        if wavemax > self.wmax:
+            wavemax = self.wmax
+            
         #- Find the spectra with the smallest/largest y centroids
         ispec_ymin = specmin + N.argmin(self.y(None, wavemin)[specmin:specmax+1])
         ispec_ymax = specmin + N.argmax(self.y(None, wavemax)[specmin:specmax+1])
@@ -322,14 +328,14 @@ class PSF(object):
             w = w[wavemin <= w]
         if wavemax < w[-1]:
             w = w[w <= wavemax]
-        
+                
         #- Add in wavemin and wavemax since w isn't perfect resolution
         w = N.concatenate( (w, (wavemin, wavemax) ) )
         
         #- Trim xy to where specmax-1 is on the CCD
         #- Note: Pixel coordinates are from *center* of pixel, thus -0.5
         x, y = self.xy(specmax-1, w)
-        onccd = (0 <= y-0.5) & (y < self.npix_y-0.5)
+        onccd = (-0.5 <= y) & (y < self.npix_y-0.5)
         x = x[onccd]
         w = w[onccd]
         if max(x) > self.npix_x:
