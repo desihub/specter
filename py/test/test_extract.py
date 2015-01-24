@@ -135,6 +135,22 @@ class TestExtract(unittest.TestCase):
         self.assertTrue( N.all(subflux == flux) )
         self.assertTrue( N.all(subivar == ivar) )
         self.assertTrue( N.all(subR == R) )
+
+    def test_wave_off_image(self):
+        ww = self.psf.wmin - 5 + N.arange(10)
+        nspec = 2
+        specrange = [0,nspec]
+        xyrange = self.psf.xyrange(specrange, ww)
+
+        phot = N.ones([nspec,len(ww)])
+
+        img = self.psf.project(ww, phot, xyrange=xyrange)
+        ivar = N.ones(img.shape)
+
+        flux, fluxivar, R = ex2d(img, ivar, self.psf, specrange, ww, xyrange=xyrange)
+        
+        self.assertTrue( N.all(flux == flux) )
+        
         
 if __name__ == '__main__':
     unittest.main()           

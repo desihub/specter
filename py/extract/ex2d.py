@@ -55,23 +55,32 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
     #- Pixel weights matrix
     w = ivar.ravel()
     ### W = spdiags(ivar.ravel(), 0, npix, npix)
+
+    #-----
+    #- Extend A with an optional regularization term to limit ringing.
+    #- If any flux bins don't contribute to these pixels,
+    #- also use this term to constrain those flux bins to 0.
+    nx = nspec*nflux
+    I = regularize*scipy.sparse.identity(nx)
     
-    #- Add regularization term to avoid excessive ringing
-    if regularize > 0:
-        nx = nspec*nflux
-        I = regularize*scipy.sparse.identity(nx)
+    ibad = (A.sum(axis=0).A == 0)
+    if N.any(ibad):
+        I.data[ibad] = 1.0
+    
+    #- Only need to extend A if regularization is non-zero
+    if N.any(I.data):
         Ax = scipy.sparse.vstack( (A, I) )
         w = N.concatenate( (w, N.ones(nx)) )
         pix = N.concatenate( (image.ravel(), N.zeros(nx)) )
     else:
         pix = image.ravel()
         Ax = A
-    
+        
     #- Inverse covariance
     W = spdiags(w, 0, len(w), len(w))
     iCov = Ax.T.dot(W.dot(Ax))
     
-    #- Solve image = A flux weighted by W:
+    #- Solve (image = A flux) weighted by W:
     #-     A^T W image = (A^T W A) flux = iCov flux    
     y = Ax.T.dot(W.dot(pix))
     
