@@ -100,14 +100,11 @@ for speclo in range(specmin, specmax, opts.bundlesize):
         
         print "Extracting spectra {specrange} wavelengths ({wmin:.2f}, {wmax:.2f}) -> ({wlo:.2f}, {whi:.2f})".format(\
             specrange=specrange, wmin=wmin, wmax=wmax, wlo=wlo, whi=whi)
-        ### print nlo, nwstep, nhi, nw
 
-        #- Do the extraction (and time it)
-        t0 = time()
+        #- Do the extraction
         specflux, specivar, R = \
             ex2d(subimg, subivar, psf, specrange=specrange, wavelengths=ww,
                 xyrange=xyrange, regularize=opts.regularize)
-        ### print '  --> %.1f' % (time() - t0, )
 
         #- Fill in the final output arrays
         iispec = slice(speclo-specmin, spechi-specmin)
