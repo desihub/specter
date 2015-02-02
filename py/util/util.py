@@ -203,7 +203,7 @@ def sincshift(image, dx, dy, sincrad=10, dampfac=3.25):
     if abs(dy) > 1e-6:
         sincy = _sincfunc(s, -dy, dampfac=dampfac)
         image = convolve(image.T.ravel(), sincy, mode='same')
-        image = image.reshape(imgshape).T
+        image = image.reshape(imgshape[-1::-1]).T
 
     return image
 

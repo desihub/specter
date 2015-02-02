@@ -5,6 +5,9 @@ by the specex package at https://github.com/julienguy/specex
 
 Stephen Bailey
 December 2013
+
+TODO: GaussHermitePSF (no 2) was copied and pasted from this and then
+      modified.  Can they be refactored to share code?
 """
 
 import sys
@@ -16,7 +19,7 @@ import fitsio
 from specter.psf import PSF
 from specter.util import TraceSet
 
-class GaussHermitePSF(PSF):
+class GaussHermite2PSF(PSF):
     """
     Model PSF with two central Gauss-Hermite cores with different sigmas
     plus power law wings.
@@ -31,7 +34,7 @@ class GaussHermitePSF(PSF):
         if 'PSFTYPE' not in hdr:
             raise ValueError, 'Missing PSFTYPE keyword'
             
-        if hdr['PSFTYPE'] != 'GAUSS-HERMITE':
+        if hdr['PSFTYPE'] != 'GAUSS-HERMITE2':
             raise ValueError, 'PSFTYPE %s is not GAUSS-HERMITE' % hdr['PSFTYPE']
             
         if 'PSFVER' not in hdr:
@@ -73,7 +76,7 @@ class GaussHermitePSF(PSF):
         #- Cache hermitenorm polynomials so we don't have to create them
         #- every time xypix is called
         self._hermitenorm = list()
-        maxdeg = max(hdr['GHDEGX'], hdr['GHDEGY'])
+        maxdeg = max(hdr['GHDEGX'], hdr['GHDEGY'], hdr['GHDEGX2'], hdr['GHDEGY2'])
         for i in range(maxdeg+1):
             self._hermitenorm.append( sp.hermitenorm(i) )
 
@@ -125,8 +128,12 @@ class GaussHermitePSF(PSF):
         #- Extract GH degree and sigma coefficients for convenience
         degx1 = self._polyparams['GHDEGX']
         degy1 = self._polyparams['GHDEGY']
+        degx2 = self._polyparams['GHDEGX2']
+        degy2 = self._polyparams['GHDEGY2']
         sigx1 = self.coeff['GHSIGX'].eval(ispec, wavelength)
+        sigx2 = self.coeff['GHSIGX2'].eval(ispec, wavelength)
         sigy1 = self.coeff['GHSIGY'].eval(ispec, wavelength)
+        sigy2 = self.coeff['GHSIGY2'].eval(ispec, wavelength)        
         
         #- Background tail image
         tailxsca = self.coeff['TAILXSCA'].eval(ispec, wavelength)
@@ -135,7 +142,7 @@ class GaussHermitePSF(PSF):
         tailcore = self.coeff['TAILCORE'].eval(ispec, wavelength)
         tailinde = self.coeff['TAILINDE'].eval(ispec, wavelength)
         
-        #- Make tail image (slow version)
+        #- Make tail image
         # img = N.zeros((len(yccd), len(xccd)))
         # for i, dyy in enumerate(dy):
         #     for j, dxx in enumerate(dx):
@@ -161,27 +168,24 @@ class GaussHermitePSF(PSF):
                 core1 += c1 * spot1
         
         #- Zero out elements in the core beyond 3 sigma
-        #- Only for GaussHermite2
-        # ghnsig = self.coeff['GHNSIG'].eval(ispec, wavelength)
-        # r2 = N.tile((dx/sigx1)**2, ny).reshape(ny, nx) + \
-        #      N.repeat((dy/sigy1)**2, nx).reshape(ny, nx)
+        ghnsig = self.coeff['GHNSIG'].eval(ispec, wavelength)
+        r2 = N.tile((dx/sigx1)**2, ny).reshape(ny, nx) + \
+             N.repeat((dy/sigy1)**2, nx).reshape(ny, nx)
         
-        # core1 *= (r2<ghnsig**2)
+        core1 *= (r2<ghnsig**2)
         
         #- Add second wider core Gauss-Hermite term        
-        # xfunc2 = [self._pgh(xccd, i, x, sigma=sigx2) for i in range(degx2+1)]
-        # yfunc2 = [self._pgh(yccd, i, y, sigma=sigy2) for i in range(degy2+1)]
-        # core2 = N.zeros((ny, nx))
-        # for i in range(degx2+1):
-        #     for j in range(degy2+1):
-        #         spot2 = N.outer(yfunc2[j], xfunc2[i])
-        #         c2 = self.coeff['GH2-{}-{}'.format(i,j)].eval(ispec, wavelength)
-        #         core2 += c2 * spot2
+        xfunc2 = [self._pgh(xccd, i, x, sigma=sigx2) for i in range(degx2+1)]
+        yfunc2 = [self._pgh(yccd, i, y, sigma=sigy2) for i in range(degy2+1)]
+        core2 = N.zeros((ny, nx))
+        for i in range(degx2+1):
+            for j in range(degy2+1):
+                spot2 = N.outer(yfunc2[j], xfunc2[i])
+                c2 = self.coeff['GH2-{}-{}'.format(i,j)].eval(ispec, wavelength)
+                core2 += c2 * spot2
 
         #- Clip negative values and normalize to 1.0
-        img = core1 + tails
-        ### img = core1 + core2 + tails
-
+        img = core1 + core2 + tails
         img = img.clip(0.0)
         img /= N.sum(img)
 
