@@ -60,24 +60,31 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
     #- Extend A with an optional regularization term to limit ringing.
     #- If any flux bins don't contribute to these pixels,
     #- also use this term to constrain those flux bins to 0.
+    
+    #- HACK WARNING
+    #- Regularize any flux bins that are below the 10th percentile
+    #- in terms of how many pixels contribute to them
+    ### ibad = (A.sum(axis=0).A == 0)[0]  #- Orig: exclude those with 0 pix
+    npix = (A.A>0).sum(axis=0)
+    p10 = N.percentile(npix[npix>0], 10)
+    ibad = ( npix < p10 )
     nx = nspec*nflux
     I = regularize*scipy.sparse.identity(nx)
-    
-    ibad = (A.sum(axis=0).A == 0)
     if N.any(ibad):
-        I.data[ibad] = 1.0
+        I.data[0, ibad] = 1.0
     
     #- Only need to extend A if regularization is non-zero
     if N.any(I.data):
-        Ax = scipy.sparse.vstack( (A, I) )
-        w = N.concatenate( (w, N.ones(nx)) )
         pix = N.concatenate( (image.ravel(), N.zeros(nx)) )
+        Ax = scipy.sparse.vstack( (A, I) )
+        wx = N.concatenate( (w, N.ones(nx)) )
     else:
         pix = image.ravel()
         Ax = A
+        wx = w
         
     #- Inverse covariance
-    W = spdiags(w, 0, len(w), len(w))
+    W = spdiags(wx, 0, len(wx), len(wx))
     iCov = Ax.T.dot(W.dot(Ax))
     
     #- Solve (image = A flux) weighted by W:
@@ -86,8 +93,20 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
     
     xflux = spsolve(iCov, y).reshape((nspec, nflux))
 
+    #- Solve for Resolution matrix
+    try:
+        R, ivar = resolution_from_icov(iCov)
+    except N.linalg.linalg.LinAlgError, err:
+        outfile = 'LinAlgError_{}-{}_{}-{}.fits'.format(specrange[0], specrange[1], waverange[0], waverange[1])
+        print "ERROR: Linear Algebra didn't converge"
+        print "Dumping {} for debugging".format(outfile)
+        import fitsio
+        fitsio.write(outfile, image, clobber=True)
+        fitsio.write(outfile, ivar)
+        fitsio.write(outfile, A.toarray())
+        raise err
+        
     #- Convolve with Resolution matrix to decorrelate errors
-    R, ivar = resolution_from_icov(iCov)
     ivar = ivar.reshape((nspec, nflux))
     rflux = R.dot(xflux.ravel()).reshape(xflux.shape)
 
@@ -114,7 +133,7 @@ def sym_sqrt(a):
     WRITTEN: Adam S. Bolton, U. of Utah, 2009
     """
     
-    w, v = N.linalg.eigh(a)
+    w, v = N.linalg.eigh(a)        
     w[w<0]=0 # Is this necessary to enforce eigenvalues positive definite???
         
     # dm = n.diagflat(n.sqrt(w))
