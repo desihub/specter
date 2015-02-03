@@ -2,6 +2,7 @@
 2D Spectroperfectionism extractions
 """
 
+import sys
 import numpy as N
 import scipy.sparse
 from scipy.sparse import spdiags, issparse
@@ -61,13 +62,15 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
     #- If any flux bins don't contribute to these pixels,
     #- also use this term to constrain those flux bins to 0.
     
+    #- Original: exclude flux bins with 0 pixels contributing
+    # ibad = (A.sum(axis=0).A == 0)[0]
+
     #- HACK WARNING
-    #- Regularize any flux bins that are below the 10th percentile
-    #- in terms of how many pixels contribute to them
-    ### ibad = (A.sum(axis=0).A == 0)[0]  #- Orig: exclude those with 0 pix
+    #- Regularize any flux bins that have fewer than 10% of the median
+    #- number of pixels contributing to them.
     npix = (A.A>0).sum(axis=0)
-    p10 = N.percentile(npix[npix>0], 10)
-    ibad = ( npix < p10 )
+    ibad = ( npix < 0.1*N.median(npix[npix>0]) )
+                
     nx = nspec*nflux
     I = regularize*scipy.sparse.identity(nx)
     if N.any(ibad):
@@ -82,7 +85,7 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
         pix = image.ravel()
         Ax = A
         wx = w
-        
+
     #- Inverse covariance
     W = spdiags(wx, 0, len(wx), len(wx))
     iCov = Ax.T.dot(W.dot(Ax))
@@ -133,11 +136,14 @@ def sym_sqrt(a):
     WRITTEN: Adam S. Bolton, U. of Utah, 2009
     """
     
-    w, v = N.linalg.eigh(a)        
-    w[w<0]=0 # Is this necessary to enforce eigenvalues positive definite???
+    w, v = N.linalg.eigh(a)
+    
+    #- Trim meaningless eigenvalues below machine precision
+    ibad = w < w.max()*sys.float_info.epsilon
+    w[ibad] = 0.0
         
     # dm = n.diagflat(n.sqrt(w))
-    # result = n.dot(v, n.dot(dm, n.transpose(v)))
+    # result = N.dot(v, N.dot(dm, N.transpose(v)))
 
     #- A bit faster with sparse matrix for multiplication:
     nw = len(w)

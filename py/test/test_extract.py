@@ -80,7 +80,7 @@ class TestExtract(unittest.TestCase):
         #- Compare inputs to outputs
         bias = (flux - rphot)/rphot
         dximg = ximg - self.image_orig
-        
+
         self.assertTrue( N.max(N.abs(bias)) < 1e-9 )
         self.assertTrue( N.max(N.abs(dximg)) < 1e-6 )                
 
@@ -109,7 +109,7 @@ class TestExtract(unittest.TestCase):
         pull_image = ((ximage - subimg) * N.sqrt(subivar))
 
         print "Known problem: Overfitting may result in small pull value"
-        print N.std(pull_flux), N.std(pull_image)
+        ### print N.std(pull_flux), N.std(pull_image)
         self.assertTrue(N.abs(1-N.std(pull_flux)) < 0.05,
                         msg="pull_flux sigma is %f" % N.std(pull_flux))
         self.assertTrue(N.abs(1-N.std(pull_image)) < 0.05,
