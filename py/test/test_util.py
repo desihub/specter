@@ -44,8 +44,8 @@ class TestUtil(unittest.TestCase):
         blat = util.trapz(edges, x, y)
         foo = util.trapz([lo, hi], x, y)
         bar = util.trapz([lo, mid, hi], x, y)
-        self.assertTrue(np.sum(blat) == foo[0])
-        self.assertTrue(np.sum(blat) == np.sum(bar))
+        self.assertAlmostEqual(np.sum(blat), foo[0])
+        self.assertAlmostEqual(np.sum(blat), np.sum(bar))
         
         #- Edges outside of range shouldn't crash
         blat = util.trapz([-1,0,1,2], x, y)
