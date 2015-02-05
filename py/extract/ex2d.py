@@ -66,10 +66,10 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
     # ibad = (A.sum(axis=0).A == 0)[0]
 
     #- HACK WARNING
-    #- Regularize any flux bins that have fewer than 10% of the median
+    #- Regularize any flux bins that have fewer than 20% of the median
     #- number of pixels contributing to them.
     npix = (A.A>0).sum(axis=0)
-    ibad = ( npix < 0.1*N.median(npix[npix>0]) )
+    ibad = ( npix < 0.5*N.median(npix[npix>0]) )
                 
     nx = nspec*nflux
     I = regularize*scipy.sparse.identity(nx)
@@ -98,15 +98,15 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
 
     #- Solve for Resolution matrix
     try:
-        R, ivar = resolution_from_icov(iCov)
+        R, fluxivar = resolution_from_icov(iCov)
     except N.linalg.linalg.LinAlgError, err:
         outfile = 'LinAlgError_{}-{}_{}-{}.fits'.format(specrange[0], specrange[1], waverange[0], waverange[1])
         print "ERROR: Linear Algebra didn't converge"
         print "Dumping {} for debugging".format(outfile)
         import fitsio
         fitsio.write(outfile, image, clobber=True)
-        fitsio.write(outfile, ivar)
-        fitsio.write(outfile, A.toarray())
+        fitsio.write(outfile, fluxivar)
+        fitsio.write(outfile, A.data)
         raise err
         
     #- Convolve with Resolution matrix to decorrelate errors
@@ -114,11 +114,11 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
     rflux = R.dot(xflux.ravel()).reshape(xflux.shape)
 
     if full_output:
-        results = dict(flux=rflux, ivar=ivar, R=R, xflux=xflux, A=A)
+        results = dict(flux=rflux, ivar=fluxivar, R=R, xflux=xflux, A=A)
         results['iCov'] = iCov
         return results
     else:
-        return rflux, ivar, R
+        return rflux, fluxivar, R
     
 
 def sym_sqrt(a):
