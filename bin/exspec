@@ -24,7 +24,7 @@ parser.add_option("-o", "--output", type="string",  help="output extracted spect
 parser.add_option("-w", "--wavelength", type="string",  help="wavemin,wavemax,dw", default="8000.0,8200.0,1.0")
 parser.add_option("-b", "--bundlesize", type="int",  help="num spectra per bundle", default=20)
 parser.add_option("-s", "--specrange", type="string",  help="specmin,specmax", default="0,19")
-parser.add_option("-r", "--regularize", type="float",  help="regularization amount (%default)", default="1e-8")
+parser.add_option("-r", "--regularize", type="float",  help="regularization amount (%default)", default=0.0)
 ### parser.add_option("-x", "--xxx",   help="some flag", action="store_true")
 
 opts, args = parser.parse_args()
@@ -98,7 +98,7 @@ for speclo in range(specmin, specmax, opts.bundlesize):
         wmin, wmax = ww[0], ww[-1]
         nw = len(ww)
         
-        print "Extracting spectra {specrange} wavelengths ({wmin:.2f}, {wmax:.2f}) -> ({wlo:.2f}, {whi:.2f})".format(\
+        print "Spectra {specrange} wavelengths ({wmin:.2f}, {wmax:.2f}) -> ({wlo:.2f}, {whi:.2f})".format(\
             specrange=specrange, wmin=wmin, wmax=wmax, wlo=wlo, whi=whi)
 
         #- Do the extraction
