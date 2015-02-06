@@ -55,7 +55,7 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
 
     #- Pixel weights matrix
     w = ivar.ravel()
-    ### W = spdiags(ivar.ravel(), 0, npix, npix)
+    W = spdiags(ivar.ravel(), 0, npix, npix)
 
     #-----
     #- Extend A with an optional regularization term to limit ringing.
@@ -64,35 +64,33 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
     
     #- Original: exclude flux bins with 0 pixels contributing
     # ibad = (A.sum(axis=0).A == 0)[0]
-
-    #- HACK WARNING
-    #- Regularize any flux bins that have fewer than 20% of the median
-    #- number of pixels contributing to them.
-    npix = (A.A>0).sum(axis=0)
-    ibad = ( npix < 0.5*np.median(npix[npix>0]) )
-                
-    nx = nspec*nwave
-    I = regularize*scipy.sparse.identity(nx)
-    if np.any(ibad):
-        I.data[0, ibad] = 1.0
+    
+    #- Identify fluxes with very low weights of pixels contributing            
+    fluxweight = W.dot(A).sum(axis=0).A[0]
+    minweight = 0.01*np.max(fluxweight)
+    ibad = fluxweight < minweight
+    
+    #- Add regularization of low weight fluxes
+    I = regularize*scipy.sparse.identity(nspec*nwave)
+    I.data[0,ibad] = minweight - fluxweight[ibad]
     
     #- Only need to extend A if regularization is non-zero
     if np.any(I.data):
-        pix = np.concatenate( (image.ravel(), np.zeros(nx)) )
+        pix = np.concatenate( (image.ravel(), np.zeros(nspec*nwave)) )
         Ax = scipy.sparse.vstack( (A, I) )
-        wx = np.concatenate( (w, np.ones(nx)) )
+        wx = np.concatenate( (w, np.ones(nspec*nwave)) )
     else:
         pix = image.ravel()
         Ax = A
         wx = w
 
     #- Inverse covariance
-    W = spdiags(wx, 0, len(wx), len(wx))
-    iCov = Ax.T.dot(W.dot(Ax))
+    Wx = spdiags(wx, 0, len(wx), len(wx))
+    iCov = Ax.T.dot(Wx.dot(Ax))
     
-    #- Solve (image = A flux) weighted by W:
+    #- Solve (image = A flux) weighted by Wx:
     #-     A^T W image = (A^T W A) flux = iCov flux    
-    y = Ax.T.dot(W.dot(pix))
+    y = Ax.T.dot(Wx.dot(pix))
     
     xflux = spsolve(iCov, y).reshape((nspec, nwave))
 
