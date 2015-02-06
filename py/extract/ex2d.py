@@ -3,7 +3,7 @@
 """
 
 import sys
-import numpy as N
+import numpy as np
 import scipy.sparse
 from scipy.sparse import spdiags, issparse
 from scipy.sparse.linalg import spsolve
@@ -46,7 +46,7 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
     npix = nx*ny
     
     nspec = specrange[1] - specrange[0]
-    nflux = len(wavelengths)
+    nwave = len(wavelengths)
     
     #- Solve AT W pix = (AT W A) flux
     
@@ -69,18 +69,18 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
     #- Regularize any flux bins that have fewer than 20% of the median
     #- number of pixels contributing to them.
     npix = (A.A>0).sum(axis=0)
-    ibad = ( npix < 0.5*N.median(npix[npix>0]) )
+    ibad = ( npix < 0.5*np.median(npix[npix>0]) )
                 
-    nx = nspec*nflux
+    nx = nspec*nwave
     I = regularize*scipy.sparse.identity(nx)
-    if N.any(ibad):
+    if np.any(ibad):
         I.data[0, ibad] = 1.0
     
     #- Only need to extend A if regularization is non-zero
-    if N.any(I.data):
-        pix = N.concatenate( (image.ravel(), N.zeros(nx)) )
+    if np.any(I.data):
+        pix = np.concatenate( (image.ravel(), np.zeros(nx)) )
         Ax = scipy.sparse.vstack( (A, I) )
-        wx = N.concatenate( (w, N.ones(nx)) )
+        wx = np.concatenate( (w, np.ones(nx)) )
     else:
         pix = image.ravel()
         Ax = A
@@ -94,12 +94,12 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
     #-     A^T W image = (A^T W A) flux = iCov flux    
     y = Ax.T.dot(W.dot(pix))
     
-    xflux = spsolve(iCov, y).reshape((nspec, nflux))
+    xflux = spsolve(iCov, y).reshape((nspec, nwave))
 
     #- Solve for Resolution matrix
     try:
         R, fluxivar = resolution_from_icov(iCov)
-    except N.linalg.linalg.LinAlgError, err:
+    except np.linalg.linalg.LinAlgError, err:
         outfile = 'LinAlgError_{}-{}_{}-{}.fits'.format(specrange[0], specrange[1], waverange[0], waverange[1])
         print "ERROR: Linear Algebra didn't converge"
         print "Dumping {} for debugging".format(outfile)
@@ -110,7 +110,7 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
         raise err
         
     #- Convolve with Resolution matrix to decorrelate errors
-    fluxivar = fluxivar.reshape((nspec, nflux))
+    fluxivar = fluxivar.reshape((nspec, nwave))
     rflux = R.dot(xflux.ravel()).reshape(xflux.shape)
 
     if full_output:
@@ -136,18 +136,18 @@ def sym_sqrt(a):
     WRITTEN: Adam S. Bolton, U. of Utah, 2009
     """
     
-    w, v = N.linalg.eigh(a)
+    w, v = np.linalg.eigh(a)
     
     #- Trim meaningless eigenvalues below machine precision
     ibad = w < w.max()*sys.float_info.epsilon
     w[ibad] = 0.0
         
     # dm = n.diagflat(n.sqrt(w))
-    # result = N.dot(v, N.dot(dm, N.transpose(v)))
+    # result = np.dot(v, np.dot(dm, np.transpose(v)))
 
     #- A bit faster with sparse matrix for multiplication:
     nw = len(w)
-    dm = spdiags(N.sqrt(w), 0, nw, nw)
+    dm = spdiags(np.sqrt(w), 0, nw, nw)
     result = v.dot( dm.dot(v.T) )
     
     return result
@@ -172,7 +172,7 @@ def resolution_from_icov(icov):
         icov = icov.toarray()
         
     sqrt_icov = sym_sqrt(icov)
-    norm_vector = N.sum(sqrt_icov, axis=1)
-    R = N.outer(norm_vector**(-1), N.ones(norm_vector.size)) * sqrt_icov
+    norm_vector = np.sum(sqrt_icov, axis=1)
+    R = np.outer(norm_vector**(-1), np.ones(norm_vector.size)) * sqrt_icov
     ivar = norm_vector**2  #- Bolton & Schlegel 2010 Eqn 13
     return R, ivar
