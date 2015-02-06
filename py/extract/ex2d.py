@@ -105,7 +105,7 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
         print "Dumping {} for debugging".format(outfile)
         import fitsio
         fitsio.write(outfile, image, clobber=True)
-        fitsio.write(outfile, fluxivar)
+        fitsio.write(outfile, ivar)
         fitsio.write(outfile, A.data)
         raise err
         
