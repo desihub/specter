@@ -110,7 +110,7 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
         raise err
         
     #- Convolve with Resolution matrix to decorrelate errors
-    ivar = ivar.reshape((nspec, nflux))
+    fluxivar = fluxivar.reshape((nspec, nflux))
     rflux = R.dot(xflux.ravel()).reshape(xflux.shape)
 
     if full_output:
