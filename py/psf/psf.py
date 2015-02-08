@@ -228,14 +228,12 @@ class PSF(object):
         key = (ispec, wavelength)
         try:
             if key in self._cache:
-                self._ngood_cache += 1
                 xx, yy, ccdpix = self._cache[key]
             else:
                 xx, yy, ccdpix = self._xypix(ispec, wavelength)
                 self._cache[key] = (xx, yy, ccdpix)
         except AttributeError:
             self._cache = CacheDict(2500)
-            self._ngood_cache = 0
             xx, yy, ccdpix = self._xypix(ispec, wavelength)
             
         xlo, xhi = xx.start, xx.stop
@@ -608,7 +606,5 @@ class PSF(object):
                     A[:, ij] = tmp.ravel()
                     tmp[yslice, xslice] = 0.0
         
-        print self._ngood_cache, len(self._cache)
-        self._ngood_cache = 0
         return scipy.sparse.csr_matrix(A)    
 
