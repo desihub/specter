@@ -156,12 +156,8 @@ class TestThroughput(unittest.TestCase):
         self.assertTrue( N.all(f2 <= f1) )
         self.assertTrue( N.all(f3 <= f2) )
 
-    #- Throughputs don't work when the model goes negative.
-    #- Should we have less negative flux, or even more negative flux?
-    #- The can happen even when the integrated flux in a bin is positive
-    #- but the underlying model fit goes negative.
-    #- This test is a placeholder to remind us of this issue.
-    @unittest.expectedFailure
+    #- This test currently works, but some pixelated rebinning models can
+    #- involve negative ringing which would cause this test to fail.
     def test_low_flux(self):
         flux = N.random.uniform(0, 1, len(self.w))
         f1 = self.thru.apply_throughput(self.w, flux, objtype='CALIB')
