@@ -18,7 +18,7 @@ from scipy.ndimage import center_of_mass
 from numpy.polynomial.legendre import Legendre, legval, legfit
 import scipy.optimize
 
-from specter.util import gausspix, TraceSet
+from specter.util import gausspix, TraceSet, CacheDict
 import fitsio
 
 class PSF(object):
@@ -66,7 +66,7 @@ class PSF(object):
         #- Filled only if needed
         self._xsigma = None
         self._ysigma = None
-
+        
     #- Utility function to fit spot sigma vs. wavelength
     def _fit_spot_sigma(self, ispec, axis=0, npoly=5):
         """
@@ -215,7 +215,6 @@ class PSF(object):
         if xmin or ymin are set, the slices are relative to those
         minima (useful for simulating subimages)
         """
-        
         if xmax is None:
             xmax = self.npix_x
         if ymax is None:
@@ -226,7 +225,17 @@ class PSF(object):
         elif wavelength > self.wavelength(ispec, self.npix_y-0.5):
             return slice(0,0), slice(ymax, ymax), N.zeros((0,0))
         
-        xx, yy, ccdpix = self._xypix(ispec, wavelength)
+        key = (ispec, wavelength)
+        try:
+            if key in self._cache:
+                xx, yy, ccdpix = self._cache[key]
+            else:
+                xx, yy, ccdpix = self._xypix(ispec, wavelength)
+                self._cache[key] = (xx, yy, ccdpix)
+        except AttributeError:
+            self._cache = CacheDict(2500)
+            xx, yy, ccdpix = self._xypix(ispec, wavelength)
+            
         xlo, xhi = xx.start, xx.stop
         ylo, yhi = yy.start, yy.stop
 
@@ -261,7 +270,7 @@ class PSF(object):
         #- Check if we are off the edge
         if (xx.stop-xx.start == 0) or (yy.stop-yy.start == 0):
             ccdpix = N.zeros( (0,0) )
-                
+                             
         return xx, yy, ccdpix
 
     def xyrange(self, spec_range, wavelengths):
@@ -596,6 +605,6 @@ class PSF(object):
                     ij = (ispec-specmin)*nflux + iflux
                     A[:, ij] = tmp.ravel()
                     tmp[yslice, xslice] = 0.0
-    
+        
         return scipy.sparse.csr_matrix(A)    
 
