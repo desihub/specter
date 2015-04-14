@@ -87,7 +87,7 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
     #- Inverse covariance
     Wx = spdiags(wx, 0, len(wx), len(wx))
     iCov = Ax.T.dot(Wx.dot(Ax))
-    
+
     #- Solve (image = A flux) weighted by Wx:
     #-     A^T W image = (A^T W A) flux = iCov flux    
     y = Ax.T.dot(Wx.dot(pix))

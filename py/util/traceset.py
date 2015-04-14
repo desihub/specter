@@ -60,6 +60,32 @@ class TraceSet(object):
             
         return TraceSet(c, domain=(ymin, ymax))
             
+def fit_traces(x, yy, deg=5, domain=None):
+    """
+    returns TraceSet object modeling y[i] vs. x
+    
+    Args:
+        x : 1D array
+        y : 2D array[nspec, nx]
+        deg : optional Legendre degree
+    """
+    nspec, nx = yy.shape
+    assert len(x) == nx, "y.shape[1] ({}) != len(x) ({})".format(nx, len(x))
+    assert N.all(N.diff(x) > 0), "x not monotonically increasing"
+
+    if domain is None:
+        xmin, xmax = x[0], x[-1]
+    else:
+        xmin, xmax = domain
         
+    c = N.zeros((nspec, deg+1))
+    for i in range(nspec):
+        xx = 2.0 * (x-xmin) / (xmax-xmin) - 1.0
+        c[i] = legfit(xx, yy[i], deg)
+
+    return TraceSet(c, [xmin, xmax])
+    
+    
+    
         
     
