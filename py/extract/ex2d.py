@@ -5,6 +5,7 @@
 import sys
 import numpy as np
 import scipy.sparse
+import scipy.linalg
 from scipy.sparse import spdiags, issparse
 from scipy.sparse.linalg import spsolve
 
@@ -103,8 +104,11 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
         print "Dumping {} for debugging".format(outfile)
         import fitsio
         fitsio.write(outfile, image, clobber=True)
-        fitsio.write(outfile, ivar)
-        fitsio.write(outfile, A.data)
+        fitsio.write(outfile, ivar, extname='IVAR')
+        fitsio.write(outfile, A.data, extname='ADATA') 
+        fitsio.write(outfile, A.indices, extname='AINDICES')
+        fitsio.write(outfile, A.indptr, extname='AINDPTR')
+        fitsio.write(outfile, iCov.toarray(), extname='ICOV')
         raise err
         
     #- Convolve with Resolution matrix to decorrelate errors
@@ -133,8 +137,8 @@ def sym_sqrt(a):
 
     WRITTEN: Adam S. Bolton, U. of Utah, 2009
     """
-    
-    w, v = np.linalg.eigh(a)
+    ### w, v = np.linalg.eigh(a)  #- np.linalg.eigh is single precision !?!
+    w, v = scipy.linalg.eigh(a)
     
     #- Trim meaningless eigenvalues below machine precision
     ibad = w < w.max()*sys.float_info.epsilon
@@ -166,9 +170,12 @@ def resolution_from_icov(icov):
 
     WRITTEN: Adam S. Bolton, U. of Utah, 2009
     """
+    #- force symmetry since due to rounding it might not be exactly symmetric
+    icov = 0.5*(icov + icov.T)
+    
     if issparse(icov):
         icov = icov.toarray()
-        
+
     sqrt_icov = sym_sqrt(icov)
     norm_vector = np.sum(sqrt_icov, axis=1)
     R = np.outer(norm_vector**(-1), np.ones(norm_vector.size)) * sqrt_icov
