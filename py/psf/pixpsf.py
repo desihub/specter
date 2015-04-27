@@ -94,7 +94,10 @@ class PixPSF(PSF):
         xslice = slice(xmin, xmax)
         yslice = slice(ymin, ymax)
 
-        #- Normalize
+        #- Clip negative values
+        psfimage[psfimage<0] = 0.0
+
+        #- Normalize integral to 1.0
         psfimage /= psfimage.sum()
         
         return xslice, yslice, psfimage

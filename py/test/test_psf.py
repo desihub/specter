@@ -123,6 +123,16 @@ class TestPSF(unittest.TestCase):
             for w in ww:
                 self.assertAlmostEqual(np.sum(psf.pix(i, w)), 1.0)
 
+    #- Test that PSF spots are positive
+    def test_pix_norm(self):
+        psf = self.psf
+        yy = np.arange(50, psf.npix_y-50, 50)  #- keep away from the edges
+        for i in range(0, psf.nspec, 1+psf.nspec//10):
+            ww = psf.wavelength(i, yy)
+            for w in ww:
+                self.assertTrue(np.all(psf.pix(i, w) >= 0), \
+                    'PSF goes negative for fiber {} at wavelength {}'.format(i, w))
+
     #- Get PSF pixel image and where to put it on the CCD
     #- Confirm that image size matches ranges
     def test_xypix(self):
