@@ -36,19 +36,21 @@ class TestBin(unittest.TestCase):
         self.assertTrue(os.path.exists(imgfile))
 
     def test_bb(self):
-        cmd = """exspec \
-          -i {imgfile} \
-          -p {specter_dir}/data/test/psf-monospot.fits \
-          -o {specfile} \
-          -w 7500,7620,1.0 \
-          --specrange 0,2""".format(
-            specter_dir=os.getenv('SPECTER_DIR'),
-            imgfile = imgfile,
-            specfile = specfile,
-            )
-        err = os.system(cmd)
-        self.assertEqual(err, 0, 'Error code {} != 0'.format(err))
-        self.assertTrue(os.path.exists(specfile))
+        for dwave in [1.0, 2.0]:
+            cmd = """exspec \
+              -i {imgfile} \
+              -p {specter_dir}/data/test/psf-monospot.fits \
+              -o {specfile} \
+              -w 7500,7620,{dwave} \
+              --specrange 0,2""".format(
+                specter_dir=os.getenv('SPECTER_DIR'),
+                imgfile = imgfile,
+                specfile = specfile,
+                dwave = dwave,
+                )
+            err = os.system(cmd)
+            self.assertEqual(err, 0, 'Error code {} != 0 with dwave={}'.format(err, dwave))
+            self.assertTrue(os.path.exists(specfile))
         
     @classmethod
     def tearDownClass(cls):

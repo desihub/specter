@@ -52,8 +52,14 @@ flux = N.zeros( (nspec, nwave) )
 ivar = N.zeros( (nspec, nwave) )
 
 #- Diagonal elements of resolution matrix
-#+ AUTO CALCULATE BEST SIZE OR TURN INTO OPTION
-ndiag = 10
+#- Keep resolution matrix terms equivalent to 9-sigma of largest spot
+#- ndiag is in units of number of wavelength steps of size dw
+ndiag = 0
+for ispec in [0, psf.nspec//2, psf.nspec-1]:
+    for w in [psf.wmin, 0.5*(psf.wmin+psf.wmax), psf.wmax]:
+        ndiag = max(ndiag, int(round(9.0*psf.wdisp(ispec, w) / dw )))
+
+#- Orig was ndiag = 10, which fails when dw gets too large compared to PSF size
 Rd = N.zeros( (nspec, 2*ndiag+1, nwave) )
 
 #- Print parameters
@@ -66,11 +72,12 @@ wavelength: {wstart} - {wstop} AA steps {dw}
 specrange:  {specmin} - {specmax}
 bundlesize: {bundlesize}
 regularize: {regularize}
+Rdim:       {rdim}
 #-----------------------------\
 """.format(input=opts.input, psf=opts.psf, output=opts.output,
     wstart=wstart, wstop=wstop, dw=dw,
     specmin=specmin, specmax=specmax, bundlesize=opts.bundlesize,
-    regularize=opts.regularize)
+    regularize=opts.regularize, rdim=Rd.shape)
 
 #- Let's do some extractions
 for speclo in range(specmin, specmax, opts.bundlesize):
