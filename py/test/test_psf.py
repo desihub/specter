@@ -426,6 +426,13 @@ class TestPSF(unittest.TestCase):
         xy = self.psf.xy(0, w)
         self.assertTrue(np.all(xy[0] == x))
         self.assertTrue(np.all(xy[1] == y))
+
+    #- sanity check on wmin, wmax, wmin_all, wmax_all
+    def test_waveminmax(self):
+        psf = self.psf
+        self.assertLessEqual(psf.wmin, psf.wmin_all)
+        self.assertGreaterEqual(psf.wmax, psf.wmax_all)
+        self.assertLess(psf.wmin, psf.wmax)
         
     #- Test getting x and y and wavelength at the same time
     ### REMOVED

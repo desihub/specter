@@ -61,7 +61,9 @@ class PSF(object):
         #- Create inverse y -> wavelength mapping
         self._w = self._y.invert()
         self._wmin = N.min(self.wavelength(None, 0))
+        self._wmin_all = N.max(self.wavelength(None, 0))
         self._wmax = N.max(self.wavelength(None, self.npix_y-1))
+        self._wmax_all = N.min(self.wavelength(None, self.npix_y-1))
                 
         #- Filled only if needed
         self._xsigma = None
@@ -556,11 +558,23 @@ class PSF(object):
     
     @property
     def wmin(self):
+        """Minimum wavelength seen by any spectrum"""
         return self._wmin
 
     @property
     def wmax(self):
+        """Maximum wavelength seen by any spectrum"""
         return self._wmax
+    
+    @property
+    def wmin_all(self):
+        """Minimum wavelength seen by all spectra"""
+        return self._wmin_all
+
+    @property
+    def wmax_all(self):
+        """Maximum wavelength seen by all spectra"""
+        return self._wmax_all
     
     def projection_matrix(self, spec_range, wavelengths, xyrange):
         """
