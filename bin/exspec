@@ -7,7 +7,7 @@ Vanilla spectral extraction
 import sys
 import os
 import os.path
-import numpy as N
+import numpy as np
 from time import time
 
 import fitsio
@@ -25,18 +25,18 @@ parser.add_option("-w", "--wavelength", type="string",  help="wavemin,wavemax,dw
 parser.add_option("-b", "--bundlesize", type="int",  help="num spectra per bundle", default=20)
 parser.add_option("-s", "--specrange", type="string",  help="specmin,specmax", default="0,19")
 parser.add_option("-r", "--regularize", type="float",  help="regularization amount (%default)", default=0.0)
+parser.add_option("--nwavestep", type=int,  help="number of wavelength steps in core extraction region", default=50)
 ### parser.add_option("-x", "--xxx",   help="some flag", action="store_true")
 
 opts, args = parser.parse_args()
 
 #- Get wavelength grid from options
 wstart, wstop, dw = map(float, opts.wavelength.split(','))
-wavelengths = N.arange(wstart, wstop+dw/2.0, dw)
+wavelengths = np.arange(wstart, wstop+dw/2.0, dw)
 nwave = len(wavelengths)
 
-#+ TURN THIS INTO AN OPTION
 #- Number of core wavelength bins to solve in each step
-nwstep = 50
+nwstep = opts.nwavestep
 
 #- Get specrange from options
 specmin, specmax = map(int, opts.specrange.split(','))
@@ -47,9 +47,17 @@ psf = load_psf(opts.psf)
 img, imghdr = fitsio.read(opts.input, 0, header=True)
 imgivar = fitsio.read(opts.input, 1)
 
+#- Confirm that this PSF covers these wavelengths for these spectra
+psf_wavemin = np.max(psf.wavelength(range(specmin, specmax+1), y=0))
+psf_wavemax = np.min(psf.wavelength(range(specmin, specmax+1), y=psf.npix_y-1))
+if psf_wavemin > wstart:
+    raise ValueError, 'Start wavelength {:.2f} < min wavelength {:.2f} for these fibers'.format(wstart, psf_wavemin)
+if psf_wavemax < wstop:
+    raise ValueError, 'Stop wavelength {:.2f} > max wavelength {:.2f} for these fibers'.format(wstop, psf_wavemax)
+
 #- Output arrays to fill
-flux = N.zeros( (nspec, nwave) )
-ivar = N.zeros( (nspec, nwave) )
+flux = np.zeros( (nspec, nwave) )
+ivar = np.zeros( (nspec, nwave) )
 
 #- Diagonal elements of resolution matrix
 #- Keep resolution matrix terms equivalent to 9-sigma of largest spot
@@ -60,7 +68,7 @@ for ispec in [0, psf.nspec//2, psf.nspec-1]:
         ndiag = max(ndiag, int(round(9.0*psf.wdisp(ispec, w) / dw )))
 
 #- Orig was ndiag = 10, which fails when dw gets too large compared to PSF size
-Rd = N.zeros( (nspec, 2*ndiag+1, nwave) )
+Rd = np.zeros( (nspec, 2*ndiag+1, nwave) )
 
 #- Print parameters
 print """\
@@ -101,7 +109,7 @@ for speclo in range(specmin, specmax, opts.bundlesize):
         
         nlo = int((wlo - psf.wavelength(speclo, ymin))/dw)-1
         nhi = int((psf.wavelength(speclo, ymax) - whi)/dw)-1
-        ww = N.arange(wlo-nlo*dw, whi+(nhi+0.5)*dw, dw)
+        ww = np.arange(wlo-nlo*dw, whi+(nhi+0.5)*dw, dw)
         wmin, wmax = ww[0], ww[-1]
         nw = len(ww)
         
@@ -131,7 +139,7 @@ for speclo in range(specmin, specmax, opts.bundlesize):
 #+ TODO: what should this do to R in the case of non-uniform bins?
 #+       maybe should do everything in photons/A from the start.            
 #- Convert flux to photons/A instead of photons/bin
-dwave = N.gradient(wavelengths)
+dwave = np.gradient(wavelengths)
 flux /= dwave
 ivar *= dwave**2
                             
