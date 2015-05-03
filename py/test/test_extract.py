@@ -118,22 +118,25 @@ class TestExtract(unittest.TestCase):
     def test_ex2d_subimage(self):
         specrange = (0, self.nspec)
         waverange = self.ww[0], self.ww[-1]
-        flux, ivar, R = ex2d(self.image, self.ivar, self.psf, specrange, self.ww)
+        flux, fluxivar, R = ex2d(self.image, self.ivar, self.psf, specrange, self.ww)
 
+        border = 0
         xmin, xmax, ymin, ymax = self.psf.xyrange(specrange, waverange)
-        xmin = max(0, xmin-10)
-        xmax = min(self.psf.npix_x, xmax+10)
-        ymin = max(0, ymin-10)
-        ymax = min(self.psf.npix_y, ymax+10)
+        xmin = max(0, xmin-border)
+        xmax = min(self.psf.npix_x, xmax+border)
+        ymin = max(0, ymin-border)
+        ymax = min(self.psf.npix_y, ymax+border)
         xyrange = (xmin, xmax, ymin, ymax)
         
         subimg = self.image[ymin:ymax, xmin:xmax]
         subivar = self.ivar[ymin:ymax, xmin:xmax]
-        subflux, subivar, subR = ex2d(subimg, subivar, self.psf, \
+        subflux, subfluxivar, subR = ex2d(subimg, subivar, self.psf, \
             specrange, self.ww, xyrange=xyrange)
 
+        #- These arrays pass N.allclose, but sometimes fail N.all on edison.
+        #- They should be absolutely identical.  Leaving this as failing.
         self.assertTrue( N.all(subflux == flux) )
-        self.assertTrue( N.all(subivar == ivar) )
+        self.assertTrue( N.all(subfluxivar == fluxivar) )
         self.assertTrue( N.all(subR == R) )
 
     def test_wave_off_image(self):

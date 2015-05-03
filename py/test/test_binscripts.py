@@ -18,7 +18,7 @@ _base = uuid4().hex
 imgfile = 'testimg-'+_base+'.fits'
 specfile = 'testspec-'+_base+'.fits'
 
-class TestBin(unittest.TestCase):
+class TestBinScripts(unittest.TestCase):
         
     def test_aa(self):
         cmd = """specter \
