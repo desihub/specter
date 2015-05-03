@@ -71,12 +71,18 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
     minweight = 0.01*np.max(fluxweight)
     ibad = fluxweight < minweight
     
-    #- Add regularization of low weight fluxes
-    I = regularize*scipy.sparse.identity(nspec*nwave)
-    I.data[0,ibad] = minweight - fluxweight[ibad]
+    #- Original version; doesn't work on older versions of scipy
+    # I = regularize*scipy.sparse.identity(nspec*nwave)
+    # I.data[0,ibad] = minweight - fluxweight[ibad]
     
+    #- Add regularization of low weight fluxes
+    Idiag = regularize*np.ones(nspec*nwave)
+    Idiag[ibad] = minweight - fluxweight[ibad]
+    I = scipy.sparse.identity(nspec*nwave)
+    I.setdiag(Idiag)
+
     #- Only need to extend A if regularization is non-zero
-    if np.any(I.data):
+    if np.any(I.diagonal()):
         pix = np.concatenate( (image.ravel(), np.zeros(nspec*nwave)) )
         Ax = scipy.sparse.vstack( (A, I) )
         wx = np.concatenate( (w, np.ones(nspec*nwave)) )
