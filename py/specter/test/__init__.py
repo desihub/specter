@@ -9,7 +9,7 @@ def test_data_dir():
     """
     import os.path
     codedir = os.path.dirname(os.path.abspath(__file__))
-    basedir = os.path.realpath(codedir+'/../../')
+    basedir = os.path.realpath(codedir+'/../../../')
     return basedir + '/data/test/'
         
 from specter.test.test_psf import TestPixPSF, TestSpotPSF

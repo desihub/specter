@@ -1,0 +1,15 @@
+#%Module1.0
+proc ModulesHelp { } {
+    global product version
+    puts stderr "This module adds $product/$version to various paths"
+}
+set product specter
+set version {VERSION}
+
+module-whatis   "Sets up $product/$version in your environment"
+
+set PRODUCT_DIR {INSTALL_PREFIX}/$product
+setenv [string toupper $product]_DIR $PRODUCT_DIR
+prepend-path PATH       $PRODUCT_DIR/bin
+prepend-path PYTHONPATH $PRODUCT_DIR/py
+
