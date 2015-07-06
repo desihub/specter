@@ -22,7 +22,7 @@ from specter import util
 #- ObjType enum
 class ObjType:
     STAR   = 'STAR'
-    STAR   = 'STD'
+    STD    = 'STD'
     GALAXY = 'GALAXY'   #- pretty meaningless for fiberloss, ok for others
     ELG    = 'ELG'
     LRG    = 'LRG'
@@ -130,9 +130,12 @@ class Throughput:
         else:
             self._fiberinput = dict(default=np.ones(len(wave)))
 
-        #- special case: STD == STAR
+        #- special cases: QSO and STD are STAR for fiber input losses
         if 'STAR' in self._fiberinput and 'STD' not in self._fiberinput:
             self._fiberinput['STD'] = self._fiberinput['STAR']
+        if 'STAR' in self._fiberinput and 'QSO' not in self._fiberinput:
+            self._fiberinput['QSO'] = self._fiberinput['STAR']
+
     
     @property
     def fiberarea(self):
