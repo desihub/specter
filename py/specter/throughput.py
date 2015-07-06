@@ -13,6 +13,7 @@ How to handle fiber size and sky units?
 
 import sys
 import os
+import warnings
 import numpy as np
 import fitsio
 import scipy.linalg
@@ -21,7 +22,10 @@ from specter import util
 #- ObjType enum
 class ObjType:
     STAR   = 'STAR'
-    GALAXY = 'GALAXY'
+    STAR   = 'STD'
+    GALAXY = 'GALAXY'   #- pretty meaningless for fiberloss, ok for others
+    ELG    = 'ELG'
+    LRG    = 'LRG'
     QSO    = 'QSO'
     SKY    = 'SKY'
     CALIB  = 'CALIB'
@@ -30,8 +34,20 @@ def load_throughput(filename):
     """
     Create Throughput object from FITS file with EXTNAME=THROUGHPUT HDU
     """
-    thru = fitsio.read(filename, 'THROUGHPUT', lower=True)
-    hdr =  fitsio.read_header(filename, 'THROUGHPUT')
+    fx = fitsio.FITS(filename)
+    thru = fx['THROUGHPUT'].read(lower=True)
+    hdr =  fx['THROUGHPUT'].read_header()
+
+    #- Check for FIBERINPUT HDU
+    if 'FIBERINPUT' in fx:
+        tmp = fx['FIBERINPUT'].read()
+        assert(len(tmp) == len(thru))
+        fiberinput = dict()
+        for key in tmp.dtype.names:
+            fiberinput[key.upper()] = tmp[key]
+    else:
+        print "no FIBERINPUT extention found"
+        fiberinput = thru['fiberinput']
     
     if 'wavelength' in thru.dtype.names:
         w = thru['wavelength']
@@ -53,7 +69,7 @@ def load_throughput(filename):
         wave = w,
         throughput = thru['throughput'],
         extinction = thru['extinction'],
-        fiberinput = thru['fiberinput'],
+        fiberinput = fiberinput,
         exptime    = hdr['EXPTIME'],
         area       = area,
         fiberdia   = hdr['FIBERDIA'],
@@ -99,13 +115,24 @@ class Throughput:
         #-         h [erg s]      * c [m/s]      * [1e10 A/m] = [erg A]
         self._hc = 6.62606957e-27 * 2.99792458e8 * 1e10
         
+        #- Create fiber input dict keyed by object type, including 'default'
         if fiberinput is not None:
             if isinstance(fiberinput, float):
-                self._fiberinput = np.ones(len(wave)) * fiberinput
+                self._fiberinput = dict(default=np.ones(len(wave)) * fiberinput)
+            elif isinstance(fiberinput, np.ndarray):
+                self._fiberinput = dict(default=np.copy(fiberinput))
+            elif isinstance(fiberinput, dict):
+                self._fiberinput = fiberinput
+                if 'default' not in fiberinput:
+                    self._fiberinput['default'] = np.ones(len(wave))
             else:
-                self._fiberinput = np.copy(fiberinput)
+                raise ValueError('Unrecognized type for fiberinput: '+str(type(fiberinput)))
         else:
-            self._fiberinput = np.ones(len(wave))
+            self._fiberinput = dict(default=np.ones(len(wave)))
+
+        #- special case: STD == STAR
+        if 'STAR' in self._fiberinput and 'STD' not in self._fiberinput:
+            self._fiberinput['STD'] = self._fiberinput['STAR']
     
     @property
     def fiberarea(self):
@@ -127,12 +154,24 @@ class Throughput:
         ext = self.extinction(wavelength)
         return 10**(-0.4 * airmass * ext)
         
-    def fiberinput_throughput(self, wavelength):
+    def fiberinput_throughput(self, wavelength=None, objtype=ObjType.STAR):
         """
         Return fiber input geometric throughput [0 - 1]
-        evaluated at wavelength (float or array)
+        evaluated at wavelength (float or array).
+        If wavelength is None, do not interpolate.
         """
-        return np.interp(wavelength, self._wave, self._fiberinput)
+        if objtype in self._fiberinput:
+            t = self._fiberinput[objtype]
+        else:
+            msg = 'Unknown objtype {}; using default fiber input loss'.format(objtype)
+            msg += '\nKnown objtypes are '+str(self._fiberinput.keys())
+            warnings.warn(msg)
+            t = self._fiberinput['default']
+
+        if wavelength is None:
+            return t
+        else:
+            return np.interp(wavelength, self._wave, t)
         
     def hardware_throughput(self, wavelength):
         """
@@ -160,7 +199,8 @@ class Throughput:
         elif objtype == ObjType.SKY:
             T = self._thru * Tatm
         else:
-            T = self._thru * Tatm * self._fiberinput
+            Tfiber = self.fiberinput_throughput(wavelength=None, objtype=objtype)
+            T = self._thru * Tatm * Tfiber
             
         return T
 
