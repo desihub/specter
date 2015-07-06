@@ -78,9 +78,9 @@ class Throughput:
         
         Optional Inputs
         ---------------
-        fiberinput : float or array; geometric throughput from finite sized
-            fiber input.  Default to no loss = 1.0.
-            
+        fiberinput : float, array, or dictionary of arrays keyed by objtype.
+            Geometric throughput due to finite sized fiber input.
+            Default to no loss = 1.0.
             
         Notes
         -----
