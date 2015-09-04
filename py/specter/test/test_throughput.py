@@ -39,6 +39,27 @@ class TestThroughput(unittest.TestCase):
     def test_fiberin(self):
         t = self.thru.fiberinput_throughput(self.w)
         self.assertTrue(N.all( (0.0<=t) & (t<= 1.0)))
+        
+        #- Use a different wavelength grid
+        t = self.thru.fiberinput_throughput(self.w[0::2])
+        self.assertTrue(N.all( (0.0<=t) & (t<= 1.0)))
+        self.assertTrue(len(t) == len(self.w)//2)
+        
+        #- Should even work with no wavelength grid
+        t = self.thru.fiberinput_throughput()
+        self.assertTrue(N.all( (0.0<=t) & (t<= 1.0)))
+
+    def test_fiberin_objtype(self):
+        tstar = self.thru.fiberinput_throughput(self.w, objtype='STAR')
+        telg = self.thru.fiberinput_throughput(self.w, objtype='ELG')
+        tsky = self.thru.fiberinput_throughput(self.w, objtype='SKY')
+                
+        self.assertTrue(N.all( (0.0<=tstar) & (tstar<= 1.0)))
+        self.assertTrue(N.all( (0.0<=telg) & (telg<= 1.0)))
+        self.assertTrue(N.allclose(tsky, 1.0))
+        
+        self.assertTrue(N.all(tsky >= tstar))
+        self.assertTrue(N.all(tstar >= telg))
 
     def test_hardware(self):
         t = self.thru.hardware_throughput(self.w)
