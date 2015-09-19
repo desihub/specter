@@ -54,7 +54,7 @@ def write_spectra(outfile, wave, flux, ivar, resolution, header):
     header['EXTNAME'] = 'FLUX'
     hx.append(fits.PrimaryHDU(flux.astype(np.float32), header=header))
     hx.append(fits.ImageHDU(ivar.astype(np.float32), name='IVAR'))
-    hx.append(fits.ImageHDU(wave.astype(np.float32), name='WAVE'))
+    hx.append(fits.ImageHDU(wave.astype(np.float32), name='WAVELENGTH'))
     hx.append(fits.ImageHDU(resolution.astype(np.float32), name='RESOLUTION'))
     hx.writeto(outfile, clobber=True)
     
