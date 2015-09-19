@@ -6,7 +6,7 @@ Unit tests for PSF classes.
 
 import sys
 import os
-import numpy as N
+import numpy as np
 import unittest
 from specter.test import test_data_dir
 from specter.psf import load_psf
@@ -18,19 +18,19 @@ class TestExtract(unittest.TestCase):
     Test functions within specter.util
     """
     def setUp(self):
-        N.random.seed(0)
+        np.random.seed(0)
         psf = load_psf(test_data_dir() + "/psf-spot.fits")
 
         nspec = 10
         wmin = min(psf.wavelength(0, y=0), psf.wavelength(nspec-1, y=0))
-        ww = psf.wavelength(0, y=N.arange(10,60))
+        ww = psf.wavelength(0, y=np.arange(10,60))
         nwave = len(ww)
         
         phot_shape = (nspec, nwave)
-        phot = N.random.uniform(1, 1000, size=phot_shape)
+        phot = np.random.uniform(1, 1000, size=phot_shape)
         image_orig = psf.project(ww, phot, verbose=False)
         var = 1.0 + image_orig
-        image = image_orig + N.random.normal(scale=N.sqrt(var))
+        image = image_orig + np.random.normal(scale=np.sqrt(var))
                 
         self.phot = phot
         self.image_orig = image_orig
@@ -48,23 +48,23 @@ class TestExtract(unittest.TestCase):
         xmin, xmax, ymin, ymax = xyrange = self.psf.xyrange(specrange, waverange)
         
         for i in range(3):
-            pix = self.image_orig + N.random.normal(scale=N.sqrt(imgvar))
+            pix = self.image_orig + np.random.normal(scale=np.sqrt(imgvar))
             d = ex2d(pix, self.ivar, self.psf, specrange, self.ww, full_output=True)
             flux, ivar, R = d['flux'], d['ivar'], d['R']
             rflux = R.dot(self.phot.ravel()).reshape(flux.shape)
-            chi = (flux - rflux) * N.sqrt(ivar)
+            chi = (flux - rflux) * np.sqrt(ivar)
             
             xpix = d['A'].dot(d['xflux'].ravel())
             subpix = pix[ymin:ymax, xmin:xmax].ravel()
             subivar = self.ivar[ymin:ymax, xmin:xmax].ravel()
             
-            pixchi = (xpix - subpix) * N.sqrt(subivar)
+            pixchi = (xpix - subpix) * np.sqrt(subivar)
         
-            print i, N.std(chi), N.std(pixchi)
+            print i, np.std(chi), np.std(pixchi)
     
     def test_noiseless_ex2d(self):
         specrange = (0, self.nspec)
-        ivar = N.ones(self.ivar.shape)
+        ivar = np.ones(self.ivar.shape)
         d = ex2d(self.image_orig, ivar, self.psf, specrange, self.ww, full_output=True)
 
         R = d['R']
@@ -81,8 +81,8 @@ class TestExtract(unittest.TestCase):
         bias = (flux - rphot)/rphot
         dximg = ximg - self.image_orig
 
-        self.assertTrue( N.max(N.abs(bias)) < 1e-9 )
-        self.assertTrue( N.max(N.abs(dximg)) < 1e-6 )                
+        self.assertTrue( np.max(np.abs(bias)) < 1e-9 )
+        self.assertTrue( np.max(np.abs(dximg)) < 1e-6 )                
 
     #- Pull values are wrong.  Why?  Overfitting?
     @unittest.expectedFailure
@@ -94,7 +94,7 @@ class TestExtract(unittest.TestCase):
         R = d['R']
         flux = d['flux']     #- resolution convolved extracted flux
         rphot = R.dot(self.phot.ravel()).reshape(flux.shape)
-        pull_flux = (flux - rphot) * N.sqrt(d['ivar'])
+        pull_flux = (flux - rphot) * np.sqrt(d['ivar'])
         
         #- Pull image
         specrange = (0, self.nspec)
@@ -106,14 +106,14 @@ class TestExtract(unittest.TestCase):
         ximage = d['A'].dot(xflux.ravel()).reshape((ny,nx))
         subimg = self.image[ymin:ymax, xmin:xmax]
         subivar = self.ivar[ymin:ymax, xmin:xmax]
-        pull_image = ((ximage - subimg) * N.sqrt(subivar))
+        pull_image = ((ximage - subimg) * np.sqrt(subivar))
 
         print "Known problem: Overfitting may result in small pull value"
-        ### print N.std(pull_flux), N.std(pull_image)
-        self.assertTrue(N.abs(1-N.std(pull_flux)) < 0.05,
-                        msg="pull_flux sigma is %f" % N.std(pull_flux))
-        self.assertTrue(N.abs(1-N.std(pull_image)) < 0.05,
-                        msg="pull_image sigma is %f" % N.std(pull_image))
+        ### print np.std(pull_flux), np.std(pull_image)
+        self.assertTrue(np.abs(1-np.std(pull_flux)) < 0.05,
+                        msg="pull_flux sigma is %f" % np.std(pull_flux))
+        self.assertTrue(np.abs(1-np.std(pull_image)) < 0.05,
+                        msg="pull_image sigma is %f" % np.std(pull_image))
         
     def test_ex2d_subimage(self):
         specrange = (0, self.nspec)
@@ -133,26 +133,26 @@ class TestExtract(unittest.TestCase):
         subflux, subfluxivar, subR = ex2d(subimg, subivar, self.psf, \
             specrange, self.ww, xyrange=xyrange)
 
-        #- These arrays pass N.allclose, but sometimes fail N.all on edison.
+        #- These arrays pass np.allclose, but sometimes fail np.all on edison.
         #- They should be absolutely identical.  Leaving this as failing.
-        self.assertTrue( N.all(subflux == flux) )
-        self.assertTrue( N.all(subfluxivar == fluxivar) )
-        self.assertTrue( N.all(subR == R) )
+        self.assertTrue( np.all(subflux == flux) )
+        self.assertTrue( np.all(subfluxivar == fluxivar) )
+        self.assertTrue( np.all(subR == R) )
 
     def test_wave_off_image(self):
-        ww = self.psf.wmin - 5 + N.arange(10)
+        ww = self.psf.wmin - 5 + np.arange(10)
         nspec = 2
         specrange = [0,nspec]
         xyrange = self.psf.xyrange(specrange, ww)
 
-        phot = N.ones([nspec,len(ww)])
+        phot = np.ones([nspec,len(ww)])
 
         img = self.psf.project(ww, phot, xyrange=xyrange)
-        ivar = N.ones(img.shape)
+        ivar = np.ones(img.shape)
 
         flux, fluxivar, R = ex2d(img, ivar, self.psf, specrange, ww, xyrange=xyrange)
         
-        self.assertTrue( N.all(flux == flux) )
+        self.assertTrue( np.all(flux == flux) )
         
         
 if __name__ == '__main__':

@@ -14,6 +14,8 @@ from specter.test import test_data_dir
 from specter.psf import load_psf
 from specter.extract.ex2d import ex2d
 
+from astropy.io import fits
+
 _base = uuid4().hex
 imgfile = 'testimg-'+_base+'.fits'
 specfile = 'testspec-'+_base+'.fits'
@@ -43,6 +45,21 @@ class TestBinScripts(unittest.TestCase):
         err = os.system(cmd)
         self.assertEqual(err, 0, 'Error code {} != 0'.format(err))
         self.assertTrue(os.path.exists(imgfile))
+        
+        fx = fits.open(imgfile)
+        self.assertTrue('CCDIMAGE' in fx)
+        self.assertTrue('IVAR' in fx)
+        fx.close
+        
+        os.remove(imgfile)
+        cmd = cmd + ' --extra'
+        err = os.system(cmd)
+        self.assertEqual(err, 0, 'Error code {} != 0'.format(err))
+        self.assertTrue(os.path.exists(imgfile))
+        fx = fits.open(imgfile)
+        self.assertTrue('PHOTONS' in fx)
+        self.assertTrue('XYWAVE' in fx)
+        fx.close
 
     def test_bb(self):
         for dwave in [1.0, 2.0]:
@@ -56,6 +73,14 @@ class TestBinScripts(unittest.TestCase):
             err = os.system(cmd)
             self.assertEqual(err, 0, 'Error code {} != 0 with dwave={}'.format(err, dwave))
             self.assertTrue(os.path.exists(specfile))
+            
+        fx = fits.open(specfile)
+        self.assertTrue('FLUX' in fx)
+        self.assertTrue('IVAR' in fx)
+        self.assertTrue('WAVE' in fx)
+        self.assertTrue('RESOLUTION' in fx)
+        fx.close()
+            
 
     def test_cc(self):
         #- Also check it works for the last fibers and not just the first ones

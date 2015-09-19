@@ -13,8 +13,8 @@ def load_psf(filename, psftype=None):
 
     psftype : override fits header keyword PSFTYPE
     """
-    import fitsio
-    hdr = fitsio.read_header(filename)
+    from astropy.io import fits
+    hdr = fits.getheader(filename)
 
     if psftype is not None:
         hdr['PSFTYPE'] = psftype

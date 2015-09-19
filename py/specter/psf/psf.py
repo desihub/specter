@@ -12,14 +12,14 @@ the interface defined in this base class.
 Stephen Bailey, Fall 2012
 """
 
-import numpy as N
+import numpy as np
 ### import scipy.sparse
 from scipy.ndimage import center_of_mass
 from numpy.polynomial.legendre import Legendre, legval, legfit
 import scipy.optimize
 
 from specter.util import gausspix, TraceSet, CacheDict
-import fitsio
+from astropy.io import fits
 
 class PSF(object):
     """
@@ -47,23 +47,23 @@ class PSF(object):
         """
         
         #- Load basic dimensions
-        hdr = fitsio.read_header(filename)
+        hdr = fits.getheader(filename)
         self.npix_x = hdr['NPIX_X']
         self.npix_y = hdr['NPIX_Y']
         self.nspec  = hdr['NSPEC']
         
         #- Load x, y legendre coefficient tracesets
-        xc, hdr = fitsio.read(filename, 'XCOEFF', header=True)
+        xc, hdr = fits.getdata(filename, 'XCOEFF', header=True)
         self._x = TraceSet(xc, domain=(hdr['WAVEMIN'], hdr['WAVEMAX']))
-        yc, hdr = fitsio.read(filename, 'YCOEFF', header=True)
+        yc, hdr = fits.getdata(filename, 'YCOEFF', header=True)
         self._y = TraceSet(yc, domain=(hdr['WAVEMIN'], hdr['WAVEMAX']))
         
         #- Create inverse y -> wavelength mapping
         self._w = self._y.invert()
-        self._wmin = N.min(self.wavelength(None, 0))
-        self._wmin_all = N.max(self.wavelength(None, 0))
-        self._wmax = N.max(self.wavelength(None, self.npix_y-1))
-        self._wmax_all = N.min(self.wavelength(None, self.npix_y-1))
+        self._wmin = np.min(self.wavelength(None, 0))
+        self._wmin_all = np.max(self.wavelength(None, 0))
+        self._wmax = np.max(self.wavelength(None, self.npix_y-1))
+        self._wmax_all = np.min(self.wavelength(None, self.npix_y-1))
                 
         #- Filled only if needed
         self._xsigma = None
@@ -96,13 +96,13 @@ class PSF(object):
         if axis not in (0,1):
             raise ValueError("axis must be 0, 'x', 1, 'y', or 'w'")
             
-        yy = N.linspace(10, self.npix_y-10, 20)
+        yy = np.linspace(10, self.npix_y-10, 20)
         ww = self.wavelength(ispec, y=yy)
         xsig = list()  #- sigma vs. wavelength array to fill
         for w in ww:
             xspot = self.pix(ispec, w).sum(axis=axis)
-            xspot /= N.sum(xspot)       #- normalize for edge cases
-            xx = N.arange(len(xspot))
+            xspot /= np.sum(xspot)       #- normalize for edge cases
+            xx = np.arange(len(xspot))
             mean, sigma = scipy.optimize.curve_fit(gausspix, xx, xspot)[0]
             xsig.append(sigma)
         
@@ -223,9 +223,9 @@ class PSF(object):
             ymax = self.npix_y
 
         if wavelength < self.wavelength(ispec, -0.5):
-            return slice(0,0), slice(0,0), N.zeros((0,0))
+            return slice(0,0), slice(0,0), np.zeros((0,0))
         elif wavelength > self.wavelength(ispec, self.npix_y-0.5):
-            return slice(0,0), slice(ymax, ymax), N.zeros((0,0))
+            return slice(0,0), slice(ymax, ymax), np.zeros((0,0))
         
         key = (ispec, wavelength)
         try:
@@ -243,13 +243,13 @@ class PSF(object):
 
         #- Check if completely off the edge in any direction
         if (ylo >= ymax):
-            return slice(0,0), slice(ymax,ymax), N.zeros( (0,0) )            
+            return slice(0,0), slice(ymax,ymax), np.zeros( (0,0) )            
         elif (yhi < ymin):
-            return slice(0,0), slice(ymin,ymin), N.zeros( (0,0) )
+            return slice(0,0), slice(ymin,ymin), np.zeros( (0,0) )
         elif (xlo >= xmax):
-            return slice(xmax, xmax), slice(0,0), N.zeros( (0,0) )
+            return slice(xmax, xmax), slice(0,0), np.zeros( (0,0) )
         elif (xhi <= xmin):
-            return slice(xmin, xmin), slice(0,0), N.zeros( (0,0) )
+            return slice(xmin, xmin), slice(0,0), np.zeros( (0,0) )
             
         #- Check if partially off edge
         if xlo < xmin:
@@ -271,7 +271,7 @@ class PSF(object):
         
         #- Check if we are off the edge
         if (xx.stop-xx.start == 0) or (yy.stop-yy.start == 0):
-            ccdpix = N.zeros( (0,0) )
+            ccdpix = np.zeros( (0,0) )
                              
         return xx, yy, ccdpix
 
@@ -305,8 +305,8 @@ class PSF(object):
             wavemax = self.wmax
             
         #- Find the spectra with the smallest/largest y centroids
-        ispec_ymin = specmin + N.argmin(self.y(None, wavemin)[specmin:specmax+1])
-        ispec_ymax = specmin + N.argmax(self.y(None, wavemax)[specmin:specmax+1])
+        ispec_ymin = specmin + np.argmin(self.y(None, wavemin)[specmin:specmax+1])
+        ispec_ymax = specmin + np.argmax(self.y(None, wavemax)[specmin:specmax+1])
         ymin = self.xypix(ispec_ymin, wavemin)[1].start
         ymax = self.xypix(ispec_ymax, wavemax)[1].stop
                 
@@ -319,7 +319,7 @@ class PSF(object):
             w = w[w <= wavemax]
         
         #- Add in wavemin and wavemax since w isn't perfect resolution
-        w = N.concatenate( (w, (wavemin, wavemax) ) )
+        w = np.concatenate( (w, (wavemin, wavemax) ) )
         
         #- Trim xy to where specmin is on the CCD
         #- Note: Pixel coordinates are from *center* of pixel, thus -0.5
@@ -330,7 +330,7 @@ class PSF(object):
         if min(x) < 0:
             xmin = 0.0
         else:
-            wxmin = w[N.argmin(x)]  #- wavelength at x minimum
+            wxmin = w[np.argmin(x)]  #- wavelength at x minimum
             xmin = self.xypix(specmin, wxmin)[0].start
             
         #- and wavelength where x = max(x)
@@ -341,7 +341,7 @@ class PSF(object):
             w = w[w <= wavemax]
                 
         #- Add in wavemin and wavemax since w isn't perfect resolution
-        w = N.concatenate( (w, (wavemin, wavemax) ) )
+        w = np.concatenate( (w, (wavemin, wavemax) ) )
         
         #- Trim xy to where specmax-1 is on the CCD
         #- Note: Pixel coordinates are from *center* of pixel, thus -0.5
@@ -352,7 +352,7 @@ class PSF(object):
         if max(x) > self.npix_x:
             xmax = self.npix_x
         else:
-            wxmax = w[N.argmax(x)]
+            wxmax = w[np.argmax(x)]
             xmax = self.xypix(specmax-1, wxmax)[0].stop
                                                                                 
         return (xmin, xmax, ymin, ymax)
@@ -393,15 +393,15 @@ class PSF(object):
         if wavelength is None:
             #- ispec=None -> ispec=every spectrum
             if ispec is None:
-                ispec = N.arange(self.nspec)
+                ispec = np.arange(self.nspec)
             
             #- ispec is an array; sample at every row
-            if isinstance(ispec, (N.ndarray, list, tuple)):
+            if isinstance(ispec, (np.ndarray, list, tuple)):
                 x = list()
                 for i in ispec:
                     w = self.wavelength(i)
                     x.append(self._x.eval(i, w))
-                return N.array(x)
+                return np.array(x)
             else:  #- scalar ispec, make wavelength an array
                 wavelength = self.wavelength(ispec)
             
@@ -427,15 +427,15 @@ class PSF(object):
             raise ValueError, "PSF.y requires wavelength scalar or vector"
             
         if ispec is None:
-            ispec = N.arange(self.nspec)
+            ispec = np.arange(self.nspec)
             
         return self._y.eval(ispec, wavelength)
         
         if ispec is None:
             if wavelength is None:
-                return N.tile(N.arange(self.npix_y), self.nspec).reshape(self.nspec, self.npix_y)
+                return np.tile(np.arange(self.npix_y), self.nspec).reshape(self.nspec, self.npix_y)
             else:
-                ispec = N.arange(self.nspec)
+                ispec = np.arange(self.nspec)
         
         if wavelength is None:
             wavelength = self.wavelength(ispec)
@@ -461,10 +461,10 @@ class PSF(object):
         specifying copy=True to get a copy of the data.
         """
         if y is None:
-            y = N.arange(0, self.npix_y)
+            y = np.arange(0, self.npix_y)
         
         if ispec is None:
-            ispec = N.arange(self.nspec)
+            ispec = np.arange(self.nspec)
             
         return self._w.eval(ispec, y)
     
@@ -473,9 +473,9 @@ class PSF(object):
         Return CCD pixel width in Angstroms for spectrum ispec at given
         wavlength(s).  Wavelength may be scalar or array.
         """
-        ww = self.wavelength(ispec, y=N.arange(self.npix_y))
-        dw = N.gradient( ww )
-        return N.interp(wavelength, ww, dw)
+        ww = self.wavelength(ispec, y=np.arange(self.npix_y))
+        dw = np.gradient( ww )
+        return np.interp(wavelength, ww, dw)
     
     #-------------------------------------------------------------------------
     #- Project spectra onto CCD pixels
@@ -493,7 +493,7 @@ class PSF(object):
     #     nspec = phot.shape[0] if phot.ndim == 2 else self.nspec
     #     specmax = min(specmin+nspec, nspec)
     #     specrange = (specmin, specmax)
-    #     waverange = (N.min(wavelength), N.max(wavelegth))
+    #     waverange = (np.min(wavelength), np.max(wavelegth))
     #     xmin, xmax, ymin, ymax = xyrange = self.xyrange(specrange, waverange)
     #     image = self.project(wavelength, phot, specmin=specmin, \
     #         xr=(xmin,xmax), yr=(ymin, ymax), verbose=verbose)
@@ -526,11 +526,11 @@ class PSF(object):
         ny = ymax - ymin
 
         #- For convenience, treat phot as a 2D vector
-        phot = N.atleast_2d(phot)
+        phot = np.atleast_2d(phot)
         nspec, nw = phot.shape
 
         #- Create image to fill
-        img = N.zeros( (ny, nx) )
+        img = np.zeros( (ny, nx) )
 
         #- Loop over spectra and wavelengths
         for i, ispec in enumerate(range(specmin, specmin+nspec)):
@@ -606,8 +606,8 @@ class PSF(object):
         ny = ymax - ymin
     
         #- Generate A
-        A = N.zeros( (ny*nx, nspec*nflux) )
-        tmp = N.zeros((ny, nx))
+        A = np.zeros( (ny*nx, nspec*nflux) )
+        tmp = np.zeros((ny, nx))
         for ispec in range(specmin, specmax):
             for iflux, w in enumerate(wavelengths):
                 #- Get subimage and index slices

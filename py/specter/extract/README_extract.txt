@@ -5,10 +5,11 @@
 #-------------------------------------------------------------------------
 from specter.psf import load_psf
 from specter.extract.ex1d import extract1d
+from astropy.io import fits
 
 psf = load_psf('data/boss/pixpsf-r1-00140299.fits')
-img = fitsio.read('data/boss/img-r1-00140299.fits', 0)
-ivar = fitsio.read('data/boss/img-r1-00140299.fits', 1)
+img = fits.getdata('data/boss/img-r1-00140299.fits', 0)
+ivar = fits.getdata('data/boss/img-r1-00140299.fits', 1)
 
 specflux, specivar = extract1d(img, ivar, psf, specrange=(20,60), yrange=(1000,1100))
 
@@ -29,8 +30,8 @@ from specter.psf import load_psf
 psf = load_psf('data/boss/pixpsf-r1-00140299.fits')
 psf.xsigma(0, 7000)
 
-### yy = N.linspace(10,4000)
-yy = N.arange(10,4000,5)
+### yy = np.linspace(10,4000)
+yy = np.arange(10,4000,5)
 ww = psf.wavelength(0, y=yy)
 xsig = [psf.xsigma(0, wavelength=w) for w in ww]
 
@@ -40,27 +41,27 @@ from specter.util import sincshift
 from scipy.ndimage import center_of_mass
 def xsigma(spot):
     yc, xc = center_of_mass(spot)
-    xx = N.arange(spot.shape[1])
+    xx = np.arange(spot.shape[1])
     xspot = spot.sum(axis=0)
-    return N.sqrt(N.sum(xspot*(xx-xc)**2) / N.sum(xspot))
+    return np.sqrt(np.sum(xspot*(xx-xc)**2) / np.sum(xspot))
 
 
 #-------------------------------------------------------------------------
 
 xr, yr, spot = psf.xypix(0, psf.wavelength(0, y=1000))
 
-xx = N.arange(xr.start, xr.stop)
-yy = N.arange(yr.start, yr.stop)
+xx = np.arange(xr.start, xr.stop)
+yy = np.arange(yr.start, yr.stop)
 xspot = spot.sum(axis=0)
 yspot = spot.sum(axis=1)
 
-N.sum(xx*xspot) / N.sum(xspot)
-N.sum(yy*yspot) / N.sum(yspot)
+np.sum(xx*xspot) / np.sum(xspot)
+np.sum(yy*yspot) / np.sum(yspot)
 
 #- Variance
 from scipy.ndimage import center_of_mass
 yc, xc = center_of_mass(spot)
-xx = N.arange(spot.shape[1])
-yy = N.arange(spot.shape[0])
-N.sum(xspot*(xx-xc)**2) / N.sum(xspot)
-N.sum(yspot*(yy-yc)**2) / N.sum(yspot)
+xx = np.arange(spot.shape[1])
+yy = np.arange(spot.shape[0])
+np.sum(xspot*(xx-xc)**2) / np.sum(xspot)
+np.sum(yspot*(yy-yc)**2) / np.sum(yspot)
