@@ -12,7 +12,8 @@ and light so that it doesn't bog down non-BigBOSS users of specter.
 Example commands for quick reference
 ------------------------------------
 
-::
+Examples::
+
     #- Arc
     cd $SPECTER_DIR/data/
     specter -i calib/arc/arc_continuum.fits -o blat.fits \
