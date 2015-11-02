@@ -19,7 +19,7 @@ setup_keywords = dict()
 #
 # THESE SETTINGS NEED TO BE CHANGED FOR EVERY PRODUCT.
 #
-setup_keywords['name'] = 'desispec'
+setup_keywords['name'] = 'specter'
 setup_keywords['description'] = 'A toolkit for simulating multi-object spectrographs.'
 setup_keywords['author'] = 'DESI Collaboration'
 setup_keywords['author_email'] = 'desi-data@desi.lbl.gov'
