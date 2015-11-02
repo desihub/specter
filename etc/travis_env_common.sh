@@ -44,6 +44,7 @@ then
 fi
 
 # DESI DEPENDENCIES
+$PIP_INSTALL fitsio=${FITSIO_VERSION}
 $PIP_INSTALL git+https://github.com/desihub/desiutil.git@${DESIUTIL_VERSION}#egg=desiutil
 
 # DOCUMENTATION DEPENDENCIES
