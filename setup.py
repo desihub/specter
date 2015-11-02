@@ -59,6 +59,10 @@ setup_keywords['test_suite']='{name}.test.{name}_test_suite.{name}_test_suite'.f
 #
 # setup_keywords['entry_points'] = {'console_scripts':['desiInstall = desiutil.install.main:main']}
 #
+# Add internal data directories.
+#
+setup_keywords['package_data'] = {'specter.test': ['t/*']}
+#
 # Run setup command.
 #
 setup(**setup_keywords)
