@@ -1,0 +1,328 @@
+===========
+PSF Formats
+===========
+
+Base PSF
+--------
+
+*NOTE*: we are in the process of switching the format of how x and y vs.
+wavelength are stored.  This will create incompatibilities between old and
+new PSFs.
+
+HDUs 0 and 1 contain the PSF centroid x and y location vs. wavelength
+stored as Legendre polynomial coefficients::
+
+    HDU 0 : XCOEFF[nspec, ncoeff]
+    HDU 1 : YCOEFF[nspec, ncoeff]
+
+The header contains keywords WAVEMIN, WAVEMAX to define the wavelength
+range in Angstroms to map to domain [-1,1] for evaluating the Legendre
+polynomials.  *e.g.* the x position for spectrum i at wavelength::
+
+    w = 2.0*(w-WAVEMIN)/(WAVEMAX-WAVEMIN) - 1.0  #- Map to [-1,1]
+    x[i] = Sum_j XCOEFF[i,j] L_j(w)              #- evaluate Legendre series
+
+Or in Python::
+
+    import fitsio
+    from numpy.polynomial.legendre import legval
+    h = fitsio.read_header('psf.fits', 'XCOEFF')
+    xcoeff = fitsio.read('psf.fits', 'XCOEFF')
+    w = 2.0 * (wavelength-h['WAVEMIN']) / (h['WAVEMAX'] - h['WAVEMIN']) - 1.0
+    x = legval(w, xcoeff[i])
+
+Additional HDUs contain data specific to various parameterizations of the
+PSF as listed below.  Any additional extensions should be read by EXTNAME,
+not by number -- the order and number of other extensions is arbitrary.
+
+HDU 0 keywords:
+
+- NPIX\_X, NPIX\_Y : CCD dimensions in pixels
+
+(x,y) coordinates are *centered* on each pixel and start counting at 0.
+i.e. the lower left corner of the CCD is (-0.5, -0.5) and the center of
+the lower left pixel is (0,0).
+
+Optional HDU EXTNAME=THROUGHPUT in the format as described in
+throughput.md .  *i.e.* the throughput may be kept in a separate FITS file,
+or bundled with the instrument PSF for convenience.
+
+If throughput isn't available, the PSF can still be used to project
+photons onto a CCD, but not flux in erg/s/cm^2/A .
+
+Old format for x and y
+~~~~~~~~~~~~~~~~~~~~~~
+
+The old base PSF format parameterized x and y vs. wavelength as::
+
+    HDU 0 : x[nspec, nwave]             EXTNAME="X"
+    HDU 1 : y[nspec, nwave]             EXTNAME="Y"
+    HDU 2 : wavelength[nspec, nwave]    EXTNAME="WAVELENGTH", or
+            loglam[nspec, nwave]        EXTNAME="LOGLAM"
+    HDU 3+ : specific to each subformat
+
+We may revive this format.
+
+
+Spot Grid PSF
+-------------
+
+PSFTYPE = "SPOTGRID"
+
+This PSF type provides an x,y grid of spots to be interpolated.
+The first interpolation dimension must monotonically increase with
+spectrum number, *e.g.* the position of a fiber along a slit head.
+The second interpolation dimension is wavelength.
+
+HDU 0-2 : Same as Base PSF: X, Y, wavelength or loglam of traces::
+
+    HDU SPOTS : spot[i, j, iy, ix]    #- 2D PSF spots
+        NAXIS1 = i  = number of spot samples in the spectrum number dimension
+        NAXIS2 = j  = number of spot samples in the wavelength direction
+        NAXIS3 = iy = size of spot in the CCD y dimension
+        NAXIS4 = ix = size of spot in the CCD x direction
+
+    HDU SPOTX : spotx[NAXIS1, NAXIS2]   #- CCD X pixel loc of spot centroid
+    HDU SPOTY : spoty[NAXIS1, NAXIS2]   #- CCD Y pixel loc of spot centroid
+    HDU FIBERPOS : fiberpos[nspec]      #- Slit position of each fiber
+    HDU SPOTPOS  : spotpos[NAXIS1]      #- Slit positions where spots are sampled
+    HDU SPOTWAVE : spotwave[NAXIS2]     #- Wavelengths where spots are sampled
+
+``spot[i,j]`` is a 2D PSF spot sampled at slit position ``spotpos[i]`` and
+wavelength ``spotwave[j]``.  Its center is located on the CCD at
+``spotx[i,j], spoty[i,j]``.
+
+Pixellated PSF PCA expansion
+----------------------------
+
+PSFTYPE = "PCA-PIX"
+
+This format is a PCA-like pixelated model such that::
+
+    pix = ConstImage + x*ImageX + y*ImageY + x*y*ImageXY + ...
+
+HDU 0-2 : Same as Base PSF: X, Y, wavelength or loglam of traces
+
+HDU 3 : table with x and y exponents to use for each image model::
+
+    Columns IMODEL, XEXP, YEXP
+    One row per model image
+
+HDU 4 : table with x and y scale factors::
+
+    Columns IGROUP, X0, XSCALE, Y0, YSCALE
+    One row per fiber
+
+The model images are separately calculated for groups of fibers
+(could be bundles, but doesn't have to be).  Within each group,
+the x and y dimensions are rescaled such that::
+
+    x = xscale * (xpix - x0)
+    y = yscale * (ypix - y0)
+
+HDU 5 : 4-D array with the PSF images::
+
+    Array[IGROUP, IMODEL, IY, IX]
+
+*e.g.* to find the PSF for ifiber iflux::
+
+    xpix = HDU0[ifiber, iflux]
+    ypix = HDU1[ifiber, iflux]
+    x0 = HDU4.X0[ifiber]
+    y0 = HDU4.Y0[ifiber]
+    xscale = HDU4.XSCALE[ifiber]
+    yscale = HDU4.YSCALE[ifiber]
+    x = xscale*(xpix - x0)
+    y = yscale*(ypix - y0)
+
+    igroup = HDU4.IGROUP[ifiber]
+    psf = [BlankImage]
+    for imodel in range( len(HDU3) ):
+        xexp = HDU3.XEXP[imodel]
+        yexp = HDU3.YEXP[imodel]
+        psf += x^xexp * y^yexp * HDU5[igroup, imodel]
+
+Gauss Hermite PSF
+-----------------
+
+.. _`specex PSF package`: https://github.com/julienguy/specex
+
+This PSF format is generated by the `specex PSF package`_.
+All parameters are stored in HDU 1 as Legendre coefficients describing
+how each parameter varies with wavelength for each fiber.
+
+The PSF is modeled by two Gauss-Hermite cores with different sigmas,
+plus a semi-Lorentzian power-law tail.
+
+Header Keywords for HDU 1
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+========= ===========
+Parameter Description
+========= ===========
+PSFTYPE   Must be 'GAUSS-HERMITE2'
+PSFVER    Must be '1       '
+NPIX_X    number of columns in input CCD image
+NPIX_Y    number of rows in input CCD image
+HSIZEX    Half size of PSF in fit, NX=2*HSIZEX+1
+HSIZEY    Half size of PSF in fit, NY=2*HSIZEY+1
+BUNDLMIN  first bundle of fibers (starting at 0)
+BUNDLMAX  last bundle of fibers (included)
+FIBERMIN  first fiber (starting at 0)
+FIBERMAX  last fiber (included)
+NPARAMS   number of PSF parameters
+LEGDEG    degree of Legendre pol.(wave) for parameters
+GHDEGX    degree of Hermite polynomial along CCD columns
+GHDEGY    degree of Hermite polynomial along CCD rows
+GHDEGX2   degree of Hermite polynomial along CCD columns
+GHDEGY2   degree of Hermite polynomial along CCD rows
+========= ===========
+
+Binary table in HDU 1
+~~~~~~~~~~~~~~~~~~~~~
+
+======= ===========
+Column  Description
+======= ===========
+PARAM   Parameter name
+WAVEMIN Mininum wavelength
+WAVEMAX Maximum wavelength
+COEFF   Legendre coefficients.  Each row is size [NSPEC, LEGDEG+1]
+======= ===========
+
+Each row contains the coefficients for the parameter name in the PARAM column.
+WAVEMIN and WAVEMAX define the wavelength extent in Angstroms
+that should be mapped to [-1,1] for evaluating the Legendre polynomials.
+The coefficients themselves are in the rows of the COEFF column.  Each
+row of COEFF is a 2D array of shape [NSPEC, LEGDEG+1]
+
+The parameters named in the PARAM column are:
+
+========= ===========
+Parameter Description
+========= ===========
+X         CCD column coordinate (as a function of fiber and wavelength)
+Y         CCD row coordinate (as a function of fiber and wavelength) <BR/> (X,Y)=(0,0) means that PSF is centered on center of first pixel
+GHSIGX    Sigma of first Gaussian along CCD columns for PSF core
+GHSIGY    Sigma of first Gaussian along CCD rows for PSF core
+GHNSIG    NxSigma cutoff for first Gaussian-Hermite core term
+GHSIGX2   Sigma of second Gaussian along CCD columns for PSF wings
+GHSIGY2   Sigma of second Gaussian along CCD rows for PSF wings
+GH-i-j    Hermite pol. coefficents, i along columns, j along rows, <BR/> i is integer from 0 to GHDEGX, j is integer from 0 to GHDEGY,  <BR/> there are (GHDEGX+1)*(GHDEGY+1) such coefficents.
+GH2-i-j   Hermite pol. coefficents for sec. GH psf, i=columns, j=rows
+TAILAMP   Amplitude of PSF tail
+TAILCORE  Size in pixels of PSF tail saturation in PSF core
+TAILXSCA  Scaling apply to CCD coordinate along columns for PSF tail
+TAILYSCA  Scaling apply to CCD coordinate along rows for PSF tail
+TAILINDE  Asymptotic power law index of PSF tail
+CONT      Continuum flux in arc image (not part of PSF)
+========= ===========
+
+These are evaluated as::
+
+    PSF_core1(X,Y) = SUM_ij (GH-i-j)*HERM(i,X/GHSIGX)*HERM(j,Y/GHSIGY)
+                    * GAUS(X,GHSIGX)*GAUS(Y,GHSIGY)
+    --> Evaluated only for pixels where (X/GHSIGX)^2 + (Y/GHSIGY)^2 < GHNSIG^2
+
+    PSF_core2(X,Y) = SUM_ij (GH2-i-j)*HERM(i,X/GHSIGX2)*HERM(j,Y/GHSIGY2)
+                    * GAUS(X,GHSIGX2)*GAUS(Y,GHSIGY2)
+
+    PSF_tail(X,Y) = TAILAMP*R^2/(TAILCORE^2+R^2)^(1+TAILINDE/2)
+                    with R^2=(X*TAILXSCA)^2+(Y*TAILYSCA)^2
+
+PSF_core is *integrated* in each pixel.
+
+PSF_tail is not integrated, it is *evaluated* at the center of each pixel.
+
+For example, if PARAM[0] = 'X', this means that row 0 contains the
+Legendre coefficiencts for the X centroids of the PSFs on the CCD.:
+
+    # Map wavelength -> [-1,1]
+    w = 2.0*(wavelength - WAVEMIN[0]) / (WAVEMAX[0]-WAVEMIN[0]) - 1.0
+
+    # Evaluate the CCD X centroid for Fiber ispec
+    # x = Sum_i COEFF[ispec,i] * L_i(w)
+    from numpy.polynomial.legendre import legval
+    xcoeff = COEFF[0]   #- since PARAM[0] == 'X'
+    x = legval(w, xcoeff[ispec])
+
+Gauss Hermite PSF (Deprecated)
+------------------------------
+
+*NOTE* : This format is implemented but somewhat cumbersome.  We may
+abandon it for a simpler format.
+
+This format models the PSF as 2D Gauss-Hermite polynomials.  The coefficients
+of the polynomials are modeled as smoothly varying in (x,y) using 2D Legendre
+polynomials.  Spectra grouped in bundles with a smoothly
+varying solution within the bundle but independent of other bundles.
+
+HDU 0-2 : Same as Base PSF: X, Y, wavelength or loglam of traces::
+
+    PSFTYPE = "PCA-PIX"
+    PSFVERS = "2.0" or above
+
+HDU 3+ : One HDU per bundle of spectra on the CCD
+
+Header Keywords for HDUs 3+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+================== ===========
+Keyword            Meaning
+================== ===========
+GHSIGX, GHSIGY     Gauss-Hermite sigma in x and y directions [pixel units]
+GHDEGX, GHDEGY     Gauss-Hermite degree in x and y directions
+FIBERMIN, FIBERMAX Fibers covered by this bundle min to max inclusive, 0-indexed
+LXMIN, LXMAX       X-coordinate min/max to transform CCD x -> [-1,1] range for Legendre polynomial
+LYMIN, LYMAX       Y-coordinate min/max to transform CCD y -> [-1,1] range for Legendre polynomial
+LDEGX, LDEGY       Degree of Legendre polynomial in x and y directions
+================== ===========
+
+Data in HDU 3+
+~~~~~~~~~~~~~~
+
+A 4D image `coeff[GHDEGY+1, GHDEGX+1, LDEGY+1, LDEGX+1]` for that bundle.
+
+Example
+-------
+
+Find the PSF for fiber 5 at wavelength 6000 Angstroms:
+
+* Map fiber 5, wavelength 6000 A -> (x,y) on the CCD using HDUs 0-2:
+
+  - x = numpy.interp(6000, WAVELENGTH[5], X[5])
+  - y = numpy.interp(6000, WAVELENGTH[5], Y[5])
+
+* Find which bundle fiber 5 is included in (probably bundle 0 in HDU 3)
+
+  - Convert x,y -> to ranges [-1,1]
+
+    * xx = 2*(x-LXMIN)/(LXMAX - LXMIN) - 1
+    * yy = 2*(y-LYMIN)/(LYMAX - LYMIN) - 1
+
+* The Gauss-Hermite coefficent c_ij = Sum_kl data[i,j,k,l] L_k(yy) L_l(xx)
+  where L_k is the kth order Legendre Polynomial
+* PSF(dx, dy) = Sum_ij c_ij H_i(dy/GHSIGY) H_j(dx/GHSIGX)
+* Then integrate PSF(dx,dy) over the individual pixels
+
+  - In practice it is better to directly integrate the functions
+
+Notes
+-----
+
+This is different from the original Gauss-Hermite format used by bbspec.
+These may be distingished by the existence of PSFVERS >= 2.0
+
+Future versions of this format may also include additional HDUs to model
+the wings of the PSF and the covariance of the coefficients.
+
+Other PSF Formats
+-----------------
+
+Specter grew out of "bbspec" which includes PSF formats for:
+
+* 2D rotated asymmetric Gaussian
+* An older format for Gauss-Hermite polynomials
+
+These are structurally compatible with Specter PSFs but haven't been
+ported yet.
