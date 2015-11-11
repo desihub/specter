@@ -14,12 +14,14 @@ from uuid import uuid4
 from specter.test import test_data_dir
 from specter.psf import load_psf
 from specter.extract.ex2d import ex2d
+import specter.io
 
 from astropy.io import fits
 
 _base = uuid4().hex
 imgfile = 'testimg-'+_base+'.fits'
 specfile = 'testspec-'+_base+'.fits'
+specfile2 = 'testspec2-'+_base+'.fits'
 
 class TestBinScripts(unittest.TestCase):
 
@@ -73,6 +75,10 @@ class TestBinScripts(unittest.TestCase):
         self.assertTrue('IVAR' in fx)
         fx.close
         
+        #- Test the I/O routines while we have the file handy
+        image, ivar, hdr = specter.io.read_image(imgfile)
+        self.assertTrue(image.shape == ivar.shape)
+        
         os.remove(imgfile)
         cmd = cmd + ' --extra'
         err = os.system(cmd)
@@ -103,6 +109,13 @@ class TestBinScripts(unittest.TestCase):
         self.assertTrue('IVAR' in fx)
         self.assertTrue('WAVELENGTH' in fx)
         self.assertTrue('RESOLUTION' in fx)
+        
+        #- this is covered in the exspec binscript, but not yet visible to
+        #- coverage tools; try it here just for good measure
+        specter.io.write_spectra(specfile2,
+            fx['WAVELENGTH'].data, fx['FLUX'].data,
+            fx['IVAR'].data, fx['RESOLUTION'].data, fx[0].header)
+        
         fx.close()
             
 
