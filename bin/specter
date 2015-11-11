@@ -373,9 +373,8 @@ else:
 hx = fits.HDUList()
 hx.append(fits.PrimaryHDU(img, header=hdr))
 
-#- Add IVAR HDU if noise was added
-if opts.noise:
-    hx.append(fits.ImageHDU(1.0/var, name='IVAR'))
+#- Add IVAR HDU 
+hx.append(fits.ImageHDU(1.0/var, name='IVAR'))
 
 #--- Add additional HDUs with extra info about inputs ---
 if opts.extra:
