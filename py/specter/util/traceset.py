@@ -4,7 +4,7 @@ Handle sets of Legendre coefficients
 
 import sys
 import os
-import numpy as N
+import numpy as np
 from numpy.polynomial.legendre import legfit, legval
 
 class TraceSet(object):
@@ -22,8 +22,8 @@ class TraceSet(object):
         return self._coeff.shape[0]
         
     def _xnorm(self, x):
-        if not isinstance(x, (int,float,N.ndarray)):
-            x = N.array(x)
+        if not isinstance(x, (int,float,np.ndarray)):
+            x = np.array(x)
         return 2.0 * (x - self._xmin) / (self._xmax - self._xmin) - 1.0
         
     def eval(self, ispec, x):
@@ -36,7 +36,7 @@ class TraceSet(object):
                 ispec = range(self._coeff.shape[0])
             
             y = [legval(xx, self._coeff[i]) for i in ispec]
-            return N.array(y)
+            return np.array(y)
             
     # def __call__(self, ispec, x):
     #     return self.eval(ispec, x)
@@ -46,13 +46,13 @@ class TraceSet(object):
         Return a traceset modeling x vs. y instead of y vs. x
         """
         ytmp = self.eval(None, (self._xmin, self._xmax))
-        ymin = N.min(ytmp)
-        ymax = N.max(ytmp)
-        x = N.linspace(self._xmin, self._xmax, 1000)
+        ymin = np.min(ytmp)
+        ymax = np.max(ytmp)
+        x = np.linspace(self._xmin, self._xmax, 1000)
         if deg is None:
             deg = self._coeff.shape[1]+2
             
-        c = N.zeros((self.ntrace, deg+1))
+        c = np.zeros((self.ntrace, deg+1))
         for i in range(self.ntrace):
             y = self.eval(i, x)
             yy = 2.0 * (y-ymin) / (ymax-ymin) - 1.0
@@ -71,14 +71,14 @@ def fit_traces(x, yy, deg=5, domain=None):
     """
     nspec, nx = yy.shape
     assert len(x) == nx, "y.shape[1] ({}) != len(x) ({})".format(nx, len(x))
-    assert N.all(N.diff(x) > 0), "x not monotonically increasing"
+    assert np.all(np.diff(x) > 0), "x not monotonically increasing"
 
     if domain is None:
         xmin, xmax = x[0], x[-1]
     else:
         xmin, xmax = domain
         
-    c = N.zeros((nspec, deg+1))
+    c = np.zeros((nspec, deg+1))
     for i in range(nspec):
         xx = 2.0 * (x-xmin) / (xmax-xmin) - 1.0
         c[i] = legfit(xx, yy[i], deg)

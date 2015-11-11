@@ -108,13 +108,13 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
         outfile = 'LinAlgError_{}-{}_{}-{}.fits'.format(specrange[0], specrange[1], waverange[0], waverange[1])
         print "ERROR: Linear Algebra didn't converge"
         print "Dumping {} for debugging".format(outfile)
-        import fitsio
-        fitsio.write(outfile, image, clobber=True)
-        fitsio.write(outfile, ivar, extname='IVAR')
-        fitsio.write(outfile, A.data, extname='ADATA') 
-        fitsio.write(outfile, A.indices, extname='AINDICES')
-        fitsio.write(outfile, A.indptr, extname='AINDPTR')
-        fitsio.write(outfile, iCov.toarray(), extname='ICOV')
+        from astropy.io import fits
+        fits.writeto(outfile, image, clobber=True)
+        fits.append(outfile, ivar, name='IVAR')
+        fits.append(outfile, A.data, name='ADATA') 
+        fits.append(outfile, A.indices, name='AINDICES')
+        fits.append(outfile, A.indptr, name='AINDPTR')
+        fits.append(outfile, iCov.toarray(), name='ICOV')
         raise err
         
     #- Convolve with Resolution matrix to decorrelate errors

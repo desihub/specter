@@ -9,7 +9,7 @@ Summer 2013
 
 import sys
 import os
-import numpy as N
+import numpy as np
 import optparse
 import multiprocessing as MP
 
@@ -42,15 +42,14 @@ parser.add_option("--trimxy", action='store_true', help="Trim output image to ju
 
 opts, args = parser.parse_args()
 
-#- Load fitsio after the parsing so that you can get help even without fitsio
+#- Load astropy.io.fits after opt parsing; you can get help even without it
 try:
-    import fitsio
+    from astropy.io import fits
 except ImportError:
-    print >> sys.stderr, "ERROR: specter requires the fitsio package, available from"
-    print >> sys.stderr, "       https://github.com/esheldon/fitsio"
+    print >> sys.stderr, "ERROR: specter requires astropy.io.fits"
     sys.exit(1)
 
-#- If fitsio was there, safe to proceed with other imports
+#- If astropy.io.fits was there, safe to proceed with other imports
 import specter
 from specter.psf import load_psf
 from specter.throughput import load_throughput
@@ -85,7 +84,7 @@ if badopts:
     sys.exit(1)
 
 #- Set random seed to ensure reproducibility
-N.random.seed(opts.randseed)
+np.random.seed(opts.randseed)
 
 #- Load input PSF and throughtput
 psf = load_psf(opts.psf)
@@ -113,8 +112,8 @@ if opts.wavelength is not None:
     opts.wavelength = map(float, opts.wavelength.split(','))
     wmin, wmax = opts.wavelength
 else:
-    wmin = N.min( psf.wavelength(None, y=-0.5) )        #- bottom edge of CCD
-    wmax = N.max( psf.wavelength(None, y=psf.npix_y-0.5) ) #- top edge of CCD 
+    wmin = np.min( psf.wavelength(None, y=-0.5) )        #- bottom edge of CCD
+    wmax = np.max( psf.wavelength(None, y=psf.npix_y-0.5) ) #- top edge of CCD 
     opts.wavelength = [wmin, wmax]
     
 #- Load input spectra
@@ -125,23 +124,23 @@ flux = spectra['flux']
 units = spectra['units']
 
 #- Check if input spectra are less than PSF wavelength range
-if N.min(wavelength) > wmin:
-    opts.wavelength[0] = wmin = N.min(wavelength)
+if np.min(wavelength) > wmin:
+    opts.wavelength[0] = wmin = np.min(wavelength)
 
-if N.max(wavelength) < wmax:
-    opts.wavelength[1] = wmax = N.max(wavelength)
+if np.max(wavelength) < wmax:
+    opts.wavelength[1] = wmax = np.max(wavelength)
 
 #- Expand to 2D if necessary and trim wavelength range
 if wavelength.ndim == 1 and flux.ndim == 1:
     ii = (wmin <= wavelength) & (wavelength <= wmax)
     wavelength = wavelength[ii]
     flux = flux[ii]
-    wavelength = N.tile(wavelength, nspec).reshape(nspec, len(wavelength))
-    flux = N.tile(flux, nspec).reshape(nspec, len(flux))
+    wavelength = np.tile(wavelength, nspec).reshape(nspec, len(wavelength))
+    flux = np.tile(flux, nspec).reshape(nspec, len(flux))
 elif wavelength.ndim == 1 and flux.ndim == 2:
     ii = (wmin <= wavelength) & (wavelength <= wmax)
     wavelength = wavelength[ii]
-    wavelength = N.tile(wavelength, nspec).reshape(nspec, len(wavelength))
+    wavelength = np.tile(wavelength, nspec).reshape(nspec, len(wavelength))
 
     flux = flux[:, ii]
     if flux.shape[0] > nspec:
@@ -155,7 +154,7 @@ else:
 #- Expand objtype into array
 objtype = spectra['objtype']
 if isinstance(objtype, str) and (flux.ndim == 2):
-    objtype = N.array( [objtype,] * flux.shape[0] )
+    objtype = np.array( [objtype,] * flux.shape[0] )
 
 if units.endswith('/A/arcsec^2'):
     flux *= thru.fiberarea
@@ -169,10 +168,10 @@ if units.endswith('/A'):
     waverange = opts.wavelength[0], opts.wavelength[-1]
     xmin, xmax, ymin, ymax = psf.xyrange(specrange, opts.wavelength)
     dy = 0.25
-    yedges = N.arange(ymin-0.5, ymax-0.5+dy/2., dy)
+    yedges = np.arange(ymin-0.5, ymax-0.5+dy/2., dy)
     ymid = (yedges[0:-1] + yedges[1:])/2
-    newwave = N.zeros( (nspec, len(ymid)) )
-    newflux = N.zeros( (nspec, len(ymid)) )
+    newwave = np.zeros( (nspec, len(ymid)) )
+    newflux = np.zeros( (nspec, len(ymid)) )
     for i in range(nspec):
         wedges = psf.wavelength(i, y=yedges)
         wmid = psf.wavelength(i, y=ymid)
@@ -192,10 +191,10 @@ for i in range(flux.shape[0]):
 #- Convert flux to photons, and 1D -> 2D if needed
 if flux.ndim == 1:
     photons = thru.photons(wavelength, flux, units, objtype=objtype[0])
-    photons = N.tile(photons, nspec).reshape(nspec, len(photons))
-    wavelength = N.tile(wavelength, nspec).reshape(nspec, len(wavelength))
+    photons = np.tile(photons, nspec).reshape(nspec, len(photons))
+    wavelength = np.tile(wavelength, nspec).reshape(nspec, len(wavelength))
 else:
-    photons = N.zeros(flux.shape)
+    photons = np.zeros(flux.shape)
     for i in range(photons.shape[0]):
         photons[i] = thru.photons(wavelength[i], flux[i], units, objtype=objtype[i])
 
@@ -246,7 +245,7 @@ else:
     images = pool.map(project, arglist)
 
     #- Add the individual images
-    img = reduce(N.add, images)
+    img = reduce(np.add, images)
 
 #- Alternate parallel method; maybe has less overhead
 """
@@ -267,20 +266,20 @@ add them
 #- Read imput CCD image
 if opts.image:
     print "Loading input image"
-    fx = fitsio.FITS(opts.image)
-    input_image = fx[0].read()
+    fx = fits.open(opts.image)
+    input_image = fx[0].data
     opts.readnoise = 0.0   #- Assume input image already has read noise
 
     #- Read inverse variance or derive from image
-    if 'IVAR' in fx.hdu_map:
-        input_var = 1.0/fx['IVAR'].read()
+    if 'IVAR' in fx:
+        input_var = 1.0/fx['IVAR'].data
     elif len(fx) > 1:
-        input_var = 1.0/fx[1].read()
+        input_var = 1.0/fx[1].data
     else:
         #- Robust noise estimate; RMS would get pulled by cosmic outliers.
         #- Assume sparse image of mostly noise; 68.27% is outside
         #- of +/- 1 sigma so 15.865% is below 1 sigma downward
-        sigma = N.median(input_image) - N.percentile(input_image, 15.865)
+        sigma = np.median(input_image) - np.percentile(input_image, 15.865)
         input_var = sigma**2
         input_readnoise = sigma
 
@@ -291,7 +290,7 @@ if opts.image:
                 input_var = input_var[ymin:ymax, xmin:xmax]
 
     #- Read or derive read noise
-    hdr = fx[0].read_header()
+    hdr = fx[0].header
     if 'RDNOISE' in hdr:
         input_readnoise = hdr['RDNOISE']
     else:
@@ -302,9 +301,9 @@ if opts.image:
             if key in hdr:
                 amp_noise.append(hdr[key])
         if len(amp_noise) > 0:
-            input_readnoise = N.mean(amp_noise)
+            input_readnoise = np.mean(amp_noise)
         else:
-            input_readnoise = N.sqrt(N.median(input_var))   #- ???
+            input_readnoise = np.sqrt(np.median(input_var))   #- ???
             
     fx.close()  #- close input image file
 
@@ -317,15 +316,15 @@ if opts.noise:
     print "Adding noise"
     if opts.gaussnoise:
         print "Adding Gaussian (not Poisson) noise"
-        img += N.random.normal(scale=N.sqrt(var))
+        img += np.random.normal(scale=np.sqrt(var))
     else:
         #- photon shot noise (float -> int)
-        img = N.random.poisson(img)
+        img = np.random.poisson(img)
         
         #- Convert to ADU, add gaussian read noise, then integerize
         adu = img/opts.gain
         if opts.readnoise > 0:
-            adu += N.random.normal(scale=opts.readnoise/opts.gain, size=img.shape)
+            adu += np.random.normal(scale=opts.readnoise/opts.gain, size=img.shape)
                     
         adu = (adu+0.5).astype(int)  #- Integerize ADU
         img = adu * opts.gain        #- back to photons (and back to float)
@@ -351,66 +350,69 @@ else:
         
 #- Write output
 print "Writing", opts.output
-fitsio.write(opts.output, img, clobber=True, extname="CCDIMAGE")
 
-#- Update header keywords
-fx = fitsio.FITS(opts.output, 'rw')
-fx[0].write_key('SIMDATA', True, 'Simulated image written by Specter')
-fx[0].write_key('PREPROC', True, 'Preproc done (1=True, 0=False)')
-fx[0].write_key('GAIN', opts.gain, 'Gain [e-/ADU]')
-fx[0].write_key('RDNOISE', output_readnoise, 'Read noise [e-]')    
+hdr = fits.Header()
+hdr['EXTNAME'] = 'CCDIMAGE'
+hdr['SIMDATA'] = (True, 'Simulated image written by Specter')
+hdr['PREPROC'] = (True, 'Preproc done (1=True, 0=False)')
+hdr['GAIN'] = (opts.gain, 'Gain [e-/ADU]')
+hdr['RDNOISE'] = (output_readnoise, 'Read noise [e-]')
 if opts.trimxy:
     #- TO DO: check logic; is -ymin, -xmin correct?  or -1 of that?
     #- is order correct?
-    fx[0].write_key('CRPIX0', -xyrange[0])  #- negative xmin
-    fx[0].write_key('CRPIX0', -xyrange[2])  #- negative ymin
+    hdr['CRPIX0'] = -xyrange[0]  #- negative xmin
+    hdr['CRPIX1'] = -xyrange[2]  #- negative ymin
 
 if opts.gaussnoise:
-    fx[0].write_key('SIMNOISE', 'Gaussian', 'Gaussian noise (not Poisson)')
+    hdr['SIMNOISE'] = ('Gaussian', 'Gaussian noise (not Poisson)')
 elif opts.noise:
-    fx[0].write_key('SIMNOISE', 'Poisson', 'Poisson photon noise + Gaussian read noise')
+    hdr['SIMNOISE'] = ('Poisson', 'Poisson photon noise + Gaussian read noise')
 else:
-    fx[0].write_key('SIMNOISE', 'None', "No noise (can't you tell?)")
+    hdr['SIMNOISE'] = ('None', "No noise (can't you tell?)")
 
-fx.close()
+hx = fits.HDUList()
+hx.append(fits.PrimaryHDU(img, header=hdr))
 
 #- Add IVAR HDU if noise was added
 if opts.noise:
-    fitsio.write(opts.output, 1.0/var, extname='IVAR')
+    hx.append(fits.ImageHDU(1.0/var, name='IVAR'))
 
-#--- Write additional HDUs with extra info about inputs ---
+#--- Add additional HDUs with extra info about inputs ---
 if opts.extra:
     #- Trim arrays to just those with information    
-    ii = N.where(N.any(photons>0, axis=0))[0]
+    ii = np.where(np.any(photons>0, axis=0))[0]
     ii = range(ii[0], ii[-1]+1)
     photons = photons[:, ii]
     wavelength = wavelength[:, ii]
     nwave = wavelength.shape[1]
 
     #- Spectra in photon units
-    a = N.array(zip(photons, wavelength),
+    a = np.array(zip(photons, wavelength),
                 dtype=[('PHOTONS',     str(photons.dtype), (nwave,)),
                        ('WAVELENGTH',  str(wavelength.dtype), (nwave,)),
                        ])
-    hdr = [dict(name='SPECMIN', value=opts.specrange[0], comment="First spectrum index"), ]
-    fitsio.write(opts.output, a, extname='PHOTONS', header=hdr)
+    hdr = fits.Header()
+    hdr['SPECMIN'] = (opts.specrange[0], 'First spectrum index')
+    hx.append(fits.BinTableHDU(a, header=hdr, name='PHOTONS'))
     
     #- X,Y vs. wavelength
-    yy = N.arange(psf.npix_y)
-    y = N.tile(yy, nspec).reshape(nspec, psf.npix_y)
-    x = N.zeros(y.shape)
-    w = N.zeros(y.shape)
+    yy = np.arange(psf.npix_y)
+    y = np.tile(yy, nspec).reshape(nspec, psf.npix_y)
+    x = np.zeros(y.shape)
+    w = np.zeros(y.shape)
     
     for i in range(nspec):
         w[i] = psf.wavelength(ispec=i+opts.specrange[0], y=yy)
         x[i] = psf.x(ispec=i+opts.specrange[0], wavelength=w[i])
     
-    a = N.array(zip(x, y, w),
+    a = np.array(zip(x, y, w),
                 dtype=[('X', str(x.dtype), (psf.npix_y,)),
                        ('Y', str(y.dtype), (psf.npix_y,)),
                        ('WAVELENGTH',  str(wavelength.dtype), (psf.npix_y,)),
                        ])
-    fitsio.write(opts.output, a, extname='XYWAVE', header=hdr)
+    hx.append(fits.BinTableHDU(a, header=hdr, name='XYWAVE'))
+    
+hx.writeto(opts.output, clobber=True)
 
 if opts.debug:
     #--- DEBUG ---
@@ -419,4 +421,3 @@ if opts.debug:
     import IPython
     IPython.embed()
     #--- DEBUG ---
-    

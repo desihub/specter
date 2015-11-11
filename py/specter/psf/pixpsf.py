@@ -6,16 +6,16 @@ Pixelated 2D PSF
 David Schlegel & Stephen Bailey, Summer 2011
 """
 
-import numpy as N
+import numpy as np
 import scipy.signal
-import fitsio
+from astropy.io import fits
 from specter.psf import PSF
 from specter.util import sincshift
 
 #- Turn off complex -> real warnings in sinc interpolation
 import warnings 
 try:
-	warnings.simplefilter("ignore", N.ComplexWarning)
+	warnings.simplefilter("ignore", np.ComplexWarning)
 except   AttributeError:
 	pass
 	
@@ -31,10 +31,11 @@ class PixPSF(PSF):
         PSF.__init__(self, filename)
         
         #- Additional headers are a custom format for the pixelated psf
-        fx = fitsio.FITS(filename)
-        self.nexp     = fx[3].read().view(N.ndarray)  #- icoeff xexp yexp
-        self.xyscale  = fx[4].read().view(N.ndarray)  #- ifiber igroup x0 xscale y0 yscale
-        self.psfimage = fx[5].read().view(N.ndarray)  #- [igroup, icoeff, iy, ix]
+        fx = fits.open(filename)
+        self.nexp     = fx[3].data.view(np.ndarray)  #- icoeff xexp yexp
+        self.xyscale  = fx[4].data.view(np.ndarray)  #- ifiber igroup x0 xscale y0 yscale
+        self.psfimage = fx[5].data.view(np.ndarray)  #- [igroup, icoeff, iy, ix]
+        fx.close()
                 
     def _xypix(self, ispec, wavelength):
         """
@@ -57,7 +58,7 @@ class PixPSF(PSF):
         yy = yscale * (y - y0)
         
         #- Generate PSF image at (x,y)
-        psfimage = N.zeros(self.psfimage.shape[2:4])
+        psfimage = np.zeros(self.psfimage.shape[2:4])
         for i in range(self.psfimage.shape[1]):
             nx = self.nexp['XEXP'][i]
             ny = self.nexp['YEXP'][i]
