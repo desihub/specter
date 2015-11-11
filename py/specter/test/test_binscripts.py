@@ -27,7 +27,7 @@ class TestBinScripts(unittest.TestCase):
         self.specter_dir = os.path.dirname( # top-level
             os.path.dirname( # py/
                 os.path.dirname( # specter/
-                    os.path.dirname(__file__) # test/
+                    os.path.dirname(os.path.abspath(__file__)) # test/
                     )
                 )
             )
@@ -38,7 +38,7 @@ class TestBinScripts(unittest.TestCase):
           -w 7500,7620,{dwave} \
           --specrange {specmin},{specmax}"""
 
-    @unittest.skip("Scripts need to be refactored for test purposes.")
+    ## @unittest.skip("Scripts need to be refactored for test purposes.")
     def test_aa(self):
         cmd = """{executable} {specter_dir}/bin/specter \
           -i {specter_dir}/data/sky/sky-uves.fits \
@@ -70,7 +70,7 @@ class TestBinScripts(unittest.TestCase):
         self.assertTrue('XYWAVE' in fx)
         fx.close
 
-    @unittest.skip("Scripts need to be refactored for test purposes.")
+    ## @unittest.skip("Scripts need to be refactored for test purposes.")
     def test_bb(self):
         for dwave in [1.0, 2.0]:
             cmd = self.exspec_cmd.format(
@@ -86,14 +86,15 @@ class TestBinScripts(unittest.TestCase):
             self.assertTrue(os.path.exists(specfile))
             
         fx = fits.open(specfile)
+        print(fx.info())
         self.assertTrue('FLUX' in fx)
         self.assertTrue('IVAR' in fx)
-        self.assertTrue('WAVE' in fx)
+        self.assertTrue('WAVELENGTH' in fx)
         self.assertTrue('RESOLUTION' in fx)
         fx.close()
             
 
-    @unittest.skip("Scripts need to be refactored for test purposes.")
+    ## @unittest.skip("Scripts need to be refactored for test purposes.")
     def test_cc(self):
         #- Also check it works for the last fibers and not just the first ones
         cmd = self.exspec_cmd.format(
