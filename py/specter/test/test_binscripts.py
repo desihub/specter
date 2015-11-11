@@ -38,7 +38,20 @@ class TestBinScripts(unittest.TestCase):
           -w 7500,7620,{dwave} \
           --specrange {specmin},{specmax}"""
 
-    ## @unittest.skip("Scripts need to be refactored for test purposes.")
+        #- Add this package to PYTHONPATH so that binscripts can find it
+        try:
+            self.origPath = os.environ['PYTHONPATH']
+            os.environ['PYTHONPATH'] = os.path.join(self.specter_dir,'py') + ':' + self.origPath
+        except KeyError:
+            self.origPath = None
+            os.environ['PYTHONPATH'] = os.path.join(self.specter_dir,'py')
+        
+    def tearDown(self):
+        if self.origPath is None:
+            del os.environ['PYTHONPATH']
+        else:
+            os.environ['PYTHONPATH'] = self.origPath
+
     def test_aa(self):
         cmd = """{executable} {specter_dir}/bin/specter \
           -i {specter_dir}/data/sky/sky-uves.fits \
@@ -70,7 +83,6 @@ class TestBinScripts(unittest.TestCase):
         self.assertTrue('XYWAVE' in fx)
         fx.close
 
-    ## @unittest.skip("Scripts need to be refactored for test purposes.")
     def test_bb(self):
         for dwave in [1.0, 2.0]:
             cmd = self.exspec_cmd.format(
@@ -94,7 +106,6 @@ class TestBinScripts(unittest.TestCase):
         fx.close()
             
 
-    ## @unittest.skip("Scripts need to be refactored for test purposes.")
     def test_cc(self):
         #- Also check it works for the last fibers and not just the first ones
         cmd = self.exspec_cmd.format(
