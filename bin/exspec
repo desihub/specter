@@ -10,9 +10,8 @@ import os.path
 import numpy as np
 from time import time
 
-import fitsio
-
 import specter
+from specter import io
 from specter.psf import load_psf
 from specter.extract import ex2d
 
@@ -44,8 +43,7 @@ nspec = specmax-specmin
 
 #- Load input files
 psf = load_psf(opts.psf)
-img, imghdr = fitsio.read(opts.input, 0, header=True)
-imgivar = fitsio.read(opts.input, 1)
+img, imgivar, imghdr = io.read_image(opts.input)
 
 #- Confirm that this PSF covers these wavelengths for these spectra
 psf_wavemin = np.max(psf.wavelength(range(specmin, specmax), y=0))
@@ -153,26 +151,21 @@ def trim(filepath, maxchar=40):
     if len(filepath) > maxchar:
         return '...'+filepath[-maxchar:]
 
-imghdr['EXTNAME'] = 'FLUX'
-imghdr.add_record(dict(name='SPECMIN', value=specmin, comment='First spectrum'))
-imghdr.add_record(dict(name='SPECMAX', value=specmax-1, comment='Last spectrum'))
-imghdr.add_record(dict(name='NSPEC', value=specmax-specmin, comment='Number of spectra'))
-imghdr.add_record(dict(name='WAVEMIN', value=wmin, comment='First wavelength [Angstroms]'))
-imghdr.add_record(dict(name='WAVEMAX', value=wmax, comment='Last wavelength [Angstroms]'))
-imghdr.add_record(dict(name='WAVESTEP', value=dw, comment='Wavelength step size [Angstroms]'))
-imghdr.add_record(dict(name='SPECTER', value=specter.__version__, comment='https://github.com/sbailey/specter'))
-imghdr.add_record(dict(name='IN_PSF', value=trim(opts.psf), comment='Input spectral PSF'))
-imghdr.add_record(dict(name='IN_IMG', value=trim(opts.input), comment='Input image'))
-### hdr.append(dict(name='RESMATND', value=ndiag, comment='Number of off-diagonal from Res Matrix'))
+imghdr['SPECMIN'] = (specmin, 'First spectrum')
+imghdr['SPECMAX'] = (specmax-1, 'Last spectrum')
+imghdr['NSPEC']   = (specmax-specmin, 'Number of spectra')
+imghdr['WAVEMIN'] = (wmin, 'First wavelength [Angstroms]')
+imghdr['WAVEMAX'] = (wmax, 'Last wavelength [Angstroms]')
+imghdr['WAVESTEP']= (dw, 'Wavelength step size [Angstroms]')
+imghdr['SPECTER'] = (specter.__version__, 'https://github.com/desihub/specter')
+imghdr['IN_PSF']  = (trim(opts.psf), 'Input spectral PSF')
+imghdr['IN_IMG']  = (trim(opts.input), 'Input image')
 
 outdir = os.path.dirname(opts.output)
 if (outdir != '') and (not os.path.exists(outdir)):
     os.makedirs(outdir)
 
-fitsio.write(opts.output, flux, extname='FLUX', header=imghdr, clobber=True)
-fitsio.write(opts.output, ivar, extname='IVAR')
-fitsio.write(opts.output, wavelengths, extname='WAVELENGTH')
-fitsio.write(opts.output, Rd, extname='RESOLUTION')
+io.write_spectra(opts.output, wavelengths, flux, ivar, Rd, imghdr)
 
 
 

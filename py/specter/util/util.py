@@ -6,7 +6,7 @@ Fall 2012
 """
 
 import math
-import numpy as N
+import numpy as np
 import scipy.signal
 from scipy.special import legendre
 from scipy.sparse import spdiags
@@ -37,9 +37,9 @@ class LinearInterp2D(object):
         data[ix, iy, ...] : 3 or more dimensional array of data to interpolate
             first two coordinates are x and y
         """
-        self.x = N.array(x)
-        self.y = N.array(y)
-        self.data = N.array(data)
+        self.x = np.array(x)
+        self.y = np.array(y)
+        self.data = np.array(data)
 
     def __call__(self, x, y):
         """
@@ -51,8 +51,8 @@ class LinearInterp2D(object):
         #- Find where we are in grid
         #- clip to 1 because we will use i and i-1
         #- clip to len(x)-1 to allow extrapolation beyond grid boundary
-        ix = N.searchsorted(self.x, x).clip(1, len(self.x)-1)
-        iy = N.searchsorted(self.y, y).clip(1, len(self.y)-1)
+        ix = np.searchsorted(self.x, x).clip(1, len(self.x)-1)
+        iy = np.searchsorted(self.y, y).clip(1, len(self.y)-1)
         
         #- Interpolation distances from points
         dx = (x - self.x[ix-1]) / (self.x[ix] - self.x[ix-1])
@@ -103,7 +103,7 @@ def psfbias(p1, p2, wave, phot, ispec=0, readnoise=3.0):
     #- covariance matrix for each PSF
     iACov = A.T.dot(W.dot(A))
     iBCov = B.T.dot(W.dot(B))
-    BCov = N.linalg.inv(iBCov.toarray())
+    BCov = np.linalg.inv(iBCov.toarray())
     
     #- Resolution matricies
     RA, _ = resolution_from_icov(iACov)
@@ -148,7 +148,7 @@ def psfabsbias(p1, p2, wave, phot, ispec=0, readnoise=3.0):
     #- covariance matrix for each PSF
     iACov = A.T.dot(W.dot(A))
     iBCov = B.T.dot(W.dot(B))
-    BCov = N.linalg.inv(iBCov.toarray())
+    BCov = np.linalg.inv(iBCov.toarray())
     
     #- Resolution matricies
     RA, _ = resolution_from_icov(iACov)
@@ -176,10 +176,10 @@ def rebin_image(image, n):
 def _sincfunc(x, dx, dampfac=3.25):
     """sinc helper function for sincshift()"""
     if dx != 0.0:
-        xx = (x+dx)*N.pi  #- cache shifted array for 30% faster evals
-        return N.exp( -(xx/(dampfac*N.pi))**2 ) * N.sin(xx) / xx
+        xx = (x+dx)*np.pi  #- cache shifted array for 30% faster evals
+        return np.exp( -(xx/(dampfac*np.pi))**2 ) * np.sin(xx) / xx
     else:
-        xx = N.zeros(len(x))
+        xx = np.zeros(len(x))
         xx[len(x)/2] = 1.0
         return xx
 
@@ -192,7 +192,7 @@ def sincshift(image, dx, dy, sincrad=10, dampfac=3.25):
     For speed, do each dimension independently which can introduce edge
     effects.  Also see sincshift2d().
     """
-    s = N.arange(-sincrad, sincrad+1.0)
+    s = np.arange(-sincrad, sincrad+1.0)
     imgshape = image.shape
 
     if abs(dx) > 1e-6:
@@ -211,10 +211,10 @@ def sincshift2d(image, dx, dy, sincrad=10, dampfac=3.25):
     """
     Return image shifted by dx, dy using full 2D sinc interpolation
     """
-    s = N.arange(-sincrad, sincrad+1.0)
+    s = np.arange(-sincrad, sincrad+1.0)
     sincx = _sincfunc(s, -dx, dampfac=dampfac)
     sincy = _sincfunc(s, -dy, dampfac=dampfac)
-    kernel = N.outer(sincy, sincx)
+    kernel = np.outer(sincy, sincx)
     newimage = convolve2d(image, kernel, mode='same')
     return newimage
 
@@ -230,7 +230,7 @@ def gausspix(x, mean=0.0, sigma=1.0):
     """
     Return Gaussian(mean,sigma) integrated over unit width pixels centered at x[].
     """
-    edges = N.concatenate((x-0.5, x[-1:]+0.5))
+    edges = np.concatenate((x-0.5, x[-1:]+0.5))
     integrals = gaussint(edges, mean=mean, sigma=sigma)
     return integrals[1:] - integrals[0:-1]
     
@@ -245,7 +245,7 @@ def weighted_solve(A, b, w):
     W = spdiags(w, [0,], n, n)
     y = A.T.dot(W.dot(b))
     iCov = A.T.dot(W.dot(A))
-    x = N.linalg.lstsq(iCov, y)[0]
+    x = np.linalg.lstsq(iCov, y)[0]
     return x, iCov
 
 def trapz(edges, xp, yp):
@@ -257,20 +257,20 @@ def trapz(edges, xp, yp):
     
     See also numpy.trapz, which integrates a single array
     """
-    if N.any(N.diff(xp) < 0.0):
+    if np.any(np.diff(xp) < 0.0):
         raise ValueError("Input x must be sorted in increasing order")
     
     if len(xp) != len(yp):
         raise ValueError("xp and yp must have same length")
 
-    yedge = N.interp(edges, xp, yp)
-    result = N.zeros(len(edges)-1)
-    iedge = N.searchsorted(xp, edges)
+    yedge = np.interp(edges, xp, yp)
+    result = np.zeros(len(edges)-1)
+    iedge = np.searchsorted(xp, edges)
     for i in range(len(edges)-1):
         ilo, ihi = iedge[i], iedge[i+1]
-        xx = N.concatenate( (edges[i:i+1], xp[ilo:ihi], edges[i+1:i+2]) )
-        yy = N.concatenate( (yedge[i:i+1], yp[ilo:ihi], yedge[i+1:i+2]) )
-        result[i] = N.trapz(yy, xx)
+        xx = np.concatenate( (edges[i:i+1], xp[ilo:ihi], edges[i+1:i+2]) )
+        yy = np.concatenate( (yedge[i:i+1], yp[ilo:ihi], yedge[i+1:i+2]) )
+        result[i] = np.trapz(yy, xx)
         
     return result
     
@@ -284,7 +284,7 @@ def model_function(x, y):
     TODO: Replace with quadratic spline instead of linear.
     """
     nx = len(x)
-    B = N.ones((3, nx)) * 0.75  #- B[1] = 0.75 for all entries
+    B = np.ones((3, nx)) * 0.75  #- B[1] = 0.75 for all entries
     B[0,1] = B[2, -2] = 0.25
     B[0,0] = B[-1,-1] = 0.0     #- doesn't really matter; unused
     dx1 = x[1:] - x[0:-1]
@@ -307,7 +307,7 @@ def get_bin_edges(bin_centers):
     edge[i] = 0.5*(center[i-1] + center[i]) for 0 < i < len(center)-1
     """
     mid = 0.5*(bin_centers[0:-1] + bin_centers[1:])
-    return N.concatenate( (bin_centers[0:1], mid, bin_centers[-1:]) )
+    return np.concatenate( (bin_centers[0:1], mid, bin_centers[-1:]) )
     
 def resample(x, xp, yp, xedges=False, xpedges=False):
     """

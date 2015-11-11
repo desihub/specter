@@ -8,8 +8,8 @@ Fall 2012
 
 import sys
 import os
-import numpy as N
-import fitsio
+import numpy as np
+from astropy.io import fits
 from specter.psf import PSF
 from specter.util import LinearInterp2D, rebin_image, sincshift
 import scipy.interpolate
@@ -30,13 +30,13 @@ class SpotGridPSF(PSF):
         PSF.__init__(self, filename)
         
         #- Load extensions specific to this PSF type
-        fx = fitsio.FITS(filename)
-        self._spots = fx['SPOTS'].read()  #- PSF spots
-        # self._spotx  = fx['SPOTX'].read()   #- X location of spots
-        # self._spoty  = fx['SPOTY'].read()   #- Y location of spots
-        self._fiberpos = fx['FIBERPOS'].read()  #- Location of fibers on slit
-        self._spotpos = fx['SPOTPOS'].read()    #- Slit loc of sampled spots
-        self._spotwave = fx['SPOTWAVE'].read()  #- Wavelengths of spots
+        fx = fits.open(filename)
+        self._spots = fx['SPOTS'].data        #- PSF spots
+        # self._spotx  = fx['SPOTX'].data     #- X location of spots
+        # self._spoty  = fx['SPOTY'].data     #- Y location of spots
+        self._fiberpos = fx['FIBERPOS'].data  #- Location of fibers on slit
+        self._spotpos = fx['SPOTPOS'].data    #- Slit loc of sampled spots
+        self._spotwave = fx['SPOTWAVE'].data  #- Wavelengths of spots
         
         #- 2D linerar interpolators
         pp = self._spotpos
@@ -46,7 +46,7 @@ class SpotGridPSF(PSF):
         # self._fy    = LinearInterp2D(pp, ww, self._spoty)
         
         #- Read spot vs. CCD pixel scales from header
-        hdr = fx[0].read_header()
+        hdr = fx[0].header
         self.CcdPixelSize = hdr['CCDPIXSZ']  #- CCD pixel size in mm
         self.SpotPixelSize = hdr['PIXSIZE']  #- Spot pixel size in mm
         
@@ -151,7 +151,7 @@ class SpotGridPSF(PSF):
         #- Place high res spot into grid aligned with CCD pixels
         pix = self._fspot(p, w)
         ny, nx = pix.shape
-        A = N.zeros(shape=(pix.shape[0]+rpix, pix.shape[1]+rpix))
+        A = np.zeros(shape=(pix.shape[0]+rpix, pix.shape[1]+rpix))
         A[yoffset:yoffset+ny, xoffset:xoffset+nx] = pix
         ccdpix = rebin_image(A, rpix)
                 
@@ -163,12 +163,12 @@ class SpotGridPSF(PSF):
         
         #- sinc shift can cause negative ringing, so clip and re-normalize
         ccdpix = ccdpix.clip(0)
-        ccdpix /= N.sum(ccdpix)
+        ccdpix /= np.sum(ccdpix)
 
         #- Find where the [0,0] pixel goes on the CCD 
         #- Use floor() to get negative limits at edge of CCD correct
-        xccd = int(N.floor(xc - ccdpix.shape[1]/2 + 1))
-        yccd = int(N.floor(yc - ccdpix.shape[0]/2 + 1))
+        xccd = int(np.floor(xc - ccdpix.shape[1]/2 + 1))
+        yccd = int(np.floor(yc - ccdpix.shape[0]/2 + 1))
         
         xx = slice(xccd, xccd+ccdpix.shape[1])
         yy = slice(yccd, yccd+ccdpix.shape[0])

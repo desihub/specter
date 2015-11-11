@@ -13,9 +13,9 @@ March 2014
 
 import sys
 import os
-import numpy as N
+import numpy as np
 
-import fitsio
+from astropy.io import fits
 
 import optparse
 
@@ -29,7 +29,7 @@ nspec = 500  #- Hardcode!
 #- Sanity check that all spectra are represented
 specset = set()
 for filename in args:
-    xhdr = fitsio.read_header(filename)    
+    xhdr = fits.getheader(filename)    
     specset.update( set(range(xhdr['SPECMIN'], xhdr['SPECMAX']+1)) )
 
 if len(specset) != nspec:
@@ -37,26 +37,28 @@ if len(specset) != nspec:
     sys.exit(1)
 
 #- Read a file to get basic dimensions
-w = fitsio.read(args[0], 'WAVELENGTH')
+w = fits.getdata(args[0], 'WAVELENGTH')
 nwave = len(w)
-R1 = fitsio.read(args[0], 'RESOLUTION')
+R1 = fits.getdata(args[0], 'RESOLUTION')
 ndiag = R1.shape[1]
-hdr = fitsio.read_header(args[0])
+hdr = fits.getheader(args[0])
 hdr['SPECMIN'] = 0
 hdr['SPECMAX'] = nspec-1
 hdr['NSPEC'] = nspec
 
 #- Output arrays to fill
-flux = N.zeros( (nspec, nwave) )
-ivar = N.zeros( (nspec, nwave) )
-R = N.zeros( (nspec, ndiag, nwave) )
+flux = np.zeros( (nspec, nwave) )
+ivar = np.zeros( (nspec, nwave) )
+R = np.zeros( (nspec, ndiag, nwave) )
 
 #- Fill them!
 for filename in args:
-    xhdr = fitsio.read_header(filename)
-    xflux = fitsio.read(filename, 'FLUX')
-    xivar = fitsio.read(filename, 'IVAR')
-    xR = fitsio.read(filename, 'RESOLUTION')
+    fx = fits.open(filename)
+    xhdr = fx[0].header
+    xflux = fx['FLUX'].data
+    xivar = fx['IVAR'].data
+    xR = fx['RESOLUTION'].data
+    fx.close()
     
     lo = xhdr['SPECMIN']
     hi = xhdr['SPECMAX']+1
@@ -67,10 +69,7 @@ for filename in args:
     
 #- Write it out
 print "Writing", opts.output
-fitsio.write(opts.output, flux, extname='FLUX', header=hdr, clobber=True)
-fitsio.write(opts.output, ivar, extname='IVAR')
-fitsio.write(opts.output, w, extname='WAVELENGTH')
-fitsio.write(opts.output, R, extname='RESOLUTION')
+io.write_spectra(opts.output, w, flux, ivar, R, hdr)
 
 #- Scary!  Delete input files
 if opts.delete:

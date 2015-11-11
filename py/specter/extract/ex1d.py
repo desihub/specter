@@ -9,7 +9,7 @@ Spring 2013
 
 import sys
 import os
-import numpy as N
+import numpy as np
 import math
 
 from specter.util import gausspix, weighted_solve
@@ -51,22 +51,22 @@ def ex1d(img, mask, psf, readnoise=2.5,
     ymin, ymax = yrange if (yrange is not None) else (0, psf.npix_y)
     ny = ymax - ymin
     nx = img.shape[0]
-    xx = N.arange(nx)
+    xx = np.arange(nx)
     
-    spectra = N.zeros((nspec, ny))
-    specivar = N.zeros((nspec, ny))
+    spectra = np.zeros((nspec, ny))
+    specivar = np.zeros((nspec, ny))
     
     if model:
-        imgmodel = N.zeros(img.shape)
+        imgmodel = np.zeros(img.shape)
         
     #- Loop over groups of spectra
     for speclo in range(specmin, specmax, nspec_per_group):
         spechi = min(specmax, speclo+nspec_per_group)
                 
         #- Calc trace centers (x0) and gaussian sigmas (xsigma) for each row
-        allx0 = N.zeros((nspec_per_group, ymax-ymin))
-        allxsigma = N.zeros((nspec_per_group, ymax-ymin))
-        rows = N.arange(ymin, ymax)
+        allx0 = np.zeros((nspec_per_group, ymax-ymin))
+        allxsigma = np.zeros((nspec_per_group, ymax-ymin))
+        rows = np.arange(ymin, ymax)
         for ispec in range(speclo, spechi):
             w = psf.wavelength(ispec, y=rows)
             allx0[ispec-speclo] = psf.x(ispec, w)
@@ -91,7 +91,7 @@ def ex1d(img, mask, psf, readnoise=2.5,
                 xmax = int(0.5*(psf.x(spechi-1, wlo) + psf.x(spechi, wlo)) + 1)
                 
             #- Design matrix for pixels = A * flux for this row
-            A = N.zeros( (xmax-xmin, spechi-speclo) )
+            A = np.zeros( (xmax-xmin, spechi-speclo) )
             for ispec in range(speclo, spechi):
                 # w = psf.wavelength(ispec, y=row)
                 # x0 = psf.x(ispec, w)
@@ -110,7 +110,7 @@ def ex1d(img, mask, psf, readnoise=2.5,
 
             #- Solve weighting only by readnoise and mask
             nx = xmax-xmin
-            xvar = N.ones(nx)*readnoise**2 * (mask[row, xmin:xmax] == 0)
+            xvar = np.ones(nx)*readnoise**2 * (mask[row, xmin:xmax] == 0)
             tmpspec, iCov = weighted_solve(A, img[row, xmin:xmax], 1.0/xvar)
             
             #- Re-extract with weight incluing model shot noise

@@ -2,8 +2,8 @@
 MonoSpotPSF - ...
 """
 
-import numpy as N
-import fitsio
+import numpy as np
+from astropy.io import fits
 from specter.psf import PSF
 from specter.util import LinearInterp2D, rebin_image, sincshift
 
@@ -22,8 +22,8 @@ class MonoSpotPSF(PSF):
         PSF.__init__(self, filename)
         
         if spot is None:
-            self._spot = fitsio.read(filename, 'SPOT')
-            self._scale = fitsio.read_header(filename, 'SPOT')['SCALE']
+            self._spot = fits.getdata(filename, 'SPOT')
+            self._scale = fits.getheader(filename, 'SPOT')['SCALE']
         else:
             self._spot = spot.copy()
             self._scale = scale
@@ -43,7 +43,7 @@ class MonoSpotPSF(PSF):
 
         #- Place high res spot into grid aligned with CCD pixels
         ny, nx = self._spot.shape
-        A = N.zeros(shape=(ny+scale, nx+scale))
+        A = np.zeros(shape=(ny+scale, nx+scale))
         A[yoffset:yoffset+ny, xoffset:xoffset+nx] = self._spot
         ccdpix = rebin_image(A, scale)
 
@@ -55,7 +55,7 @@ class MonoSpotPSF(PSF):
 
         #- sinc shift can cause negative ringing, so clip and re-normalize
         ccdpix = ccdpix.clip(0)
-        ccdpix /= N.sum(ccdpix)
+        ccdpix /= np.sum(ccdpix)
 
         #- Find where the [0,0] pixel goes on the CCD 
         xccd = int(xc - ccdpix.shape[1]/2 + 1)

@@ -6,8 +6,58 @@ Stephen Bailey, LBL
 January 2013
 """
 
-import fitsio
-import numpy as N
+from astropy.io import fits
+import numpy as np
+
+def read_image(filename):
+    """
+    Read (image, ivar, header) from input filename
+    """
+    fx = fits.open(filename)
+    if 'IMAGE' in fx:
+        image = fx['IMAGE'].data
+        hdr = fx['IMAGE'].header
+    else:
+        image = fx[0].data
+        hdr = fx[0].header
+        
+    if 'IVAR' in fx:
+        ivar = fx['IVAR'].data
+    else:
+        ivar = fx[0].data
+    
+    fx.close()
+    return image, ivar, hdr
+
+def write_spectra(outfile, wave, flux, ivar, resolution, header):
+    """
+    Write spectra to outfile
+    
+    Args:
+        wave : 1D[nwave] array of wavelengths
+        flux : 2D[nspec, nwave] flux
+        ivar : 2D[nspec, nwave] inverse variance of flux
+        resolution : 3D[nspec, ndiag, nwave] sparse resolution matrix data
+        header : fits header to include in output
+        
+    Writes data to outfile in 4 HDUs with EXTNAME FLUX, IVAR, WAVE, RESOLUTION
+    """
+    assert wave.ndim == 1
+    assert flux.ndim == 2
+    assert resolution.ndim == 3
+    assert wave.shape[0] == flux.shape[1]
+    assert flux.shape == ivar.shape
+    assert flux.shape[0] == resolution.shape[0]
+    assert flux.shape[1] == resolution.shape[2]
+    
+    hx = fits.HDUList()
+    header['EXTNAME'] = 'FLUX'
+    hx.append(fits.PrimaryHDU(flux.astype(np.float32), header=header))
+    hx.append(fits.ImageHDU(ivar.astype(np.float32), name='IVAR'))
+    hx.append(fits.ImageHDU(wave.astype(np.float32), name='WAVELENGTH'))
+    hx.append(fits.ImageHDU(resolution.astype(np.float32), name='RESOLUTION'))
+    hx.writeto(outfile, clobber=True)
+    
 
 def read_simspec(filename):
     """
@@ -17,8 +67,8 @@ def read_simspec(filename):
     Returns a dictionary with keys flux, wavelength, units, objtype
     """
     
-    fx = fitsio.FITS(filename)
-    is_image = fx[0].has_data()
+    fx = fits.open(filename)
+    is_image = fx[0].data is not None
     fx.close()
     
     if is_image:
@@ -32,16 +82,16 @@ def read_simspec_image(filename):
     
     Returns a dictionary with keys flux, wavelength, units, objtype
     """
-    fx = fitsio.FITS(filename)
-    flux = fx[0].read()
-    header = fx[0].read_header()
-    if 'wavelength' in fx.hdu_map:
-        w = fx['WAVELENGTH'].read()
-    elif 'loglam' in fx.hdu_map:
-        w = 10**fx['loglam'].read()
+    fx = fits.open(filename)
+    flux = fx[0].data
+    header = fx[0].header
+    if 'wavelength' in fx:
+        w = fx['WAVELENGTH'].data
+    elif 'loglam' in fx:
+        w = 10**fx['loglam'].data
     else:
         nwave = flux.shape[-1]
-        w = header['CRVAL1'] + N.arange(nwave) * header['CDELT1']
+        w = header['CRVAL1'] + np.arange(nwave) * header['CDELT1']
         if 'LOGLAM' in header and header['LOGLAM']:
             w = 10**w
         #- DC-FLAG is deprecated, but still support it
@@ -51,7 +101,7 @@ def read_simspec_image(filename):
     #- Convert wavelength to 2D if needed
     if flux.ndim == 2 and w.ndim == 1:
         nspec, nwave = flux.shape
-        w = N.tile(w, nspec).reshape(nspec, nwave)
+        w = np.tile(w, nspec).reshape(nspec, nwave)
         
     #- Get object type or use default
     if 'OBJTYPE' in header:
@@ -66,6 +116,7 @@ def read_simspec_image(filename):
     else:
         raise ValueError("Unable to determine flux units; need either BUNIT or FLUXUNIT keyword")
         
+    fx.close()
     #- Get object type (CALIB, SKY, etc.)
     return dict(flux=flux, wavelength=w,
                 units=fluxunits, objtype=objtype)
@@ -76,8 +127,7 @@ def read_simspec_table(filename):
     
     Returns a dictionary with keys flux, wavelength, units, objtype
     """
-    spectra = fitsio.read(filename, 1, lower=True).view(N.recarray)
-    header = fitsio.read_header(filename, 1)
+    spectra, header = fits.getdata(filename, 1, header=True)
         
     #- Extract wavelength in various formats
     if 'wavelength' in spectra.dtype.names:
@@ -88,7 +138,7 @@ def read_simspec_table(filename):
         w = 10**spectra.loglam
     else:
         nwave = spectra.flux.shape[-1]
-        w = header['CRVAL1'] + N.arange(nwave) * header['CDELT1']
+        w = header['CRVAL1'] + np.arange(nwave) * header['CDELT1']
         if 'LOGLAM' in header and header['LOGLAM']:
             w = 10**w
         #- DC-FLAG is deprecated, but still support it
@@ -98,7 +148,7 @@ def read_simspec_table(filename):
     #- Convert wavelength to 2D if needed
     if spectra.flux.ndim == 2 and w.ndim == 1:
         nspec, nwave = spectra.flux.shape
-        w = N.tile(w, nspec).reshape(nspec, nwave)
+        w = np.tile(w, nspec).reshape(nspec, nwave)
         
     #- extract objtype
     if 'objtype' in spectra.dtype.names:

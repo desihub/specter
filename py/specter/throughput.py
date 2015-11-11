@@ -15,7 +15,7 @@ import sys
 import os
 import warnings
 import numpy as np
-import fitsio
+from astropy.io import fits
 import scipy.linalg
 from specter import util
 
@@ -34,13 +34,13 @@ def load_throughput(filename):
     """
     Create Throughput object from FITS file with EXTNAME=THROUGHPUT HDU
     """
-    fx = fitsio.FITS(filename)
-    thru = fx['THROUGHPUT'].read(lower=True)
-    hdr =  fx['THROUGHPUT'].read_header()
+    fx = fits.open(filename)
+    thru = fx['THROUGHPUT'].data
+    hdr =  fx['THROUGHPUT'].header
 
     #- Check for FIBERINPUT HDU
     if 'FIBERINPUT' in fx:
-        tmp = fx['FIBERINPUT'].read()
+        tmp = fx['FIBERINPUT'].data
         assert(len(tmp) == len(thru))
         fiberinput = dict()
         for key in tmp.dtype.names:
