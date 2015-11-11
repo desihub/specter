@@ -1,0 +1,28 @@
+[run]
+source = py/specter
+omit =
+   py/specter/_version.py
+   py/specter/conftest*
+   py/specter/cython_version*
+   py/specter/setup_package*
+   py/specter/*/setup_package*
+   py/specter/*/*/setup_package*
+   py/specter/sphinx/*
+   py/specter/test/*
+   py/specter/*/test/*
+   py/specter/*/*/test/*
+
+[report]
+exclude_lines =
+   # Have to re-enable the standard pragma
+   pragma: no cover
+
+   # Don't complain about packages we have installed
+   except ImportError
+
+   # Don't complain if tests don't hit assertions
+   raise AssertionError
+   raise NotImplementedError
+
+   # Don't complain about script hooks
+   def main\(.*\):
