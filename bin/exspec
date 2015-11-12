@@ -24,6 +24,7 @@ parser.add_option("-w", "--wavelength", type="string",  help="wavemin,wavemax,dw
 parser.add_option("-b", "--bundlesize", type="int",  help="num spectra per bundle", default=20)
 parser.add_option("-s", "--specrange", type="string",  help="specmin,specmax (python style)", default="0,10")
 parser.add_option("-r", "--regularize", type="float",  help="regularization amount (%default)", default=0.0)
+parser.add_option("-d", "--decorrelate", dest='decorr', action='store_true', help="use resolution matrix which decorrelates signal between fibers", default=False)
 parser.add_option("--nwavestep", type=int,  help="number of wavelength steps in core extraction region", default=50)
 ### parser.add_option("-x", "--xxx",   help="some flag", action="store_true")
 
@@ -119,7 +120,7 @@ for speclo in range(specmin, specmax, opts.bundlesize):
         #- Do the extraction
         specflux, specivar, R = \
             ex2d(subimg, subivar, psf, specrange=specrange, wavelengths=ww,
-                xyrange=xyrange, regularize=opts.regularize)
+                xyrange=xyrange, regularize=opts.regularize, decorrelate=opts.decorr)
 
         #- Fill in the final output arrays
         iispec = slice(speclo-specmin, spechi-specmin)
