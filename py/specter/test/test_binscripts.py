@@ -135,7 +135,7 @@ class TestBinScripts(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        for filename in [imgfile, specfile]:
+        for filename in [imgfile, specfile, specfile2]:
             if os.path.exists(filename):
                 print("Removing", filename)
                 os.remove(filename)
