@@ -76,16 +76,16 @@ class SpotGridPSF(PSF):
         xc, yc = self.xy(ispec, wavelength) # center of PSF in CCD coordinates
                 
         # fraction pixel offset requiring interpolation
-        dx=xc*rebin-int(xc*rebin) # positive value between 0 and 1
-        dy=yc*rebin-int(yc*rebin) # positive value between 0 and 1
+        dx=xc*rebin-int(np.floor(xc*rebin)) # positive value between 0 and 1
+        dy=yc*rebin-int(np.floor(yc*rebin)) # positive value between 0 and 1
         # weights for interpolation
         w00=(1-dy)*(1-dx)
         w10=dy*(1-dx)
         w01=(1-dy)*dx
         w11=dy*dx        
         # now the rest of the offset is an integer shift
-        dx=int(xc*rebin)-int(xc)*rebin # positive integer between 0 and 14
-        dy=int(yc*rebin)-int(yc)*rebin # positive integer between 0 and 14
+        dx=int(np.floor(xc*rebin))-int(np.floor(xc))*rebin # positive integer between 0 and 14
+        dy=int(np.floor(yc*rebin))-int(np.floor(yc))*rebin # positive integer between 0 and 14
         
         # resampled spot grid
         resampled_pix_spot_values=np.zeros((ny_spot+rebin,nx_spot+rebin))            
@@ -96,9 +96,15 @@ class SpotGridPSF(PSF):
             
         # rebinning
         ccd_pix_spot_values=resampled_pix_spot_values.reshape(ny_spot+rebin,nx_ccd,rebin).sum(2).reshape(ny_ccd,rebin,nx_ccd).sum(1)
-        
-        x_ccd_begin = int(xc)-nx_ccd/2+1  # begin of CCD coordinate stamp
-        y_ccd_begin = int(yc)-ny_ccd/2+1  # begin of CCD coordinate stamp
+        # make sure it's positive
+        ccd_pix_spot_values[ccd_pix_spot_values<0]=0.
+        # normalize
+        n=np.sum(ccd_pix_spot_values)
+        if n>0 :
+            ccd_pix_spot_values /= n
+
+        x_ccd_begin = int(np.floor(xc))-nx_ccd/2+1  # begin of CCD coordinate stamp
+        y_ccd_begin = int(np.floor(yc))-ny_ccd/2+1  # begin of CCD coordinate stamp
         xx = slice(x_ccd_begin, (x_ccd_begin+nx_ccd))
         yy = slice(y_ccd_begin, (y_ccd_begin+ny_ccd))
         return xx,yy,ccd_pix_spot_values
