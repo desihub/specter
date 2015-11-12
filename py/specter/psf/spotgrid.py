@@ -97,8 +97,8 @@ class SpotGridPSF(PSF):
         # rebinning
         ccd_pix_spot_values=resampled_pix_spot_values.reshape(ny_spot+rebin,nx_ccd,rebin).sum(2).reshape(ny_ccd,rebin,nx_ccd).sum(1)
         
-        x_ccd_begin = int(xc)-nx_ccd/2  # begin of CCD coordinate stamp
-        y_ccd_begin = int(yc)-ny_ccd/2  # begin of CCD coordinate stamp
+        x_ccd_begin = int(xc)-nx_ccd/2+1  # begin of CCD coordinate stamp
+        y_ccd_begin = int(yc)-ny_ccd/2+1  # begin of CCD coordinate stamp
         xx = slice(x_ccd_begin, (x_ccd_begin+nx_ccd))
         yy = slice(y_ccd_begin, (y_ccd_begin+ny_ccd))
         return xx,yy,ccd_pix_spot_values
