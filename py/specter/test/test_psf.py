@@ -235,7 +235,7 @@ class GenericPSFTests(object):
         self.assertEquals(img.shape, (self.psf.npix_y, self.psf.npix_x))
 
         #- specmin >= nspec should raise an error
-        with self.assertRaises(IndexError):
+        with self.assertRaises(ValueError):
             i = self.psf.nspec
             img = self.psf.project(ww, phot, specmin=i, verbose=False)
 

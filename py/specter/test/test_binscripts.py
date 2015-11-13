@@ -61,11 +61,12 @@ class TestBinScripts(unittest.TestCase):
           -t {specter_dir}/data/test/throughput.fits \
           -o {imgfile} \
           -w 7500,7620 \
-          -n -r 0,2 --exptime 1500""".format(
+          -n --specmin 0 --nspec 2 --exptime 1500""".format(
             executable=sys.executable,
             specter_dir=self.specter_dir,
             imgfile = imgfile,
             )
+        print(cmd)
         err = os.system(cmd)
         self.assertEqual(err, 0, 'Error code {} != 0'.format(err))
         self.assertTrue(os.path.exists(imgfile))
