@@ -228,9 +228,7 @@ else:
 print "Projecting spectra onto CCD"
 
 if opts.numcores == 1:
-    i = opts.inspecmin
-    n = opts.nspec
-    img = psf.project(wavelength[i:i+n], photons[i:i+n], specmin=specrange[0], xyrange=xyrange)
+    img = psf.project(wavelength, photons, specmin=specrange[0], xyrange=xyrange)
 else:
     #- Parallel version uses function passed to parallel map
     #- Input dictionary provides parameters

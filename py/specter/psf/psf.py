@@ -12,6 +12,7 @@ the interface defined in this base class.
 Stephen Bailey, Fall 2012
 """
 
+import sys
 import numpy as np
 ### import scipy.sparse
 from scipy.ndimage import center_of_mass
@@ -516,7 +517,7 @@ class PSF(object):
         """
         if specmin >= self.nspec:
             raise ValueError('specmin {} >= psf.nspec {}'.format(specmin, self.nspec))
-        if specmin+phot.shape[0] >= self.nspec:
+        if specmin+phot.shape[0] > self.nspec:
             print >> sys.stderr, "WARNING: specmin+npec ({}+{}) > psf.nspec {}".format(specmin, phot.shape[0], self.nspec)
         
         #- x,y ranges and number of pixels

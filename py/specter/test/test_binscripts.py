@@ -19,8 +19,9 @@ import specter.io
 from astropy.io import fits
 
 _base = uuid4().hex
-imgfile = 'testimg-'+_base+'.fits'
-specfile = 'testspec-'+_base+'.fits'
+imgfile1 = 'testimg1-'+_base+'.fits'
+imgfile2 = 'testimg2-'+_base+'.fits'
+specfile1 = 'testspec1-'+_base+'.fits'
 specfile2 = 'testspec2-'+_base+'.fits'
 
 class TestBinScripts(unittest.TestCase):
@@ -64,28 +65,28 @@ class TestBinScripts(unittest.TestCase):
           -n --specmin 0 --nspec 2 --exptime 1500""".format(
             executable=sys.executable,
             specter_dir=self.specter_dir,
-            imgfile = imgfile,
+            imgfile = imgfile1,
             )
         print(cmd)
         err = os.system(cmd)
         self.assertEqual(err, 0, 'Error code {} != 0'.format(err))
-        self.assertTrue(os.path.exists(imgfile))
+        self.assertTrue(os.path.exists(imgfile1))
         
-        fx = fits.open(imgfile)
+        fx = fits.open(imgfile1)
         self.assertTrue('CCDIMAGE' in fx)
         self.assertTrue('IVAR' in fx)
         fx.close
         
         #- Test the I/O routines while we have the file handy
-        image, ivar, hdr = specter.io.read_image(imgfile)
+        image, ivar, hdr = specter.io.read_image(imgfile1)
         self.assertTrue(image.shape == ivar.shape)
         
-        os.remove(imgfile)
+        os.remove(imgfile1)
         cmd = cmd + ' --extra'
         err = os.system(cmd)
         self.assertEqual(err, 0, 'Error code {} != 0'.format(err))
-        self.assertTrue(os.path.exists(imgfile))
-        fx = fits.open(imgfile)
+        self.assertTrue(os.path.exists(imgfile1))
+        fx = fits.open(imgfile1)
         self.assertTrue('PHOTONS' in fx)
         self.assertTrue('XYWAVE' in fx)
         fx.close
@@ -95,16 +96,16 @@ class TestBinScripts(unittest.TestCase):
             cmd = self.exspec_cmd.format(
                 executable=sys.executable,
                 specter_dir=self.specter_dir,
-                imgfile = imgfile,
-                specfile = specfile,
+                imgfile = imgfile1,
+                specfile = specfile1,
                 dwave = dwave,
                 specmin=0, nspec=2,
                 )
             err = os.system(cmd)
             self.assertEqual(err, 0, 'Error code {} != 0 with dwave={}'.format(err, dwave))
-            self.assertTrue(os.path.exists(specfile))
+            self.assertTrue(os.path.exists(specfile1))
             
-        fx = fits.open(specfile)
+        fx = fits.open(specfile1)
         print(fx.info())
         self.assertTrue('FLUX' in fx)
         self.assertTrue('IVAR' in fx)
@@ -125,18 +126,47 @@ class TestBinScripts(unittest.TestCase):
         cmd = self.exspec_cmd.format(
             executable=sys.executable,
             specter_dir=self.specter_dir,
-            imgfile = imgfile,
-            specfile = specfile,
+            imgfile = imgfile1,
+            specfile = specfile1,
             dwave = 1.0,
             specmin=498, nspec=2,
             )
         err = os.system(cmd)
         self.assertEqual(err, 0, 'Error code {} != 0 for --specrange=498,500'.format(err))
-        self.assertTrue(os.path.exists(specfile))
+        self.assertTrue(os.path.exists(specfile1))
+
+    def test_dd(self):
+        """Test both single core and dual core running"""
+        cmd = """{executable} {specter_dir}/bin/specter \
+          -i {specter_dir}/data/sky/sky-uves.fits \
+          -p {specter_dir}/data/test/psf-monospot.fits \
+          -t {specter_dir}/data/test/throughput.fits \
+          -w 7500,7620 \
+          --specmin 0 --nspec 2 --exptime 1500 --trimxy""".format(
+              executable=sys.executable,
+              specter_dir=self.specter_dir)
+
+        if os.path.exists(imgfile1):
+            os.remove(imgfile1)
+        if os.path.exists(imgfile2):
+            os.remove(imgfile2)
+        
+        err = os.system(cmd + " --numcores 1 -o " + imgfile1)
+        self.assertEqual(err, 0, 'Error code {} != 0'.format(err))
+        self.assertTrue(os.path.exists(imgfile1))
+
+        err = os.system(cmd + " --numcores 2 -o " + imgfile2)
+        self.assertEqual(err, 0, 'Error code {} != 0'.format(err))
+        self.assertTrue(os.path.exists(imgfile2))
+        
+        img1 = fits.getdata(imgfile1)
+        img2 = fits.getdata(imgfile2)
+        
+        self.assertTrue(np.allclose(img1, img2))
 
     @classmethod
     def tearDownClass(cls):
-        for filename in [imgfile, specfile, specfile2]:
+        for filename in [imgfile1, imgfile2, specfile1, specfile2]:
             if os.path.exists(filename):
                 print("Removing", filename)
                 os.remove(filename)
