@@ -1,21 +1,22 @@
 #!/usr/bin/env python
 
 """
-Unit tests for PSF classes.
+Unit tests for extraction.
 """
 
 import sys
 import os
 import numpy as np
+import scipy.linalg
 import unittest
 from specter.test import test_data_dir
 from specter.psf import load_psf
-from specter.extract.ex2d import ex2d
+from specter.extract.ex2d import ex2d, eigen_compose
 
 
 class TestExtract(unittest.TestCase):
     """
-    Test functions within specter.util
+    Test functions within specter.extract
     """
     def setUp(self):
         np.random.seed(0)
@@ -39,6 +40,14 @@ class TestExtract(unittest.TestCase):
         self.psf = psf        
         self.ww = ww
         self.nspec = nspec
+
+        # construct a symmetric test matrix
+        self.dim = 100
+        self.a1 = np.random.uniform(low=0.01, high=100.0, size=(self.dim, self.dim))
+        self.a2 = np.random.uniform(low=0.01, high=100.0, size=(self.dim, self.dim))
+        self.sym = np.dot(np.transpose(self.a1), self.a1)
+        self.sym += np.dot(np.transpose(self.a2), self.a2)
+
                 
     def _test_blat(self):
         from time import time
@@ -62,7 +71,46 @@ class TestExtract(unittest.TestCase):
         
             print i, np.std(chi), np.std(pixchi)
     
+
+    def test_eigen_compose(self):
+        w, v = scipy.linalg.eigh(self.sym)
+        check = eigen_compose(w, v)
+        np.testing.assert_almost_equal(check, self.sym, decimal=5)
+        check = eigen_compose(w, v, sqr=True)
+        check = eigen_compose(w, v, invert=True)
+        check = eigen_compose(w, v, invert=True, sqr=True)
+
+        # check reconstruction
+        w_inv, v_inv = scipy.linalg.eigh(check)
+        comp_w = np.multiply(w_inv, w_inv)
+        comp = eigen_compose(comp_w, v_inv, invert=True)
+        np.testing.assert_almost_equal(comp, self.sym, decimal=3)
+
+
     def test_noiseless_ex2d(self):
+        specrange = (0, self.nspec)
+        ivar = np.ones(self.ivar.shape)
+        d = ex2d(self.image_orig, ivar, self.psf, specrange, self.ww, full_output=True, ndecorr=True)
+
+        R = d['R']
+        flux = d['flux']     #- resolution convolved extracted flux
+        xflux = d['xflux']   #- original extracted flux
+        
+        #- Resolution convolved input photons (flux)
+        rphot = R.dot(self.phot.ravel()).reshape(flux.shape)
+        
+        #- extracted flux projected back to image
+        ximg = self.psf.project(self.ww, xflux, verbose=False)
+        
+        #- Compare inputs to outputs
+        bias = (flux - rphot)/rphot
+        dximg = ximg - self.image_orig
+
+        self.assertTrue( np.max(np.abs(bias)) < 1e-9 )
+        self.assertTrue( np.max(np.abs(dximg)) < 1e-6 )
+
+
+    def test_noiseless_ex2d_sigdecorr(self):
         specrange = (0, self.nspec)
         ivar = np.ones(self.ivar.shape)
         d = ex2d(self.image_orig, ivar, self.psf, specrange, self.ww, full_output=True)
@@ -82,7 +130,8 @@ class TestExtract(unittest.TestCase):
         dximg = ximg - self.image_orig
 
         self.assertTrue( np.max(np.abs(bias)) < 1e-9 )
-        self.assertTrue( np.max(np.abs(dximg)) < 1e-6 )                
+        self.assertTrue( np.max(np.abs(dximg)) < 1e-6 )
+
 
     #- Pull values are wrong.  Why?  Overfitting?
     @unittest.expectedFailure
@@ -114,7 +163,8 @@ class TestExtract(unittest.TestCase):
                         msg="pull_flux sigma is %f" % np.std(pull_flux))
         self.assertTrue(np.abs(1-np.std(pull_image)) < 0.05,
                         msg="pull_image sigma is %f" % np.std(pull_image))
-        
+
+
     def test_ex2d_subimage(self):
         specrange = (0, self.nspec)
         waverange = self.ww[0], self.ww[-1]
@@ -138,6 +188,7 @@ class TestExtract(unittest.TestCase):
         self.assertTrue( np.all(subflux == flux) )
         self.assertTrue( np.all(subfluxivar == fluxivar) )
         self.assertTrue( np.all(subR == R) )
+
 
     def test_wave_off_image(self):
         ww = self.psf.wmin - 5 + np.arange(10)

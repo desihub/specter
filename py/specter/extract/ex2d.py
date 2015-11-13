@@ -9,8 +9,9 @@ import scipy.linalg
 from scipy.sparse import spdiags, issparse
 from scipy.sparse.linalg import spsolve
 
+
 def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
-         full_output=False, regularize=0.0):
+         full_output=False, regularize=0.0, ndecorr=False):
     """
     2D PSF extraction of flux from image given pixel inverse variance.
     
@@ -26,6 +27,8 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
             cutout of this region from the full image
         full_output : if True, return a dictionary of outputs including
             intermediate outputs such as the projection matrix.
+        ndecorr : if True, decorrelate the noise between fibers, at the
+            cost of residual signal correlations between fibers.
         
     Returns (flux, ivar, R):
         flux[nspec, nwave] = extracted resolution convolved flux
@@ -103,7 +106,10 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
 
     #- Solve for Resolution matrix
     try:
-        R, fluxivar = resolution_from_icov(iCov)
+        if ndecorr:
+            R, fluxivar = resolution_from_icov(iCov)
+        else:
+            R, fluxivar = resolution_from_icov(iCov, decorr=[nwave for x in range(nspec)])
     except np.linalg.linalg.LinAlgError, err:
         outfile = 'LinAlgError_{}-{}_{}-{}.fits'.format(specrange[0], specrange[1], waverange[0], waverange[1])
         print "ERROR: Linear Algebra didn't converge"
@@ -127,54 +133,98 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
         return results
     else:
         return rflux, fluxivar, R
-    
 
-def sym_sqrt(a):
+
+def eigen_compose(w, v, invert=False, sqr=False):
     """
-    NAME: sym_sqrt
+    Create a matrix from its eigenvectors and eigenvalues.
 
-    PURPOSE: take 'square root' of a symmetric matrix via diagonalization
+    Given the eigendecomposition of a matrix, recompose this
+    into a real symmetric matrix.  Optionally take the square
+    root of the eigenvalues and / or invert the eigenvalues.
+    The eigenvalues are regularized such that the condition 
+    number remains within machine precision for 64bit floating 
+    point values.
 
-    USAGE: s = sym_sqrt(a)
+    Args:
+        w (array): 1D array of eigenvalues
+        v (array): 2D array of eigenvectors.
+        invert (bool): Should the eigenvalues be inverted? (False)
+        sqr (bool): Should the square root eigenvalues be used? (False)
 
-    ARGUMENT: a: real symmetric square 2D ndarray
-
-    RETURNS: s such that a = numpy.dot(s, s)
-
-    WRITTEN: Adam S. Bolton, U. of Utah, 2009
+    Returns:
+        A 2D numpy array which is the recomposed matrix.
     """
-    ### w, v = np.linalg.eigh(a)  #- np.linalg.eigh is single precision !?!
-    w, v = scipy.linalg.eigh(a)
-    
-    #- Trim meaningless eigenvalues below machine precision
-    ibad = w < w.max()*sys.float_info.epsilon
-    w[ibad] = 0.0
-        
-    # dm = n.diagflat(n.sqrt(w))
-    # result = np.dot(v, np.dot(dm, np.transpose(v)))
+    dim = w.shape[0]
 
-    #- A bit faster with sparse matrix for multiplication:
-    nw = len(w)
-    dm = spdiags(np.sqrt(w), 0, nw, nw)
-    result = v.dot( dm.dot(v.T) )
-    
-    return result
+    # Threshold is 10 times the machine precision (~1e-15)
+    threshold = 10.0 * sys.float_info.epsilon
 
-def resolution_from_icov(icov):
+    maxval = np.max(w)
+    wscaled = np.zeros_like(w)
+
+    if invert:
+        # Normally, one should avoid explicit loops in python.
+        # in this case however, we need to conditionally invert
+        # the eigenvalues only if they are above the threshold.
+        # Otherwise we might divide by zero.  Since the number
+        # of eigenvalues is never too large, this should be fine.
+        # If it does impact performance, we can improve this in
+        # the future.  NOTE: simple timing with an average over
+        # 10 loops shows that all four permutations of invert and
+        # sqr options take about the same time- so this is not
+        # an issue.
+        if sqr:
+            minval = np.sqrt(maxval) * threshold
+            replace = 1.0 / minval
+            tempsqr = np.sqrt(w)
+            for i in range(dim):
+                if tempsqr[i] > minval:
+                    wscaled[i] = 1.0 / tempsqr[i]
+                else:
+                    wscaled[i] = replace
+        else:
+            minval = maxval * threshold
+            replace = 1.0 / minval
+            for i in range(dim):
+                if w[i] > minval:
+                    wscaled[i] = 1.0 / w[i]
+                else:
+                    wscaled[i] = replace
+    else:
+        if sqr:
+            minval = np.sqrt(maxval) * threshold
+            replace = minval
+            wscaled[:] = np.where((w > minval), np.sqrt(w), replace*np.ones_like(w))
+        else:
+            minval = maxval * threshold
+            replace = minval
+            wscaled[:] = np.where((w > minval), w, replace*np.ones_like(w))
+
+    # multiply to get result
+    wdiag = spdiags(wscaled, 0, dim, dim)
+    return v.dot( wdiag.dot(v.T) )
+
+
+def resolution_from_icov(icov, decorr=None):
     """
     Function to generate the 'resolution matrix' in the simplest
     (no unrelated crosstalk) Bolton & Schlegel 2010 sense.
     Works on dense matrices.  May not be suited for production-scale
     determination in a spectro extraction pipeline.
 
-    Input argument is inverse covariance matrix array.
-    If input is not 2D and symmetric, results will be unpredictable.
-    
-    returns (R, ivar):
+    Args:
+        icov (array): real, symmetric, 2D array containing inverse
+                      covariance.
+        decorr (list): produce a resolution matrix which decorrelates
+                      signal between fibers, at the cost of correlated
+                      noise between fibers (default).  This list should
+                      contain the number of elements in each spectrum,
+                      which is used to define the size of the blocks.
+
+    Returns (R, ivar):
         R : resolution matrix
         ivar : R C R.T  -- decorrelated resolution convolved inverse variance
-
-    WRITTEN: Adam S. Bolton, U. of Utah, 2009
     """
     #- force symmetry since due to rounding it might not be exactly symmetric
     icov = 0.5*(icov + icov.T)
@@ -182,7 +232,23 @@ def resolution_from_icov(icov):
     if issparse(icov):
         icov = icov.toarray()
 
-    sqrt_icov = sym_sqrt(icov)
+    w, v = scipy.linalg.eigh(icov)
+
+    sqrt_icov = np.zeros_like(icov)
+
+    if decorr is not None:
+        if np.sum(decorr) != icov.shape[0]:
+            raise RuntimeError("The list of spectral block sizes must sum to the matrix size")
+        inverse = eigen_compose(w, v, invert=True)
+        # take each spectrum block and process
+        offset = 0
+        for b in decorr:
+            bw, bv = scipy.linalg.eigh(inverse[offset:offset+b,offset:offset+b])
+            sqrt_icov[offset:offset+b,offset:offset+b] = eigen_compose(bw, bv, invert=True, sqr=True)
+            offset += b
+    else:
+        sqrt_icov = eigen_compose(w, v, sqr=True)
+
     norm_vector = np.sum(sqrt_icov, axis=1)
     R = np.outer(norm_vector**(-1), np.ones(norm_vector.size)) * sqrt_icov
     ivar = norm_vector**2  #- Bolton & Schlegel 2010 Eqn 13
