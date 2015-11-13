@@ -90,7 +90,7 @@ class TestExtract(unittest.TestCase):
     def test_noiseless_ex2d(self):
         specrange = (0, self.nspec)
         ivar = np.ones(self.ivar.shape)
-        d = ex2d(self.image_orig, ivar, self.psf, specrange, self.ww, full_output=True)
+        d = ex2d(self.image_orig, ivar, self.psf, specrange, self.ww, full_output=True, ndecorr=True)
 
         R = d['R']
         flux = d['flux']     #- resolution convolved extracted flux
@@ -110,10 +110,10 @@ class TestExtract(unittest.TestCase):
         self.assertTrue( np.max(np.abs(dximg)) < 1e-6 )
 
 
-    def test_noiseless_ex2d_decorr(self):
+    def test_noiseless_ex2d_sigdecorr(self):
         specrange = (0, self.nspec)
         ivar = np.ones(self.ivar.shape)
-        d = ex2d(self.image_orig, ivar, self.psf, specrange, self.ww, full_output=True, decorrelate=True)
+        d = ex2d(self.image_orig, ivar, self.psf, specrange, self.ww, full_output=True)
 
         R = d['R']
         flux = d['flux']     #- resolution convolved extracted flux

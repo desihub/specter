@@ -11,7 +11,7 @@ from scipy.sparse.linalg import spsolve
 
 
 def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
-         full_output=False, regularize=0.0, decorrelate=False):
+         full_output=False, regularize=0.0, ndecorr=False):
     """
     2D PSF extraction of flux from image given pixel inverse variance.
     
@@ -27,7 +27,8 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
             cutout of this region from the full image
         full_output : if True, return a dictionary of outputs including
             intermediate outputs such as the projection matrix.
-
+        ndecorr : if True, decorrelate the noise between fibers, at the
+            cost of residual signal correlations between fibers.
         
     Returns (flux, ivar, R):
         flux[nspec, nwave] = extracted resolution convolved flux
@@ -105,10 +106,10 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
 
     #- Solve for Resolution matrix
     try:
-        if decorrelate:
-            R, fluxivar = resolution_from_icov(iCov, decorr=[nwave for x in range(nspec)])
-        else:
+        if ndecorr:
             R, fluxivar = resolution_from_icov(iCov)
+        else:
+            R, fluxivar = resolution_from_icov(iCov, decorr=[nwave for x in range(nspec)])
     except np.linalg.linalg.LinAlgError, err:
         outfile = 'LinAlgError_{}-{}_{}-{}.fits'.format(specrange[0], specrange[1], waverange[0], waverange[1])
         print "ERROR: Linear Algebra didn't converge"
@@ -217,7 +218,7 @@ def resolution_from_icov(icov, decorr=None):
                       covariance.
         decorr (list): produce a resolution matrix which decorrelates
                       signal between fibers, at the cost of correlated
-                      noise between fibers (False).  This list should
+                      noise between fibers (default).  This list should
                       contain the number of elements in each spectrum,
                       which is used to define the size of the blocks.
 
