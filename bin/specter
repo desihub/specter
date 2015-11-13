@@ -16,8 +16,8 @@ import multiprocessing as MP
 #- Parse options
 parser = optparse.OptionParser(
     usage = "%prog [options]",
-    epilog = "See $SPECTER_DIR/doc/datamodel.md for input format details"
-    )
+    epilog = "See $SPECTER_DIR/doc/datamodel.md for input format details",
+)
 parser.add_option("-i", "--input", type="string",  help="input spectra")
 parser.add_option("-I", "--image", type="string",  help="input image to add photons to")
 parser.add_option("-o", "--output", type="string",  help="output image")
@@ -35,12 +35,17 @@ parser.add_option(      "--test", action='store_true', help="Run a suite of test
 parser.add_option("-s", "--sky", type="string",  help="input sky spectra")
 parser.add_option("-w", "--wavelength", type="string",
     help="wavelength range min,max in Angstroms")
-parser.add_option("-r", "--specrange", type="string",
-    help="simulate spectra specmin to specmax inclusive")
+parser.add_option('--nspec',   type=int, help='Number of spectra to simulate')
+parser.add_option('--specmin', type=int, default=0, help='Simulate output spectra [specmin:specmin+nspec]; default 0')
+parser.add_option('--inspecmin', type=int, help='Use input spectra [inspecmin:inspecmin+nspec]; default inspecmin=specmin')
+
 parser.add_option("--debug", action="store_true", help="start ipython after running")
 parser.add_option("--trimxy", action='store_true', help="Trim output image to just pixels with spectra")
 
 opts, args = parser.parse_args()
+
+if opts.inspecmin is None:
+    opts.inspecmin = opts.specmin
 
 #- Load astropy.io.fits after opt parsing; you can get help even without it
 try:
@@ -93,19 +98,19 @@ if opts.throughput:
 else:
     thru = load_throughput(opts.psf)
 
+if opts.nspec is None:
+    opts.nspec = psf.nspec
+
+if opts.specmin+opts.nspec > psf.nspec:
+    opts.nspec = psf.nspec - opts.specmin
+    print >> sys.stderr, "WARNING: trimming nspec to {} to fit within {} spectra".format(opts.nspec, psf.nspec)
+
 #- Override default exposure time if needed
 if opts.exptime is not None:
     thru.exptime = opts.exptime
 
-#- Expand opts.specrange = first,last *inclusive* -> array of indices
-if opts.specrange is not None:
-    x = map(int, opts.specrange.split(','))
-    x[1] = min(x[1]+1, psf.nspec)
-    opts.specrange = range(x[0], x[1])
-else:
-    opts.specrange = range(psf.nspec)
-
-nspec = len(opts.specrange)
+specrange = range(opts.specmin, opts.specmin+opts.nspec)
+assert max(specrange) < psf.nspec
 
 #-  opts.wavelength is 2-elements min,max
 if opts.wavelength is not None:
@@ -135,21 +140,21 @@ if wavelength.ndim == 1 and flux.ndim == 1:
     ii = (wmin <= wavelength) & (wavelength <= wmax)
     wavelength = wavelength[ii]
     flux = flux[ii]
-    wavelength = np.tile(wavelength, nspec).reshape(nspec, len(wavelength))
-    flux = np.tile(flux, nspec).reshape(nspec, len(flux))
+    wavelength = np.tile(wavelength, opts.nspec).reshape(opts.nspec, len(wavelength))
+    flux = np.tile(flux, opts.nspec).reshape(opts.nspec, len(flux))
 elif wavelength.ndim == 1 and flux.ndim == 2:
     ii = (wmin <= wavelength) & (wavelength <= wmax)
     wavelength = wavelength[ii]
-    wavelength = np.tile(wavelength, nspec).reshape(nspec, len(wavelength))
+    wavelength = np.tile(wavelength, opts.nspec).reshape(opts.nspec, len(wavelength))
 
-    flux = flux[:, ii]
-    if flux.shape[0] > nspec:
-        flux = flux[opts.specrange]
+    flux = flux[opts.inspecmin:, ii]
+    if flux.shape[0] > opts.nspec:
+        flux = flux[specrange]
 else:
     #- Trim wavelengths where all spectra are out of range
     ii = (wmin <= wavelength.min(axis=0)) & (wavelength.max(axis=0) <= wmax)
     wavelength = wavelength[:, ii]
-    flux = flux[:, ii]
+    flux = flux[opts.inspecmin:, ii]
         
 #- Expand objtype into array
 objtype = spectra['objtype']
@@ -164,15 +169,15 @@ if units.endswith('/A/arcsec^2'):
 #- only do this for "per-Angstrom" units, not delta functions flux/phot at A
 #- BUG: what if we go partially off the CCD for some spectra but not others?
 if units.endswith('/A'):
-    specrange = opts.specrange[0], opts.specrange[-1]+1
+    specminmax = specrange[0], specrange[-1]
     waverange = opts.wavelength[0], opts.wavelength[-1]
-    xmin, xmax, ymin, ymax = psf.xyrange(specrange, opts.wavelength)
+    xmin, xmax, ymin, ymax = psf.xyrange(specminmax, opts.wavelength)
     dy = 0.25
     yedges = np.arange(ymin-0.5, ymax-0.5+dy/2., dy)
     ymid = (yedges[0:-1] + yedges[1:])/2
-    newwave = np.zeros( (nspec, len(ymid)) )
-    newflux = np.zeros( (nspec, len(ymid)) )
-    for i in range(nspec):
+    newwave = np.zeros( (opts.nspec, len(ymid)) )
+    newflux = np.zeros( (opts.nspec, len(ymid)) )
+    for i in range(opts.nspec):
         wedges = psf.wavelength(i, y=yedges)
         wmid = psf.wavelength(i, y=ymid)
         newwave[i] = wmid
@@ -191,8 +196,8 @@ for i in range(flux.shape[0]):
 #- Convert flux to photons, and 1D -> 2D if needed
 if flux.ndim == 1:
     photons = thru.photons(wavelength, flux, units, objtype=objtype[0])
-    photons = np.tile(photons, nspec).reshape(nspec, len(photons))
-    wavelength = np.tile(wavelength, nspec).reshape(nspec, len(wavelength))
+    photons = np.tile(photons, opts.nspec).reshape(opts.nspec, len(photons))
+    wavelength = np.tile(wavelength, opts.nspec).reshape(opts.nspec, len(wavelength))
 else:
     photons = np.zeros(flux.shape)
     for i in range(photons.shape[0]):
@@ -206,23 +211,24 @@ if opts.sky:
         print units, sky['units']
         sys.exit(1)
     
-    for i in range(nspec):
+    for i in range(opts.nspec):
         wedges = psf.wavelength(i, y=yedges)
         skyflux = specter.util.resample(wedges, sky['wavelength'], sky['flux'], xedges=True)
         skyphot = thru.photons(wavelength[i], skyflux, sky['units'], objtype='SKY')
         photons[i] += skyphot
     
 if opts.trimxy:
-    specrange = opts.specrange[0], opts.specrange[-1]+1
+    specminmax = specrange[0], specrange[-1]
     waverange = opts.wavelength[0], opts.wavelength[-1]
-    xyrange = psf.xyrange(specrange, opts.wavelength)
+    xyrange = psf.xyrange(specminmax, opts.wavelength)
 else:
     xyrange = None
 
 #- Project spectra onto the CCD
 print "Projecting spectra onto CCD"
+
 if opts.numcores == 1:
-    img = psf.project(wavelength, photons, specmin=opts.specrange[0], xyrange=xyrange)
+    img = psf.project(wavelength, photons, specmin=specrange[0], xyrange=xyrange)
 else:
     #- Parallel version uses function passed to parallel map
     #- Input dictionary provides parameters
@@ -232,18 +238,18 @@ else:
     
     #- Setup list of dictionaries with arguments
     arglist = list()
-    n = max(1, (len(opts.specrange)+1)/opts.numcores)
-    for i in range(0, len(opts.specrange), n):
+    n = max(1, (len(specrange)+1)/opts.numcores)
+    for i in range(0, len(specrange), n):
         arglist.append(dict(psf=psf, photons=photons[i:i+n],
                          wavelength=wavelength[i:i+n],
-                         specmin=opts.specrange[i],
+                         specmin=specrange[i],
                          xyrange=xyrange)
                       )
 
     #- Parallel map to run project(arglist[0]), project(arglist[1]), etc.
     pool = MP.Pool(opts.numcores)
     images = pool.map(project, arglist)
-
+        
     #- Add the individual images
     img = reduce(np.add, images)
 
@@ -391,18 +397,18 @@ if opts.extra:
                        ('WAVELENGTH',  str(wavelength.dtype), (nwave,)),
                        ])
     hdr = fits.Header()
-    hdr['SPECMIN'] = (opts.specrange[0], 'First spectrum index')
+    hdr['SPECMIN'] = (specrange[0], 'First spectrum index')
     hx.append(fits.BinTableHDU(a, header=hdr, name='PHOTONS'))
     
     #- X,Y vs. wavelength
     yy = np.arange(psf.npix_y)
-    y = np.tile(yy, nspec).reshape(nspec, psf.npix_y)
+    y = np.tile(yy, opts.nspec).reshape(opts.nspec, psf.npix_y)
     x = np.zeros(y.shape)
     w = np.zeros(y.shape)
     
-    for i in range(nspec):
-        w[i] = psf.wavelength(ispec=i+opts.specrange[0], y=yy)
-        x[i] = psf.x(ispec=i+opts.specrange[0], wavelength=w[i])
+    for i, ispec in enumerate(specrange):
+        w[i] = psf.wavelength(ispec=ispec, y=yy)
+        x[i] = psf.x(ispec=ispec, wavelength=w[i])
     
     a = np.array(zip(x, y, w),
                 dtype=[('X', str(x.dtype), (psf.npix_y,)),

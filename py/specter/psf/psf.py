@@ -12,6 +12,7 @@ the interface defined in this base class.
 Stephen Bailey, Fall 2012
 """
 
+import sys
 import numpy as np
 ### import scipy.sparse
 from scipy.ndimage import center_of_mass
@@ -514,6 +515,11 @@ class PSF(object):
             specmin : starting spectrum number
             xyrange : (xmin, xmax, ymin, ymax) range of CCD pixels
         """
+        if specmin >= self.nspec:
+            raise ValueError('specmin {} >= psf.nspec {}'.format(specmin, self.nspec))
+        if specmin+phot.shape[0] > self.nspec:
+            print >> sys.stderr, "WARNING: specmin+npec ({}+{}) > psf.nspec {}".format(specmin, phot.shape[0], self.nspec)
+        
         #- x,y ranges and number of pixels
         if xyrange is None:
             xmin, xmax = (0, self.npix_x)
@@ -533,7 +539,8 @@ class PSF(object):
         img = np.zeros( (ny, nx) )
 
         #- Loop over spectra and wavelengths
-        for i, ispec in enumerate(range(specmin, specmin+nspec)):
+        specmax = min(specmin+nspec, self.nspec)
+        for i, ispec in enumerate(range(specmin, specmax)):
             if verbose:
                 print ispec
             
