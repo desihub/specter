@@ -35,9 +35,6 @@ parser.add_option(      "--test", action='store_true', help="Run a suite of test
 parser.add_option("-s", "--sky", type="string",  help="input sky spectra")
 parser.add_option("-w", "--wavelength", type="string",
     help="wavelength range min,max in Angstroms")
-
-# parser.add_option("-r", "--specrange", type="string",
-#     help="simulate spectra specmin to specmax inclusive")
 parser.add_option('--nspec',   type=int, help='Number of spectra to simulate')
 parser.add_option('--specmin', type=int, default=0, help='Simulate output spectra [specmin:specmin+nspec]; default 0')
 parser.add_option('--inspecmin', type=int, help='Use input spectra [inspecmin:inspecmin+nspec]; default inspecmin=specmin')

@@ -38,7 +38,7 @@ class TestBinScripts(unittest.TestCase):
           -p {specter_dir}/data/test/psf-monospot.fits \
           -o {specfile} \
           -w 7500,7620,{dwave} \
-          --specrange {specmin},{specmax}"""
+          --specmin {specmin} --nspec {nspec}"""
 
         #- Add this package to PYTHONPATH so that binscripts can find it
         try:
@@ -98,7 +98,7 @@ class TestBinScripts(unittest.TestCase):
                 imgfile = imgfile,
                 specfile = specfile,
                 dwave = dwave,
-                specmin=0, specmax=2,
+                specmin=0, nspec=2,
                 )
             err = os.system(cmd)
             self.assertEqual(err, 0, 'Error code {} != 0 with dwave={}'.format(err, dwave))
@@ -128,7 +128,7 @@ class TestBinScripts(unittest.TestCase):
             imgfile = imgfile,
             specfile = specfile,
             dwave = 1.0,
-            specmin=498, specmax=500,
+            specmin=498, nspec=2,
             )
         err = os.system(cmd)
         self.assertEqual(err, 0, 'Error code {} != 0 for --specrange=498,500'.format(err))
