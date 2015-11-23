@@ -29,7 +29,7 @@ class GaussHermite2PSF(PSF):
         Initialize GaussHermitePSF from input file
         """        
         #- Check that this file is a current generation Gauss Hermite PSF
-        fx = fits.open(filename)
+        fx = fits.open(filename, memmap=False)
         self._polyparams = hdr = fx[1].header
         if 'PSFTYPE' not in hdr:
             raise ValueError, 'Missing PSFTYPE keyword'
@@ -79,6 +79,8 @@ class GaussHermite2PSF(PSF):
         maxdeg = max(hdr['GHDEGX'], hdr['GHDEGY'], hdr['GHDEGX2'], hdr['GHDEGY2'])
         for i in range(maxdeg+1):
             self._hermitenorm.append( sp.hermitenorm(i) )
+
+        fx.close()
 
     def _pgh(self, x, m=0, xc=0.0, sigma=1.0):
         """

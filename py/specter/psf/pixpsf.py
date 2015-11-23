@@ -31,7 +31,7 @@ class PixPSF(PSF):
         PSF.__init__(self, filename)
         
         #- Additional headers are a custom format for the pixelated psf
-        fx = fits.open(filename)
+        fx = fits.open(filename, memmap=False)
         self.nexp     = fx[3].data.view(np.ndarray)  #- icoeff xexp yexp
         self.xyscale  = fx[4].data.view(np.ndarray)  #- ifiber igroup x0 xscale y0 yscale
         self.psfimage = fx[5].data.view(np.ndarray)  #- [igroup, icoeff, iy, ix]

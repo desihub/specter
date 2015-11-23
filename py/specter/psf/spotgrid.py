@@ -29,7 +29,7 @@ class SpotGridPSF(PSF):
         PSF.__init__(self, filename)
         
         #- Load extensions specific to this PSF type
-        fx = fits.open(filename)
+        fx = fits.open(filename, memmap=False)
         self._spots = fx['SPOTS'].data        #- PSF spots
         # self._spotx  = fx['SPOTX'].data     #- X location of spots
         # self._spoty  = fx['SPOTY'].data     #- Y location of spots

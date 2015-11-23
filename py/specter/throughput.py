@@ -34,7 +34,8 @@ def load_throughput(filename):
     """
     Create Throughput object from FITS file with EXTNAME=THROUGHPUT HDU
     """
-    fx = fits.open(filename)
+    #- memmap=False so that fits will really close the file upon fx.close()
+    fx = fits.open(filename, memmap=False)
     thru = fx['THROUGHPUT'].data
     hdr =  fx['THROUGHPUT'].header
 
@@ -54,6 +55,7 @@ def load_throughput(filename):
     elif 'loglam' in thru.dtype.names:
         w = 10**thru['loglam']
     else:
+        fx.close()
         raise ValueError, 'throughput must include wavelength or loglam'
         
     if 'GEOMAREA' in hdr:
@@ -63,8 +65,11 @@ def load_throughput(filename):
     elif 'AREA' in hdr:
         area = hdr['AREA']
     else:
+        fx.close()
         raise ValueError("throughput file missing GEOMAREA keyword")
         
+    fx.close()
+
     return Throughput(
         wave = w,
         throughput = thru['throughput'],
