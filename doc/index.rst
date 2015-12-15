@@ -1,6 +1,6 @@
-====================================
-Welcome to specters's documentation!
-====================================
+===================================
+Welcome to specter's documentation!
+===================================
 
 Introduction
 ============
@@ -18,6 +18,7 @@ directory and even display their sections.  See `the toctree documentation`_.
 .. toctree::
    :maxdepth: 1
 
+   release_notes
    datamodel/index
 
 Indices and tables
