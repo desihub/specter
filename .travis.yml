@@ -105,11 +105,11 @@ matrix:
 
 install:
     - source etc/travis_env_$TRAVIS_OS_NAME.sh
+    - if [[ $SETUP_CMD == 'build_sphinx' ]]; then pip install Sphinx; fi
 
 script:
     - $MAIN_CMD $SETUP_CMD
 
 after_success:
     - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls; fi
-    - if [[ $SETUP_CMD == 'build_sphinx' ]]; then pip install Sphinx; fi
 
