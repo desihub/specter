@@ -111,3 +111,5 @@ script:
 
 after_success:
     - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls; fi
+    - if [[ $SETUP_CMD == 'build_sphinx' ]]; then pip install Sphinx; fi
+

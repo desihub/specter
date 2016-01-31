@@ -16,6 +16,7 @@ import sys
 import numpy as np
 from numpy.polynomial.legendre import Legendre, legval, legfit
 import scipy.optimize
+import scipy.sparse
 
 from specter.util import gausspix, TraceSet, CacheDict
 from astropy.io import fits
