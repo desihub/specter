@@ -16,7 +16,6 @@ import os
 import warnings
 import numpy as np
 from astropy.io import fits
-import scipy.linalg
 from specter import util
 
 #- ObjType enum

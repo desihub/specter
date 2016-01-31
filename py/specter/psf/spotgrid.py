@@ -12,8 +12,6 @@ import numpy as np
 from astropy.io import fits
 from specter.psf import PSF
 from specter.util import LinearInterp2D, rebin_image, sincshift
-import scipy.interpolate
-
 
 class SpotGridPSF(PSF):
     """

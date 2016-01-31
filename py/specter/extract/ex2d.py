@@ -19,7 +19,8 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
         image : 2D array of pixels
         ivar  : 2D array of inverse variance for the image
         psf   : PSF object
-        specrange : (specmin, specmax) inclusive to extract
+        specrange : (start, stop) to extract
+            (python style indexing; stop not included)
         wavelengths : 1D array of wavelengths to extract
         
     Optional Inputs:

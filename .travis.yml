@@ -40,10 +40,10 @@ env:
         # to repeat them for all configurations.
         - NUMPY_VERSION=1.9
         - SCIPY_VERSION=0.14
-        - ASTROPY_VERSION=1.0.4
+        - ASTROPY_VERSION=1.1
         - SPHINX_VERSION=1.3
         - FITSIO_VERSION=0.9.7
-        - DESIUTIL_VERSION=1.0.1
+        - DESIUTIL_VERSION=1.3.2
         - CONDA_INSTALL='conda install -c astropy-ci-extras --yes'
         - PIP_INSTALL='pip install'
         - OPTIONAL_DEPS=false
