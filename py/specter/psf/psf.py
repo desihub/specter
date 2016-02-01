@@ -14,10 +14,9 @@ Stephen Bailey, Fall 2012
 
 import sys
 import numpy as np
-### import scipy.sparse
-from scipy.ndimage import center_of_mass
 from numpy.polynomial.legendre import Legendre, legval, legfit
 import scipy.optimize
+import scipy.sparse
 
 from specter.util import gausspix, TraceSet, CacheDict
 from astropy.io import fits
@@ -515,6 +514,8 @@ class PSF(object):
             specmin : starting spectrum number
             xyrange : (xmin, xmax, ymin, ymax) range of CCD pixels
         """
+        wavelength = np.asarray(wavelength)
+        phot = np.asarray(phot)
         if specmin >= self.nspec:
             raise ValueError('specmin {} >= psf.nspec {}'.format(specmin, self.nspec))
         if specmin+phot.shape[0] > self.nspec:

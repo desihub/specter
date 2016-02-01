@@ -7,7 +7,6 @@ David Schlegel & Stephen Bailey, Summer 2011
 """
 
 import numpy as np
-import scipy.signal
 from astropy.io import fits
 from specter.psf import PSF
 from specter.util import sincshift
