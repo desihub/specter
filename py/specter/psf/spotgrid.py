@@ -53,7 +53,6 @@ class SpotGridPSF(PSF):
         """
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
         """
-        #return self._xypix_sincshift(ispec, wavelength)
         return self._xypix_interp(ispec, wavelength)
     
     def _xypix_interp(self, ispec, wavelength):
@@ -105,52 +104,6 @@ class SpotGridPSF(PSF):
         xx = slice(x_ccd_begin, (x_ccd_begin+nx_ccd))
         yy = slice(y_ccd_begin, (y_ccd_begin+ny_ccd))
         return xx,yy,ccd_pix_spot_values
-        
-
-    def _xypix_sincshift(self, ispec, wavelength):
-        """
-        Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
-        """
-                
-        #- x,y of spot on CCD
-        p, w = self._fiberpos[ispec], wavelength
-        # xc = self._fx(p, w)
-        # yc = self._fy(p, w)
-        xc, yc = self.xy(ispec, wavelength)
-        
-        #- Ratio of CCD to Spot pixel sizes
-        rpix = int(round(self.CcdPixelSize / self.SpotPixelSize))
-        
-        #- Calculate offset into CCD pixel
-        xoffset = int(xc * rpix) % rpix
-        yoffset = int(yc * rpix) % rpix
-
-        #- Place high res spot into grid aligned with CCD pixels
-        pix = self._fspot(p, w)
-        ny, nx = pix.shape
-        A = np.zeros(shape=(pix.shape[0]+rpix, pix.shape[1]+rpix))
-        A[yoffset:yoffset+ny, xoffset:xoffset+nx] = pix
-        ccdpix = rebin_image(A, rpix)
-                
-        #- Fractional high-res pixel offset
-        #- This can be slow; is it really necessary?
-        dxx = ((xc * rpix) % rpix - xoffset) / rpix
-        dyy = ((yc * rpix) % rpix - yoffset) / rpix
-        ccdpix = sincshift(ccdpix, dxx, dyy)
-        
-        #- sinc shift can cause negative ringing, so clip and re-normalize
-        ccdpix = ccdpix.clip(0)
-        ccdpix /= np.sum(ccdpix)
-
-        #- Find where the [0,0] pixel goes on the CCD 
-        #- Use floor() to get negative limits at edge of CCD correct
-        xccd = int(np.floor(xc - ccdpix.shape[1]/2 + 1))
-        yccd = int(np.floor(yc - ccdpix.shape[0]/2 + 1))
-        
-        xx = slice(xccd, xccd+ccdpix.shape[1])
-        yy = slice(yccd, yccd+ccdpix.shape[0])
-        
-        return xx, yy, ccdpix
 
         
         
