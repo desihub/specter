@@ -12,7 +12,7 @@ import unittest
 from specter.test import test_data_dir
 from specter.psf import load_psf
 from specter.extract.ex2d import ex2d, eigen_compose
-
+from specter.extract.ex1d import ex1d
 
 class TestExtract(unittest.TestCase):
     """
@@ -86,6 +86,15 @@ class TestExtract(unittest.TestCase):
         comp = eigen_compose(comp_w, v_inv, invert=True)
         np.testing.assert_almost_equal(comp, self.sym, decimal=3)
 
+    def test_ex1d(self):
+        specrange = (0, self.nspec)
+        mask = np.zeros(self.image.shape, dtype=int)
+        ny = 100
+        flux, ivar = ex1d(self.image, mask, self.psf, yrange=[0,ny],
+            readnoise=1.0, specrange=specrange)
+        self.assertEqual(flux.shape, ivar.shape)
+        self.assertEqual(flux.shape[0], self.nspec)
+        self.assertEqual(flux.shape[1], ny)
 
     def test_noiseless_ex2d(self):
         specrange = (0, self.nspec)

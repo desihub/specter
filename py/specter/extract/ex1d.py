@@ -74,7 +74,7 @@ def ex1d(img, mask, psf, readnoise=2.5,
                 
         #- Loop over CCD rows
         for irow, row in enumerate(range(ymin, ymax)):
-            if row%500 == 0:
+            if debug and row%500 == 0:
                 print "Row %3d spectra %d:%d" % (row, speclo, spechi)
         
             #- Determine x range covered for this row of this group of spectra

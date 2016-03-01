@@ -177,6 +177,20 @@ class TestThroughput(unittest.TestCase):
         self.assertTrue( np.all(f2 <= f1) )
         self.assertTrue( np.all(f3 <= f2) )
 
+    def test_apply_throughput_multi(self):
+        flux = np.array([self.flux, self.flux, self.flux])
+        objtype = ['CALIB', 'SKY', 'STAR']
+        fx = self.thru.apply_throughput(self.w, flux, objtype=objtype)
+        self.assertEqual(fx.shape, flux.shape)
+        self.assertTrue(np.all(fx <= self.flux))
+        self.assertTrue( np.all(fx[1] <= fx[0]) )
+        self.assertTrue( np.all(fx[2] <= fx[1]) )
+
+    def test_wavemin_wavemax(self):
+        wavemin = self.thru.wavemin
+        wavemax = self.thru.wavemax
+        self.assertLess(wavemin, wavemax)
+
     #- This test currently works, but some pixelated rebinning models can
     #- involve negative ringing which would cause this test to fail.
     def test_low_flux(self):
