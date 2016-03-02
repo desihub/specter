@@ -56,7 +56,7 @@ fi
 # cpp-coveralls must be installed first.  It installs two identical
 # scripts: 'cpp-coveralls' and 'coveralls'.  The latter will overwrite
 # the script installed by 'coveralls', unless it's installed first.
-if [[ $SETUP_CMD == 'test --coverage' ]]
+if [[ $SETUP_CMD == 'test' ]]
 then
   $PIP_INSTALL cpp-coveralls;
   $PIP_INSTALL coverage coveralls;

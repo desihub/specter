@@ -73,7 +73,7 @@ matrix:
 
         # Try all python versions with the latest numpy
         - os: linux
-          env: PYTHON_VERSION=2.7 SETUP_CMD='test --coverage'
+          env: PYTHON_VERSION=2.7 SETUP_CMD='test'
 
         # - os: osx
         #   env: PYTHON_VERSION=2.7 SETUP_CMD='test'
@@ -109,5 +109,5 @@ script:
     - $MAIN_CMD $SETUP_CMD
 
 after_success:
-    - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls; fi
+    - if [[ $SETUP_CMD == 'test' ]]; then coveralls; fi
 
