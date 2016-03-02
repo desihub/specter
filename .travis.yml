@@ -106,7 +106,7 @@ install:
     - if [[ $SETUP_CMD == 'build_sphinx' ]]; then pip install Sphinx; fi
 
 script:
-    - $MAIN_CMD $SETUP_CMD
+    - if [[ $SETUP_CMD == 'test' ]]; then coverage run py/specter/test/specter_test_suite.py; else $MAIN_CMD $SETUP_CMD; fi
 
 after_success:
     - if [[ $SETUP_CMD == 'test' ]]; then coveralls; fi
