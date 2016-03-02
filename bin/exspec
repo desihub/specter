@@ -37,12 +37,8 @@ wstart, wstop, dw = map(float, opts.wavelength.split(','))
 wavelengths = np.arange(wstart, wstop+dw/2.0, dw)
 nwave = len(wavelengths)
 
-#- Number of core wavelength bins to solve in each step
-nwstep = opts.nwavestep
-
 #- Get specrange from options
-nspec = opts.nspec
-specmin, specmax = opts.specmin, opts.specmin + nspec
+specmin, specmax = opts.specmin, opts.specmin + opts.nspec
 
 #- Load input files
 psf = load_psf(opts.psf)
@@ -56,21 +52,6 @@ if psf_wavemin > wstart:
 if psf_wavemax < wstop:
     raise ValueError, 'Stop wavelength {:.2f} > max wavelength {:.2f} for these fibers'.format(wstop, psf_wavemax)
 
-#- Output arrays to fill
-flux = np.zeros( (nspec, nwave) )
-ivar = np.zeros( (nspec, nwave) )
-
-#- Diagonal elements of resolution matrix
-#- Keep resolution matrix terms equivalent to 9-sigma of largest spot
-#- ndiag is in units of number of wavelength steps of size dw
-ndiag = 0
-for ispec in [0, psf.nspec//2, psf.nspec-1]:
-    for w in [psf.wmin, 0.5*(psf.wmin+psf.wmax), psf.wmax]:
-        ndiag = max(ndiag, int(round(9.0*psf.wdisp(ispec, w) / dw )))
-
-#- Orig was ndiag = 10, which fails when dw gets too large compared to PSF size
-Rd = np.zeros( (nspec, 2*ndiag+1, nwave) )
-
 #- Print parameters
 print """\
 #--- Extraction Parameters ---
@@ -78,92 +59,38 @@ input:      {input}
 psf:        {psf}
 output:     {output}
 wavelength: {wstart} - {wstop} AA steps {dw}
-specrange:  {specmin} - {specmax}
+specmin:    {specmin}
+nspec:      {nspec}
 bundlesize: {bundlesize}
 regularize: {regularize}
-Rdim:       {rdim}
 #-----------------------------\
 """.format(input=opts.input, psf=opts.psf, output=opts.output,
     wstart=wstart, wstop=wstop, dw=dw,
-    specmin=specmin, specmax=specmax, bundlesize=opts.bundlesize,
-    regularize=opts.regularize, rdim=Rd.shape)
+    specmin=opts.specmin, nspec=opts.nspec, bundlesize=opts.bundlesize,
+    regularize=opts.regularize)
 
-#- Let's do some extractions
-for speclo in range(specmin, specmax, opts.bundlesize):
-    spechi = min(speclo+opts.bundlesize, specmax)
-    specrange = (speclo, spechi)
+#- The actual extraction
+flux, ivar, Rd = ex2d(img, imgivar, psf, opts.specmin, opts.nspec, wavelengths,
+             regularize=opts.regularize, ndecorr=opts.ndecorr,
+             bundlesize=opts.bundlesize, wavesize=opts.nwavestep, verbose=True)
 
-    for iwave in range(0, len(wavelengths), nwstep):
-        #- Low and High wavelengths for the core region
-        wlo = wavelengths[iwave]
-        whi = min(wavelengths[-1], wlo + nwstep*dw)
-        
-        #- Identify subimage that covers the core wavelengths
-        xyrange = xlo,xhi,ylo,yhi = psf.xyrange(specrange, (wlo, whi))
-        subimg = img[ylo:yhi, xlo:xhi]
-        subivar = imgivar[ylo:yhi, xlo:xhi]
-    
-        #- Determine extra border wavelength extent
-        ny, nx = psf.pix(speclo, wlo).shape
-        ymin = ylo-ny+2
-        ymax = yhi+ny-2
-        
-        nlo = int((wlo - psf.wavelength(speclo, ymin))/dw)-1
-        nhi = int((psf.wavelength(speclo, ymax) - whi)/dw)-1
-        ww = np.arange(wlo-nlo*dw, whi+(nhi+0.5)*dw, dw)
-        wmin, wmax = ww[0], ww[-1]
-        nw = len(ww)
-        
-        #- include \r carriage return to prevent scrolling
-        sys.stdout.write("\rSpectra {specrange} wavelengths ({wmin:.2f}, {wmax:.2f}) -> ({wlo:.2f}, {whi:.2f})".format(\
-            specrange=specrange, wmin=wmin, wmax=wmax, wlo=wlo, whi=whi))
-        sys.stdout.flush()
-
-        #- Do the extraction
-        specflux, specivar, R = \
-            ex2d(subimg, subivar, psf, specrange=specrange, wavelengths=ww,
-                xyrange=xyrange, regularize=opts.regularize, ndecorr=opts.ndecorr)
-
-        #- Fill in the final output arrays
-        iispec = slice(speclo-specmin, spechi-specmin)
-        flux[iispec, iwave:iwave+nwstep+1] = specflux[:, nlo:-nhi]
-        ivar[iispec, iwave:iwave+nwstep+1] = specivar[:, nlo:-nhi]
-    
-        #- Fill diagonals of resolution matrix
-        for ispec in range(speclo, spechi):
-            #- subregion of R for this spectrum
-            ii = slice(nw*(ispec-speclo), nw*(ispec-speclo+1))
-            Rx = R[ii, ii]
-
-            for j in range(nlo,nw-nhi):
-                # Rd dimensions [nspec, 2*ndiag+1, nwave]
-                Rd[ispec-specmin, :, iwave+j-nlo] = Rx[j-ndiag:j+ndiag+1, j]
-
-#- Add extra print because of carriage return \r progress trickery
-print
-
-#+ TODO: what should this do to R in the case of non-uniform bins?
-#+       maybe should do everything in photons/A from the start.            
-#- Convert flux to photons/A instead of photons/bin
-dwave = np.gradient(wavelengths)
-flux /= dwave
-ivar *= dwave**2
-                            
-#- Write output
-def trim(filepath, maxchar=40):
+#- Util function to trim path to something that fits in a fits file (!)                            
+def _trim(filepath, maxchar=40):
     if len(filepath) > maxchar:
         return '...'+filepath[-maxchar:]
 
+#- Augment input image header for output
 imghdr['SPECMIN'] = (specmin, 'First spectrum')
 imghdr['SPECMAX'] = (specmax-1, 'Last spectrum')
-imghdr['NSPEC']   = (specmax-specmin, 'Number of spectra')
-imghdr['WAVEMIN'] = (wmin, 'First wavelength [Angstroms]')
-imghdr['WAVEMAX'] = (wmax, 'Last wavelength [Angstroms]')
+imghdr['NSPEC']   = (opts.nspec, 'Number of spectra')
+imghdr['WAVEMIN'] = (wstart, 'First wavelength [Angstroms]')
+imghdr['WAVEMAX'] = (wstop, 'Last wavelength [Angstroms]')
 imghdr['WAVESTEP']= (dw, 'Wavelength step size [Angstroms]')
 imghdr['SPECTER'] = (specter.__version__, 'https://github.com/desihub/specter')
-imghdr['IN_PSF']  = (trim(opts.psf), 'Input spectral PSF')
-imghdr['IN_IMG']  = (trim(opts.input), 'Input image')
+imghdr['IN_PSF']  = (_trim(opts.psf), 'Input spectral PSF')
+imghdr['IN_IMG']  = (_trim(opts.input), 'Input image')
 
+#- Write output
 outdir = os.path.dirname(opts.output)
 if (outdir != '') and (not os.path.exists(outdir)):
     os.makedirs(outdir)

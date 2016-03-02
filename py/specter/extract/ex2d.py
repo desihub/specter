@@ -1,6 +1,7 @@
 """
 2D Spectroperfectionism extractions
 """
+from __future__ import absolute_import, division, print_function
 
 import sys
 import numpy as np
@@ -9,18 +10,117 @@ import scipy.linalg
 from scipy.sparse import spdiags, issparse
 from scipy.sparse.linalg import spsolve
 
+def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
+         regularize=0.0, ndecorr=False, bundlesize=25, wavesize=50, verbose=False):
+    '''
+    TODO: DOCUMENT
+    
+    Returns: flux, ivar, Rdata
+    '''
+    #- TODO: check input dimensionality etc.
 
-def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
+    dw = wavelengths[1] - wavelengths[0]
+    if not np.allclose(dw, np.diff(wavelengths)):
+        raise ValueError('ex2d currently only supports linear wavelength grids')
+
+    #- Output arrays to fill
+    nwave = len(wavelengths)
+    flux = np.zeros( (nspec, nwave) )
+    ivar = np.zeros( (nspec, nwave) )
+
+    #- Diagonal elements of resolution matrix
+    #- Keep resolution matrix terms equivalent to 9-sigma of largest spot
+    #- ndiag is in units of number of wavelength steps of size dw
+    ndiag = 0
+    for ispec in [0, psf.nspec//2, psf.nspec-1]:
+        for w in [psf.wmin, 0.5*(psf.wmin+psf.wmax), psf.wmax]:
+            ndiag = max(ndiag, int(round(9.0*psf.wdisp(ispec, w) / dw )))
+
+    #- Orig was ndiag = 10, which fails when dw gets too large compared to PSF size
+    Rd = np.zeros( (nspec, 2*ndiag+1, nwave) )
+
+    #- Let's do some extractions
+    for speclo in range(specmin, specmin+nspec, bundlesize):
+        #- index of last spectrum, non-inclusive, i.e. python-style indexing
+        spechi = min(speclo+bundlesize, specmin+nspec)
+        specrange = (speclo, spechi)
+
+        for iwave in range(0, len(wavelengths), wavesize):
+            #- Low and High wavelengths for the core region
+            wlo = wavelengths[iwave]
+            if iwave+wavesize < len(wavelengths):
+                whi = wavelengths[iwave+wavesize]
+            else:
+                whi = wavelengths[-1]
+        
+            #- Identify subimage that covers the core wavelengths
+            xyrange = xlo,xhi,ylo,yhi = psf.xyrange(specrange, (wlo, whi))
+            subimg = image[ylo:yhi, xlo:xhi]
+            subivar = imageivar[ylo:yhi, xlo:xhi]
+    
+            #- Determine extra border wavelength extent
+            ny, nx = psf.pix(speclo, wlo).shape
+            ymin = ylo-ny+2
+            ymax = yhi+ny-2
+        
+            nlo = int((wlo - psf.wavelength(speclo, ymin))/dw)-1
+            nhi = int((psf.wavelength(speclo, ymax) - whi)/dw)-1
+            ww = np.arange(wlo-nlo*dw, whi+(nhi+0.5)*dw, dw)
+            wmin, wmax = ww[0], ww[-1]
+            nw = len(ww)
+        
+            #- include \r carriage return to prevent scrolling
+            if verbose:
+                sys.stdout.write("\rSpectra {specrange} wavelengths ({wmin:.2f}, {wmax:.2f}) -> ({wlo:.2f}, {whi:.2f})".format(\
+                    specrange=specrange, wmin=wmin, wmax=wmax, wlo=wlo, whi=whi))
+                sys.stdout.flush()
+
+            #- Do the extraction
+            specflux, specivar, R = \
+                ex2d_patch(subimg, subivar, psf,
+                    specmin=speclo, nspec=spechi-speclo, wavelengths=ww,
+                    xyrange=xyrange, regularize=regularize, ndecorr=ndecorr)
+
+            #- Fill in the final output arrays
+            iispec = slice(speclo-specmin, spechi-specmin)
+            flux[iispec, iwave:iwave+wavesize+1] = specflux[:, nlo:-nhi]
+            ivar[iispec, iwave:iwave+wavesize+1] = specivar[:, nlo:-nhi]
+    
+            #- Fill diagonals of resolution matrix
+            for ispec in range(speclo, spechi):
+                #- subregion of R for this spectrum
+                ii = slice(nw*(ispec-speclo), nw*(ispec-speclo+1))
+                Rx = R[ii, ii]
+
+                for j in range(nlo,nw-nhi):
+                    # Rd dimensions [nspec, 2*ndiag+1, nwave]
+                    Rd[ispec-specmin, :, iwave+j-nlo] = Rx[j-ndiag:j+ndiag+1, j]
+
+    #- Add extra print because of carriage return \r progress trickery
+    if verbose:
+        print()
+
+    #+ TODO: what should this do to R in the case of non-uniform bins?
+    #+       maybe should do everything in photons/A from the start.            
+    #- Convert flux to photons/A instead of photons/bin
+    dwave = np.gradient(wavelengths)
+    flux /= dwave
+    ivar *= dwave**2
+    
+    return flux, ivar, Rd
+
+
+def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
          full_output=False, regularize=0.0, ndecorr=False):
     """
-    2D PSF extraction of flux from image given pixel inverse variance.
+    2D PSF extraction of flux from image patch given pixel inverse variance.
     
     Inputs:
         image : 2D array of pixels
         ivar  : 2D array of inverse variance for the image
         psf   : PSF object
-        specrange : (start, stop) to extract
-            (python style indexing; stop not included)
+        specmin : index of first spectrum to extract
+        nspec : number of spectra to extract
         wavelengths : 1D array of wavelengths to extract
         
     Optional Inputs:
@@ -39,6 +139,7 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
 
     #- Range of image to consider
     waverange = (wavelengths[0], wavelengths[-1])
+    specrange = (specmin, specmin+nspec)
     
     if xyrange is None:
         xmin, xmax, ymin, ymax = xyrange = psf.xyrange(specrange, waverange)
@@ -113,8 +214,8 @@ def ex2d(image, ivar, psf, specrange, wavelengths, xyrange=None,
             R, fluxivar = resolution_from_icov(iCov, decorr=[nwave for x in range(nspec)])
     except np.linalg.linalg.LinAlgError, err:
         outfile = 'LinAlgError_{}-{}_{}-{}.fits'.format(specrange[0], specrange[1], waverange[0], waverange[1])
-        print "ERROR: Linear Algebra didn't converge"
-        print "Dumping {} for debugging".format(outfile)
+        print("ERROR: Linear Algebra didn't converge")
+        print("Dumping {} for debugging".format(outfile))
         from astropy.io import fits
         fits.writeto(outfile, image, clobber=True)
         fits.append(outfile, ivar, name='IVAR')

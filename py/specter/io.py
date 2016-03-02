@@ -6,6 +6,8 @@ Stephen Bailey, LBL
 January 2013
 """
 
+import os
+import os.path
 from astropy.io import fits
 import numpy as np
 
@@ -49,6 +51,10 @@ def write_spectra(outfile, wave, flux, ivar, resolution, header):
     assert flux.shape == ivar.shape
     assert flux.shape[0] == resolution.shape[0]
     assert flux.shape[1] == resolution.shape[2]
+    
+    outdir = os.path.dirname(outfile)
+    if (outdir != '') and (not os.path.exists(outdir)):
+        os.makedirs(outdir)
     
     hx = fits.HDUList()
     header['EXTNAME'] = 'FLUX'
