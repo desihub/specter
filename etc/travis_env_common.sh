@@ -20,7 +20,7 @@ fi
 # CORE DEPENDENCIES
 conda install --yes pytest Cython jinja2 psutil pyyaml requests
 
-# NUMPY scipy
+# NUMPY SCIPY
 conda install --yes numpy=$NUMPY_VERSION scipy=$SCIPY_VERSION
 
 # ASTROPY
@@ -42,10 +42,6 @@ then
   $CONDA_INSTALL h5py matplotlib pyyaml scikit-image pandas
   $PIP_INSTALL beautifulsoup4
 fi
-
-# DESI DEPENDENCIES
-$PIP_INSTALL fitsio==${FITSIO_VERSION}
-$PIP_INSTALL git+https://github.com/desihub/desiutil.git@${DESIUTIL_VERSION}#egg=desiutil
 
 # DOCUMENTATION DEPENDENCIES
 # build_sphinx needs sphinx and matplotlib (for plot_directive). Note that
