@@ -11,6 +11,9 @@ from numpy.polynomial import legendre
 from specter import util
 import unittest
 
+from specter.test import test_data_dir
+from specter.psf import load_psf
+
 class TestUtil(unittest.TestCase):
     """
     Test functions within specter.util
@@ -58,6 +61,30 @@ class TestUtil(unittest.TestCase):
         self.assertTrue(a.shape == util.sincshift2d(a, 0.1, 0.0).shape)
         self.assertTrue(a.shape == util.sincshift2d(a, 0.0, 0.1).shape)
         self.assertTrue(a.shape == util.sincshift2d(a, 0.1, 0.1).shape)
+    
+    def test_psfbias(self):
+        psf = load_psf(test_data_dir() + "/psf-pix.fits")
+        wmid = 0.5*(psf.wmin+psf.wmax)
+        ww = np.linspace(wmid-10, wmid+10)
+        phot = np.ones(len(ww))
+        phot[10] = 20
+        bias = util.psfbias(psf, psf, ww, phot)
+        absbias, R = util.psfabsbias(psf, psf, ww, phot)
+        
+    def test_resample(self):
+        '''test resample; coverage only (not actual functionality)'''
+        x = np.linspace(0, 2*np.pi, 20)
+        y = np.sin(x) + 1
+        newx = np.linspace(1, 6, 10)
+        newy = util.resample(newx, x, y)
+        
+    def test_timeit(self):
+        import time
+        t0 = util.util._timeit()
+        time.sleep(0.1)
+        dt = util.util._timeit()
+        self.assertGreater(dt, 0.1)
+        self.assertLess(dt, 0.11)
         
     # def test_rebin(self):
     #     x = np.arange(25)

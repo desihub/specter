@@ -38,12 +38,10 @@ env:
         # The following versions are the 'default' for tests, unless
         # overidden underneath. They are defined here in order to save having
         # to repeat them for all configurations.
-        - NUMPY_VERSION=1.9
-        - SCIPY_VERSION=0.14
+        - NUMPY_VERSION=1.10
+        - SCIPY_VERSION=0.17
         - ASTROPY_VERSION=1.1
         - SPHINX_VERSION=1.3
-        - FITSIO_VERSION=0.9.7
-        - DESIUTIL_VERSION=1.3.2
         - CONDA_INSTALL='conda install -c astropy-ci-extras --yes'
         - PIP_INSTALL='pip install'
         - OPTIONAL_DEPS=false
@@ -75,7 +73,7 @@ matrix:
 
         # Try all python versions with the latest numpy
         - os: linux
-          env: PYTHON_VERSION=2.7 SETUP_CMD='test --coverage'
+          env: PYTHON_VERSION=2.7 SETUP_CMD='test'
 
         # - os: osx
         #   env: PYTHON_VERSION=2.7 SETUP_CMD='test'
@@ -108,8 +106,8 @@ install:
     - if [[ $SETUP_CMD == 'build_sphinx' ]]; then pip install Sphinx; fi
 
 script:
-    - $MAIN_CMD $SETUP_CMD
+    - if [[ $SETUP_CMD == 'test' ]]; then coverage run py/specter/test/specter_test_suite.py; else $MAIN_CMD $SETUP_CMD; fi
 
 after_success:
-    - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls; fi
+    - if [[ $SETUP_CMD == 'test' ]]; then coveralls; fi
 

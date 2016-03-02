@@ -274,41 +274,6 @@ def trapz(edges, xp, yp):
         
     return result
     
-def model_function(x, y):
-    """
-    Find the function p(x) which integrates to y over each bin.
-    
-    Current implementation uses linear trapz interpolation between points.
-    
-    TODO: Refactor this name and interface.  Document underlying math.
-    TODO: Replace with quadratic spline instead of linear.
-    """
-    nx = len(x)
-    B = np.ones((3, nx)) * 0.75  #- B[1] = 0.75 for all entries
-    B[0,1] = B[2, -2] = 0.25
-    B[0,0] = B[-1,-1] = 0.0     #- doesn't really matter; unused
-    dx1 = x[1:] - x[0:-1]
-    dx2 = x[2:] - x[0:-2]
-    # for i in range(1, nx-1):
-    #     B[0,i+1] = 0.25*dx1[i]/dx2[i-1]
-    #     B[2,i-1] = 0.25*dx1[i-1]/dx2[i-1]    
-    B[0,2:nx] = 0.25 * dx1[1:nx-1] / dx2[0:nx-2]
-    B[2,0:nx-2] = 0.25 * dx1[0:nx-2] / dx2[0:nx-2]
-        
-    p = scipy.linalg.solve_banded((1,1), B, y)
-    return p
-
-def get_bin_edges(bin_centers):
-    """
-    Given a sorted array of bin centers, return array of bin edges
-    
-    edge[0] = center[0]
-    edge[-1] = center[-1]
-    edge[i] = 0.5*(center[i-1] + center[i]) for 0 < i < len(center)-1
-    """
-    mid = 0.5*(bin_centers[0:-1] + bin_centers[1:])
-    return np.concatenate( (bin_centers[0:1], mid, bin_centers[-1:]) )
-    
 def resample(x, xp, yp, xedges=False, xpedges=False):
     """
     IN PROGRESS.  Resample a spectrum to a new binning using PixelSpline

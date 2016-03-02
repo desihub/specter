@@ -377,32 +377,3 @@ class Throughput:
         """Maximum wavelength [Angstroms] covered by this throughput model"""
         return self._wave[-1]
 
-    def _apply_throughput_binned(self, wavelength, flux, objtype="STAR", airmass=1.0):
-        """
-        Experimental: uses pixel spline model to sub-sample.
-        
-        Returns flux array with throughputs applied for given
-        objtype and airmass.
-        """
-
-        #- Find function which integrates to each bin flux
-        y = util.model_function(wavelength, flux)
-        
-        #- Apply throughput, sampling at both input wavelengths and
-        #- at native throughput wavelengths.
-        ww = np.concatenate( (wavelength, self._wave) )
-        yflux = np.interp(ww, wavelength, y)
-        t = self.thru(ww, objtype=objtype, airmass=airmass)
-        yflux *= t
-        
-        #- HACK: Only apply throughput to positive fluxes
-        # ii = np.where(yflux>0)
-        # yflux[ii] *= t[ii]
-        
-        #- Resample back to input wavelength binning
-        edges = util.get_bin_edges(wavelength)
-        binwidths = np.diff(edges)
-        ii = np.argsort(ww)
-        binnedflux = util.trapz(edges, ww[ii], yflux[ii]) / binwidths
-        return binnedflux
-

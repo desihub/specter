@@ -20,7 +20,7 @@ fi
 # CORE DEPENDENCIES
 conda install --yes pytest Cython jinja2 psutil pyyaml requests
 
-# NUMPY scipy
+# NUMPY SCIPY
 conda install --yes numpy=$NUMPY_VERSION scipy=$SCIPY_VERSION
 
 # ASTROPY
@@ -43,10 +43,6 @@ then
   $PIP_INSTALL beautifulsoup4
 fi
 
-# DESI DEPENDENCIES
-$PIP_INSTALL fitsio==${FITSIO_VERSION}
-$PIP_INSTALL git+https://github.com/desihub/desiutil.git@${DESIUTIL_VERSION}#egg=desiutil
-
 # DOCUMENTATION DEPENDENCIES
 # build_sphinx needs sphinx and matplotlib (for plot_directive). Note that
 # this matplotlib will *not* work with py 3.x, but our sphinx build is
@@ -60,7 +56,7 @@ fi
 # cpp-coveralls must be installed first.  It installs two identical
 # scripts: 'cpp-coveralls' and 'coveralls'.  The latter will overwrite
 # the script installed by 'coveralls', unless it's installed first.
-if [[ $SETUP_CMD == 'test --coverage' ]]
+if [[ $SETUP_CMD == 'test' ]]
 then
   $PIP_INSTALL cpp-coveralls;
   $PIP_INSTALL coverage coveralls;

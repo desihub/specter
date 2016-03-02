@@ -9,26 +9,26 @@ import os
 import sys
 from setuptools import setup, find_packages
 #
-# DESI support code.
-#
-from desiutil.setup import DesiTest, DesiVersion, get_version
-#
 # Begin setup
 #
 setup_keywords = dict()
-#
-# THESE SETTINGS NEED TO BE CHANGED FOR EVERY PRODUCT.
-#
 setup_keywords['name'] = 'specter'
-setup_keywords['description'] = 'A toolkit for simulating multi-object spectrographs.'
+setup_keywords['description'] = 'A toolkit for spectroperfectionism with multi-object spectrographs.'
 setup_keywords['author'] = 'DESI Collaboration'
 setup_keywords['author_email'] = 'desi-data@desi.lbl.gov'
 setup_keywords['license'] = 'BSD'
 setup_keywords['url'] = 'https://github.com/desihub/specter'
-#
-# END OF SETTINGS THAT NEED TO BE CHANGED.
-#
-setup_keywords['version'] = get_version(setup_keywords['name'])
+
+sys.path.insert(int(sys.path[0] == ''),'./py')
+try:
+    from importlib import import_module
+    product = import_module(setup_keywords['name'])
+    setup_keywords['long_description'] = product.__doc__
+    setup_keywords['version'] = product.__version__
+except ImportError:
+    print('ERROR: unable to load specter; exiting')
+    sys.exit(1)
+
 #
 # Use README.rst as long_description.
 #
@@ -52,7 +52,6 @@ setup_keywords['zip_safe'] = False
 setup_keywords['use_2to3'] = True
 setup_keywords['packages'] = find_packages('py')
 setup_keywords['package_dir'] = {'':'py'}
-setup_keywords['cmdclass'] = {'version': DesiVersion,'test': DesiTest}
 setup_keywords['test_suite']='{name}.test.{name}_test_suite.{name}_test_suite'.format(**setup_keywords)
 #
 # Autogenerate command-line scripts.

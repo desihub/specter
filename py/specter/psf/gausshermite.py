@@ -64,8 +64,10 @@ class GaussHermitePSF(PSF):
         #- Create inverse y -> wavelength mapping
         self._w = self._y.invert()
         self._wmin = np.min(self.wavelength(None, 0))
+        self._wmin_all = np.max(self.wavelength(None, 0))
         self._wmax = np.max(self.wavelength(None, self.npix_y-1))
-                
+        self._wmax_all = np.min(self.wavelength(None, self.npix_y-1))
+               
         #- Filled only if needed
         self._xsigma = None
         self._ysigma = None
