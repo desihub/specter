@@ -71,6 +71,21 @@ class TestUtil(unittest.TestCase):
         bias = util.psfbias(psf, psf, ww, phot)
         absbias, R = util.psfabsbias(psf, psf, ww, phot)
         
+    def test_resample(self):
+        '''test resample; coverage only (not actual functionality)'''
+        x = np.linspace(0, 2*np.pi, 20)
+        y = np.sin(x) + 1
+        newx = np.linspace(1, 6, 10)
+        newy = util.resample(newx, x, y)
+        
+    def test_timeit(self):
+        import time
+        t0 = util.util._timeit()
+        time.sleep(0.1)
+        dt = util.util._timeit()
+        self.assertGreater(dt, 0.1)
+        self.assertLess(dt, 0.11)
+        
     # def test_rebin(self):
     #     x = np.arange(25)
     #     y = np.random.uniform(0.0, 5.0, size=len(x))
