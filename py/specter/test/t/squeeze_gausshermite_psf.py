@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 """
-Squeeze a DESI GAUSS-HERMITE PSF into something smaller for testing
+Squeeze a DESI GAUSS-HERMITE PSF into something smaller for testing.
+Also works for GAUSS-HERMITE2
 """
 
 import sys
@@ -25,6 +26,8 @@ tx = Table()
 tx['PARAM'] = data['PARAM']
 tx['WAVEMIN'] = data['WAVEMIN']
 tx['WAVEMAX'] = data['WAVEMAX']
+if 'NCOEFF' in data.dtype.names:
+    tx['NCOEFF'] = data['NCOEFF']
 tx['COEFF'] = data['COEFF'][:, 0:nspec, :]
 
 fits.append(outfile, np.array(tx), header=hdr)

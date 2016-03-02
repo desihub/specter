@@ -500,7 +500,12 @@ class TestMonoSpotPSF(GenericPSFTests,unittest.TestCase):
     def setUp(self):
         self.psf = load_psf(test_data_dir() + "/psf-monospot.fits")
 
-#- Test SpotGrid PSF format
+#- Test GaussHermitePSF format
+class TestGaussHermitePSF(GenericPSFTests,unittest.TestCase):
+    def setUp(self):
+        self.psf = load_psf(test_data_dir() + "/psf-gausshermite.fits")
+
+#- Test GaussHermite2PSF format
 class TestGaussHermite2PSF(GenericPSFTests,unittest.TestCase):
     def setUp(self):
         self.psf = load_psf(test_data_dir() + "/psf-gausshermite2.fits")
@@ -511,7 +516,7 @@ if __name__ == '__main__':
     s1 = unittest.defaultTestLoader.loadTestsFromTestCase(TestPixPSF)
     s2 = unittest.defaultTestLoader.loadTestsFromTestCase(TestSpotPSF)
     s3 = unittest.defaultTestLoader.loadTestsFromTestCase(TestMonoSpotPSF)
-    s4 = unittest.defaultTestLoader.loadTestsFromTestCase(TestGaussHermite2PSF)
+    s4 = unittest.defaultTestLoader.loadTestsFromTestCase(TestGaussHermitePSF)
+    s5 = unittest.defaultTestLoader.loadTestsFromTestCase(TestGaussHermite2PSF)
 
-    # unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite([s4, ]))
-    unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite([s1, s2, s3, s4]))
+    unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite([s1, s2, s3, s4, s5]))
