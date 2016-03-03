@@ -2,10 +2,13 @@
 specter Release Notes
 =====================
 
-0.3.1 (unreleased)
-------------------
+0.4 (2016-03-03)
+----------------
 
-* No changes yet.
+* refactored bin/exspec to move most functionality into specter.extract.ex2d
+  API change to ex2d() to use specmin,nspec instead of
+  specrange=(specmin,specmax)
+* removed desiutil dependency
 
 0.3 (2015-12-15)
 ----------------

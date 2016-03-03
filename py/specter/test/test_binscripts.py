@@ -12,8 +12,6 @@ from astropy.io import fits
 from uuid import uuid4
 
 from specter.test import test_data_dir
-from specter.psf import load_psf
-from specter.extract.ex2d import ex2d
 import specter.io
 
 from astropy.io import fits
