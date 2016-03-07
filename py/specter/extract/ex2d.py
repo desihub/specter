@@ -13,9 +13,36 @@ from scipy.sparse.linalg import spsolve
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
          regularize=0.0, ndecorr=False, bundlesize=25, wavesize=50, verbose=False):
     '''
-    TODO: DOCUMENT
+    2D PSF extraction of flux from image patch given pixel inverse variance.
     
-    Returns: flux, ivar, Rdata
+    Inputs:
+        image : 2D array of pixels
+        imageivar : 2D array of inverse variance for the image
+        psf   : PSF object
+        specmin : index of first spectrum to extract
+        nspec : number of spectra to extract
+        wavelengths : 1D array of wavelengths to extract
+
+    Optional Inputs:
+        xyrange = (xmin, xmax, ymin, ymax): treat image as a subimage
+            cutout of this region from the full image
+        regularize: experimental regularization factor to minimize ringing
+        ndecorr : if True, decorrelate the noise between fibers, at the
+            cost of residual signal correlations between fibers.
+        bundlesize: extract in groups of fibers of this size, assuming no
+            correlation with fibers outsize of this bundle
+        wavesize: number of wavelength steps to include per sub-extraction
+        verbose: print more stuff
+
+    Returns (flux, ivar, Rdata):
+        flux[nspec, nwave] = extracted resolution convolved flux
+        ivar[nspec, nwave] = inverse variance of flux
+        Rdata[nspec, 2*ndiag+1, nwave] = sparse Resolution matrix data
+
+    ex2d uses divide-and-conquer to extract many overlapping subregions
+    and then stitches them back together.  Params wavesize and bundlesize
+    control the size of the subregions that are extracted; the necessary
+    amount of overlap is auto-calculated based on PSF extent.
     '''
     #- TODO: check input dimensionality etc.
 
@@ -35,6 +62,10 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
     for ispec in [0, psf.nspec//2, psf.nspec-1]:
         for w in [psf.wmin, 0.5*(psf.wmin+psf.wmax), psf.wmax]:
             ndiag = max(ndiag, int(round(9.0*psf.wdisp(ispec, w) / dw )))
+
+    #- make sure that ndiag isn't too large for actual PSF spot size
+    spotsize = psf.pix(0, psf.wmin).shape
+    ndiag = min(ndiag, spotsize[0]//2, spotsize[1]//2)
 
     #- Orig was ndiag = 10, which fails when dw gets too large compared to PSF size
     Rd = np.zeros( (nspec, 2*ndiag+1, nwave) )
