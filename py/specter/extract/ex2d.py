@@ -64,7 +64,8 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
             ndiag = max(ndiag, int(round(9.0*psf.wdisp(ispec, w) / dw )))
 
     #- make sure that ndiag isn't too large for actual PSF spot size
-    spotsize = psf.pix(0, psf.wmin).shape
+    wmid = (psf.wmin_all + psf.wmax_all) / 2
+    spotsize = psf.pix(0, wmid).shape
     ndiag = min(ndiag, spotsize[0]//2, spotsize[1]//2)
 
     #- Orig was ndiag = 10, which fails when dw gets too large compared to PSF size
