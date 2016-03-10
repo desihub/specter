@@ -2,6 +2,12 @@
 specter Release Notes
 =====================
 
+0.4.1 (2016-03-10)
+------------------
+
+* Bug fixes for small PSFs, and fixes of the fixes
+* This is a release candidate for DESI Spectro Pipeline 2016a
+
 0.4 (2016-03-03)
 ----------------
 
