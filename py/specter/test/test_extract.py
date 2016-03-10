@@ -18,7 +18,8 @@ class TestExtract(unittest.TestCase):
     """
     Test functions within specter.extract
     """
-    def setUp(self):
+    @classmethod
+    def setUpClass(self):
         np.random.seed(0)
         psf = load_psf(test_data_dir() + "/psf-spot.fits")
 
@@ -51,7 +52,7 @@ class TestExtract(unittest.TestCase):
         self.sym += np.dot(np.transpose(self.a2), self.a2)
 
                 
-    def _test_blat(self):
+    def test_ex2d_chi2(self):
         from time import time
         specrange = (0, self.nspec)
         waverange = (self.ww[0], self.ww[-1])
@@ -64,15 +65,8 @@ class TestExtract(unittest.TestCase):
             flux, ivar, R = d['flux'], d['ivar'], d['R']
             rflux = R.dot(self.phot.ravel()).reshape(flux.shape)
             chi = (flux - rflux) * np.sqrt(ivar)
-            
-            xpix = d['A'].dot(d['xflux'].ravel())
-            subpix = pix[ymin:ymax, xmin:xmax].ravel()
-            subivar = self.ivar[ymin:ymax, xmin:xmax].ravel()
-            
-            pixchi = (xpix - subpix) * np.sqrt(subivar)
-        
-            print i, np.std(chi), np.std(pixchi)
-    
+            #- loose test, just checking for catastrophic failures
+            self.assertLess(abs(1-np.std(chi)), 0.10)
 
     def test_eigen_compose(self):
         w, v = scipy.linalg.eigh(self.sym)
@@ -163,6 +157,7 @@ class TestExtract(unittest.TestCase):
         self.assertEqual(Rdata.ndim, 3)
         self.assertEqual(Rdata.shape[0], self.nspec)
         self.assertEqual(Rdata.shape[2], len(self.ww))
+        self.assertGreater(Rdata.shape[1], 15)
 
     #- Pull values are wrong.  Why?  Overfitting?
     def test_ex2d_patch(self):
