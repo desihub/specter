@@ -2,6 +2,11 @@
 specter Release Notes
 =====================
 
+0.5.0 (unreleased)
+------------------
+
+* Move data files into Python package so pip can install the data files.
+
 0.4.1 (2016-03-10)
 ------------------
 
