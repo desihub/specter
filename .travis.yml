@@ -45,11 +45,11 @@ env:
         # These packages will always be installed.
         - CONDA_DEPENDENCIES=''
         # These packages will only be installed if we really need them.
-        - CONDA_ALL_DEPENDENCIES='scipy'
+        - CONDA_ALL_DEPENDENCIES='scipy coverage==3.7.1 requests'
         # These packages will always be installed.
         - PIP_DEPENDENCIES=''
         # These packages will only be installed if we really need them.
-        - PIP_ALL_DEPENDENCIES=''
+        - PIP_ALL_DEPENDENCIES='coveralls'
         # Debug the Travis install process.
         - DEBUG=False
     matrix:
@@ -75,7 +75,8 @@ matrix:
         - os: linux
           env: PYTHON_VERSION=2.7 MAIN_CMD='coverage'
                SETUP_CMD="run py/specter/test/specter_test_suite.py"
-               CONDA_DEPENDENCIES="$CONDA_ALL_DEPENDENCIES coverage coveralls"
+               CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
+               PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
         # - os: osx
         #   env: PYTHON_VERSION=2.7 SETUP_CMD='test'
