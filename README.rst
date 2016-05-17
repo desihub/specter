@@ -95,6 +95,8 @@ If you have tagged a version and wish to set the package version based on your c
 
 And then install as usual.
 
+**This assumes that specter depends on desiutil, which it currently does not.**
+
 Full Documentation
 ------------------
 

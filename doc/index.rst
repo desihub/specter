@@ -19,6 +19,7 @@ directory and even display their sections.  See `the toctree documentation`_.
    :maxdepth: 1
 
    release_notes
+   data_files
    datamodel/index
 
 Indices and tables
