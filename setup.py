@@ -7,6 +7,7 @@ from __future__ import absolute_import, division, print_function
 import glob
 import os
 import sys
+import re
 #
 # setuptools' sdist command ignores MANIFEST.in
 #
@@ -28,19 +29,18 @@ setup_keywords['url'] = 'https://github.com/desihub/specter'
 #
 # END OF SETTINGS THAT NEED TO BE CHANGED.
 #
-sys.path.insert(int(sys.path[0] == ''), './py')
-try:
-    from importlib import import_module
-    product = import_module(setup_keywords['name'])
-    setup_keywords['long_description'] = product.__doc__
-    setup_keywords['version'] = product.__version__
-except ImportError:
-    print('ERROR: unable to load specter; exiting.')
-    sys.exit(1)
+# setup_keywords['version'] = get_version(setup_keywords['name'])
+with open(os.path.join('py', setup_keywords['name'], '_version.py')) as v:
+    data = v.read()
+mo = re.match(r"__version__ = '(.*)'", data.strip())
+if mo:
+    setup_keywords['version'] = mo.groups()[0]
+else:
+    setup_keywords['version'] = '0.0.1.dev1'
 #
 # Use README.rst as long_description.
 #
-# setup_keywords['long_description'] = ''
+setup_keywords['long_description'] = ''
 if os.path.exists('README.rst'):
     with open('README.rst') as readme:
         setup_keywords['long_description'] = readme.read()
