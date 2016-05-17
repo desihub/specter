@@ -51,7 +51,7 @@ env:
         # These packages will only be installed if we really need them.
         - PIP_ALL_DEPENDENCIES=''
         # Debug the Travis install process.
-        - DEBUG=True
+        - DEBUG=False
     matrix:
         - PYTHON_VERSION=2.7 SETUP_CMD='egg_info'
 
@@ -75,7 +75,7 @@ matrix:
         - os: linux
           env: PYTHON_VERSION=2.7 MAIN_CMD='coverage'
                SETUP_CMD="run py/specter/test/specter_test_suite.py"
-               CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
+               CONDA_DEPENDENCIES="$CONDA_ALL_DEPENDENCIES coverage coveralls"
 
         # - os: osx
         #   env: PYTHON_VERSION=2.7 SETUP_CMD='test'
