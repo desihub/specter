@@ -20,19 +20,19 @@ class TestExtract(unittest.TestCase):
     """
     @classmethod
     def setUpClass(cls):
-        np.random.seed(0)
-        psf = load_psf(resource_filename("specter.test", "t/psf-spot.fits"))
+        cls.psf = load_psf(resource_filename("specter.test", "t/psf-spot.fits"))
 
+        np.random.seed(0)
         nspec = 10
-        wmin = min(psf.wavelength(0, y=0), psf.wavelength(nspec-1, y=0))
+        wmin = min(cls.psf.wavelength(0, y=0), cls.psf.wavelength(nspec-1, y=0))
         ### ww = psf.wavelength(0, y=np.arange(10,60))
-        wmin, wmax = psf.wavelength(0, y=(10,50))
+        wmin, wmax = cls.psf.wavelength(0, y=(10,50))
         ww = np.arange(wmin, wmax, 0.5)
         nwave = len(ww)
 
         phot_shape = (nspec, nwave)
         phot = np.random.uniform(1, 1000, size=phot_shape)
-        image_orig = psf.project(ww, phot, verbose=False)
+        image_orig = cls.psf.project(ww, phot, verbose=False)
         var = 1.0 + image_orig
         image = image_orig + np.random.normal(scale=np.sqrt(var))
 
@@ -40,16 +40,15 @@ class TestExtract(unittest.TestCase):
         cls.image_orig = image_orig
         cls.image = image
         cls.ivar = 1.0 / var
-        cls.psf = psf
         cls.ww = ww
         cls.nspec = nspec
 
         # construct a symmetric test matrix
         cls.dim = 100
-        cls.a1 = np.random.uniform(low=0.01, high=100.0, size=(self.dim, self.dim))
-        cls.a2 = np.random.uniform(low=0.01, high=100.0, size=(self.dim, self.dim))
-        cls.sym = np.dot(np.transpose(self.a1), self.a1)
-        cls.sym += np.dot(np.transpose(self.a2), self.a2)
+        cls.a1 = np.random.uniform(low=0.01, high=100.0, size=(cls.dim, cls.dim))
+        cls.a2 = np.random.uniform(low=0.01, high=100.0, size=(cls.dim, cls.dim))
+        cls.sym = np.dot(np.transpose(cls.a1), cls.a1)
+        cls.sym += np.dot(np.transpose(cls.a2), cls.a2)
 
 
     def test_ex2d_chi2(self):
