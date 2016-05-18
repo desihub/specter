@@ -1,3 +1,7 @@
+"""
+specter.psf
+===========
+"""
 from psf import PSF
 from spotgrid import SpotGridPSF
 from pixpsf import PixPSF
@@ -18,7 +22,7 @@ def load_psf(filename, psftype=None):
 
     if psftype is not None:
         hdr['PSFTYPE'] = psftype
-    
+
     if hdr['PSFTYPE'] == 'SPOTGRID':
         return SpotGridPSF(filename)
     if hdr['PSFTYPE'] == 'MONOSPOT':
