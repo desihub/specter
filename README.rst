@@ -86,17 +86,6 @@ Example usage of the Python toolkit::
     xphot, ivar, R = ex2d(image, image_ivar, psf, specrange=[0,10], \
                           wavelengths=wavelength)
 
-Versioning
-----------
-
-If you have tagged a version and wish to set the package version based on your current git location::
-
-    $>  python setup.py version
-
-And then install as usual.
-
-**This assumes that specter depends on desiutil, which it currently does not.**
-
 Full Documentation
 ------------------
 
