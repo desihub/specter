@@ -76,7 +76,7 @@ class TestBinScripts(unittest.TestCase):
         self.assertEqual(err, 0, 'Error code {} != 0'.format(err))
         self.assertTrue(os.path.exists(imgfile1))
 
-        with fits.open(imgfile1) as fx
+        with fits.open(imgfile1) as fx:
             self.assertIn('CCDIMAGE', fx)
             self.assertIn('IVAR', fx)
 
@@ -145,7 +145,7 @@ class TestBinScripts(unittest.TestCase):
           -w 7500,7620 \
           --specmin 0 --nspec 2 --exptime 1500 --trimxy""".format(
               executable=self.executable,
-              specter_dir=self.specter_dir
+              specter_dir=self.specter_dir,
               sky=self.sky_file,
               monospot_file=self.monospot_file,
               throughput_file=self.throughput_file)
