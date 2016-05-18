@@ -108,6 +108,9 @@ Please visit `specter on Read the Docs`_
 
 .. _`specter on Read the Docs`: http://specter.readthedocs.org/en/latest/
 
+**This is not actually the specter documentation.  It is some other package
+that happens to also be called "specter".**
+
 Travis Build Status
 -------------------
 
