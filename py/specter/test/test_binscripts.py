@@ -11,7 +11,6 @@ import unittest
 from astropy.io import fits
 from uuid import uuid4
 from pkg_resources import resource_filename
-from specter.test import test_data_dir
 from ..io import read_image, write_spectra
 from astropy.io import fits
 

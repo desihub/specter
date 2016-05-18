@@ -9,19 +9,19 @@ import os
 import numpy as np
 import scipy.linalg
 import unittest
-from specter.test import test_data_dir
-from specter.psf import load_psf
-from specter.extract.ex2d import ex2d, ex2d_patch, eigen_compose
-from specter.extract.ex1d import ex1d
+from pkg_resources import resource_filename
+from ..psf import load_psf
+from ..extract.ex2d import ex2d, ex2d_patch, eigen_compose
+from ..extract.ex1d import ex1d
 
 class TestExtract(unittest.TestCase):
     """
     Test functions within specter.extract
     """
     @classmethod
-    def setUpClass(self):
+    def setUpClass(cls):
         np.random.seed(0)
-        psf = load_psf(test_data_dir() + "/psf-spot.fits")
+        psf = load_psf(resource_filename("specter.test", "t/psf-spot.fits"))
 
         nspec = 10
         wmin = min(psf.wavelength(0, y=0), psf.wavelength(nspec-1, y=0))
@@ -29,36 +29,36 @@ class TestExtract(unittest.TestCase):
         wmin, wmax = psf.wavelength(0, y=(10,50))
         ww = np.arange(wmin, wmax, 0.5)
         nwave = len(ww)
-        
+
         phot_shape = (nspec, nwave)
         phot = np.random.uniform(1, 1000, size=phot_shape)
         image_orig = psf.project(ww, phot, verbose=False)
         var = 1.0 + image_orig
         image = image_orig + np.random.normal(scale=np.sqrt(var))
-                
-        self.phot = phot
-        self.image_orig = image_orig
-        self.image = image
-        self.ivar = 1.0 / var
-        self.psf = psf        
-        self.ww = ww
-        self.nspec = nspec
+
+        cls.phot = phot
+        cls.image_orig = image_orig
+        cls.image = image
+        cls.ivar = 1.0 / var
+        cls.psf = psf
+        cls.ww = ww
+        cls.nspec = nspec
 
         # construct a symmetric test matrix
-        self.dim = 100
-        self.a1 = np.random.uniform(low=0.01, high=100.0, size=(self.dim, self.dim))
-        self.a2 = np.random.uniform(low=0.01, high=100.0, size=(self.dim, self.dim))
-        self.sym = np.dot(np.transpose(self.a1), self.a1)
-        self.sym += np.dot(np.transpose(self.a2), self.a2)
+        cls.dim = 100
+        cls.a1 = np.random.uniform(low=0.01, high=100.0, size=(self.dim, self.dim))
+        cls.a2 = np.random.uniform(low=0.01, high=100.0, size=(self.dim, self.dim))
+        cls.sym = np.dot(np.transpose(self.a1), self.a1)
+        cls.sym += np.dot(np.transpose(self.a2), self.a2)
 
-                
+
     def test_ex2d_chi2(self):
         from time import time
         specrange = (0, self.nspec)
         waverange = (self.ww[0], self.ww[-1])
         imgvar = 1/self.ivar
         xmin, xmax, ymin, ymax = xyrange = self.psf.xyrange(specrange, waverange)
-        
+
         for i in range(3):
             pix = self.image_orig + np.random.normal(scale=np.sqrt(imgvar))
             d = ex2d_patch(pix, self.ivar, self.psf, 0, self.nspec, self.ww, full_output=True)
@@ -111,13 +111,13 @@ class TestExtract(unittest.TestCase):
         R = d['R']
         flux = d['flux']     #- resolution convolved extracted flux
         xflux = d['xflux']   #- original extracted flux
-        
+
         #- Resolution convolved input photons (flux)
         rphot = R.dot(self.phot.ravel()).reshape(flux.shape)
-        
+
         #- extracted flux projected back to image
         ximg = self.psf.project(self.ww, xflux, verbose=False)
-        
+
         #- Compare inputs to outputs
         bias = (flux - rphot)/rphot
         dximg = ximg - self.image_orig
@@ -134,13 +134,13 @@ class TestExtract(unittest.TestCase):
         R = d['R']
         flux = d['flux']     #- resolution convolved extracted flux
         xflux = d['xflux']   #- original extracted flux
-        
+
         #- Resolution convolved input photons (flux)
         rphot = R.dot(self.phot.ravel()).reshape(flux.shape)
-        
+
         #- extracted flux projected back to image
         ximg = self.psf.project(self.ww, xflux, verbose=False)
-        
+
         #- Compare inputs to outputs
         bias = (flux - rphot)/rphot
         dximg = ximg - self.image_orig
@@ -174,7 +174,7 @@ class TestExtract(unittest.TestCase):
         # flux = d['flux']     #- resolution convolved extracted flux
         # rphot = R.dot(self.phot.ravel()).reshape(flux.shape)
         # pull_flux = (flux - rphot) * np.sqrt(d['ivar'])
-        # 
+        #
         # #- Pull image
         # specrange = (0, self.nspec)
         # waverange = (self.ww[0], self.ww[-1])
@@ -207,7 +207,7 @@ class TestExtract(unittest.TestCase):
         ymin = max(0, ymin-border)
         ymax = min(self.psf.npix_y, ymax+border)
         xyrange = (xmin, xmax, ymin, ymax)
-        
+
         subimg = self.image[ymin:ymax, xmin:xmax]
         subivar = self.ivar[ymin:ymax, xmin:xmax]
         subflux, subfluxivar, subR = ex2d_patch(subimg, subivar, self.psf, \
@@ -232,9 +232,9 @@ class TestExtract(unittest.TestCase):
         ivar = np.ones(img.shape)
 
         flux, fluxivar, R = ex2d_patch(img, ivar, self.psf, 0, self.nspec, ww, xyrange=xyrange)
-        
+
         self.assertTrue( np.all(flux == flux) )
-        
-        
+
+
 if __name__ == '__main__':
-    unittest.main()           
+    unittest.main()

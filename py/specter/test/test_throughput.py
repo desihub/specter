@@ -7,18 +7,20 @@ Test specter throughput file format
 import os
 import numpy as np
 import unittest
-
-from specter.throughput import load_throughput
-from specter.test import test_data_dir
+from pkg_resources import resource_filename
+from ..throughput import load_throughput
 
 class TestThroughput(unittest.TestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        cls.thru = load_throughput(resource_filename('specter.test', 't/throughput.fits'))
+        cls.w = np.arange(5000, 9000, 1)
+
     def setUp(self):
-        self.thru = load_throughput(test_data_dir()+'/throughput.fits')
-        self.w = np.arange(5000, 9000, 1)
         self.flux = np.random.uniform(1,2, size=self.w.shape) * 1e-17
         self.photflux = np.random.uniform(0,1, size=self.w.shape)
-        
+
     def test_area(self):
         self.assertTrue(self.thru.area > 0)
 
@@ -27,7 +29,7 @@ class TestThroughput(unittest.TestCase):
 
     def test_fiberdia(self):
         self.assertTrue(self.thru.fiberdia > 0)
-        
+
     def test_atmthru(self):
         t = self.thru.atmospheric_throughput(self.w)
         self.assertTrue(np.all( (0.0<=t) & (t<= 1.0)))
@@ -39,12 +41,12 @@ class TestThroughput(unittest.TestCase):
     def test_fiberin(self):
         t = self.thru.fiberinput_throughput(self.w)
         self.assertTrue(np.all( (0.0<=t) & (t<= 1.0)))
-        
+
         #- Use a different wavelength grid
         t = self.thru.fiberinput_throughput(self.w[0::2])
         self.assertTrue(np.all( (0.0<=t) & (t<= 1.0)))
         self.assertTrue(len(t) == len(self.w)//2)
-        
+
         #- Should even work with no wavelength grid
         t = self.thru.fiberinput_throughput()
         self.assertTrue(np.all( (0.0<=t) & (t<= 1.0)))
@@ -53,18 +55,18 @@ class TestThroughput(unittest.TestCase):
         tstar = self.thru.fiberinput_throughput(self.w, objtype='STAR')
         telg = self.thru.fiberinput_throughput(self.w, objtype='ELG')
         tsky = self.thru.fiberinput_throughput(self.w, objtype='SKY')
-                
+
         self.assertTrue(np.all( (0.0<=tstar) & (tstar<= 1.0)))
         self.assertTrue(np.all( (0.0<=telg) & (telg<= 1.0)))
         self.assertTrue(np.allclose(tsky, 1.0))
-        
+
         self.assertTrue(np.all(tsky >= tstar))
         self.assertTrue(np.all(tstar >= telg))
 
     def test_hardware(self):
         t = self.thru.hardware_throughput(self.w)
         self.assertTrue(np.all( (0.0<=t) & (t<= 1.0)))
-        
+
     def test_calibthru(self):
         t1 = self.thru(self.w, objtype='CALIB', airmass=1.0)
         t2 = self.thru(self.w, objtype='CALIB', airmass=2.0)
@@ -88,12 +90,12 @@ class TestThroughput(unittest.TestCase):
         self.assertTrue( len(t1) == len(t2) )
         self.assertTrue( len(t1) == len(self.w) )
         self.assertTrue( np.any(t2>0.0) )
-        
+
     def test_thru(self):
         t1 = self.thru(self.w, objtype='CALIB', airmass=1.1)
         t2 = self.thru(self.w, objtype='SKY', airmass=1.1)
         t3 = self.thru(self.w, objtype='STAR', airmass=1.1)
-        
+
         self.assertTrue( np.all( (t1>t2) | (t1==0.0) ) )
         self.assertTrue( np.all( (t2>t3) | (t2==0.0) ) )
         self.assertTrue( np.any(t3>0.0) )
@@ -134,7 +136,7 @@ class TestThroughput(unittest.TestCase):
         for u in units:
             p = self.thru.photons(self.w, self.photflux, units=u, objtype='STAR')
             self.assertTrue( np.any(p>0) and np.all(p>=0) )
-        
+
     def test_calibphot(self):
         p1 = self.thru.photons(self.w, self.flux, objtype='CALIB', airmass=1.0)
         p2 = self.thru.photons(self.w, self.flux, objtype='CALIB', airmass=2.0)
@@ -151,12 +153,12 @@ class TestThroughput(unittest.TestCase):
         p2 = self.thru.photons(self.w, self.flux, objtype='STAR', airmass=2.0)
         self.assertTrue( np.any(p1>0) )
         self.assertTrue( np.all( (p1>p2) | (p2==0) ) )
-        
+
     def test_multiphot(self):
         p1 = self.thru.photons(self.w, self.flux, objtype='CALIB', airmass=1.0)
         p2 = self.thru.photons(self.w, self.flux, objtype='SKY', airmass=1.0)
         p3 = self.thru.photons(self.w, self.flux, objtype='STAR', airmass=1.0)
-        
+
         self.assertTrue( np.all( (p1>p2) | (p1==0.0) ) )
         self.assertTrue( np.all( (p2>p3) | (p2==0.0) ) )
         self.assertTrue( np.any(p3>0.0) )
@@ -165,15 +167,15 @@ class TestThroughput(unittest.TestCase):
         f1 = self.thru.apply_throughput(self.w, self.flux, objtype='CALIB')
         f2 = self.thru.apply_throughput(self.w, self.flux, objtype='SKY')
         f3 = self.thru.apply_throughput(self.w, self.flux, objtype='STAR')
-    
+
         self.assertTrue( np.all( (f1>f2) | (f1==0.0) ) )
         self.assertTrue( np.all( (f2>f3) | (f2==0.0) ) )
         self.assertTrue( np.any(f3>0.0) )
-        
+
         self.assertTrue( np.all(f1 <= self.flux) )
         self.assertTrue( np.all(f2 <= self.flux) )
         self.assertTrue( np.all(f3 <= self.flux) )
-    
+
         self.assertTrue( np.all(f2 <= f1) )
         self.assertTrue( np.all(f3 <= f2) )
 
@@ -205,9 +207,8 @@ class TestThroughput(unittest.TestCase):
 
         self.assertTrue( np.all(f2 <= f1) )
         self.assertTrue( np.all(f3 <= f2) )
-            
+
 if __name__ == '__main__':
-    unittest.main()            
+    unittest.main()
     # suite = unittest.TestLoader().loadTestsFromTestCase(TestThroughputIO)
     # unittest.TextTestRunner(verbosity=2).run(suite)
-        
