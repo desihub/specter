@@ -8,9 +8,8 @@ import sys
 import os
 import numpy as np
 import unittest
-
-from specter.psf import load_psf
-from specter.test import test_data_dir
+from pkg_resources import resource_filename
+from ..psf import load_psf
 
 class GenericPSFTests(object):
     """
@@ -487,28 +486,33 @@ class GenericPSFTests(object):
 
 #- Test Pixellated PSF format
 class TestPixPSF(GenericPSFTests,unittest.TestCase):
-    def setUp(self):
-        self.psf = load_psf(test_data_dir() + "/psf-pix.fits")
+    @classmethod
+    def setUpClass(cls):
+        cls.psf = load_psf(resource_filename("specter.test", "t/psf-pix.fits"))
 
 #- Test SpotGrid PSF format
 class TestSpotPSF(GenericPSFTests,unittest.TestCase):
-    def setUp(self):
-        self.psf = load_psf(test_data_dir() + "/psf-spot.fits")
+    @classmethod
+    def setUpClass(cls):
+        cls.psf = load_psf(resource_filename("specter.test", "t/psf-spot.fits"))
 
 #- Test SpotGrid PSF format
 class TestMonoSpotPSF(GenericPSFTests,unittest.TestCase):
-    def setUp(self):
-        self.psf = load_psf(test_data_dir() + "/psf-monospot.fits")
+    @classmethod
+    def setUpClass(cls):
+        cls.psf = load_psf(resource_filename("specter.test", "t/psf-monospot.fits"))
 
 #- Test GaussHermitePSF format
 class TestGaussHermitePSF(GenericPSFTests,unittest.TestCase):
-    def setUp(self):
-        self.psf = load_psf(test_data_dir() + "/psf-gausshermite.fits")
+    @classmethod
+    def setUpClass(cls):
+        cls.psf = load_psf(resource_filename("specter.test", "t/psf-gausshermite.fits"))
 
 #- Test GaussHermite2PSF format
 class TestGaussHermite2PSF(GenericPSFTests,unittest.TestCase):
-    def setUp(self):
-        self.psf = load_psf(test_data_dir() + "/psf-gausshermite2.fits")
+    @classmethod
+    def setUpClass(cls):
+        cls.psf = load_psf(resource_filename("specter.test", "t/psf-gausshermite2.fits"))
 
 if __name__ == '__main__':
 

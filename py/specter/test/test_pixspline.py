@@ -1,12 +1,12 @@
 import unittest
 import numpy as np
-from specter.util import pixspline
+from ..util import pixspline
 
 class TestPixSpline(unittest.TestCase):
     """
     Test functions within specter.util
     """
-    
+
     def test_cen2bounds(self):
         #- Integers
         x = np.arange(10)
@@ -22,13 +22,13 @@ class TestPixSpline(unittest.TestCase):
         self.assertTrue(len(xedge) == len(x)+1)
         self.assertTrue(np.all(dxedge > 0))
         self.assertTrue(np.all(dxedge == dxedge[0]))
-        
+
     def test_pixspline(self):
         nx = 100
         x = np.arange(nx)
         y = np.random.uniform(0,1, size=nx)
         edges = pixspline.cen2bound(x)
-        
+
         #- PixelSpline with edges
         sp = pixspline.PixelSpline(edges, y)
         dy = sp.resample(edges) - y
@@ -38,12 +38,12 @@ class TestPixSpline(unittest.TestCase):
         sp = pixspline.PixelSpline(x, y)
         dy = sp.resample(edges) - y
         self.assertTrue(np.max(np.abs(dy)) < 1e-12)
-        
+
         #- Test with vectors vs scalars
         yy = sp.point_evaluate(x)
         for i in range(len(yy)):
             self.assertTrue(sp.point_evaluate(x[i]) == yy[i])
-        
+
         #- Rebinning
         y2 = y.reshape((nx/2,2)).mean(1)
         dy2 = sp.resample(edges[0::2]) - y2
@@ -57,6 +57,6 @@ class TestPixSpline(unittest.TestCase):
         blat = sp.find_extrema()
         blat = sp.point_evaluate(x)
         blat = sp(x)
-    
+
 if __name__ == '__main__':
-    unittest.main()           
+    unittest.main()

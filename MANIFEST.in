@@ -2,12 +2,9 @@ include LICENSE.rst
 include README.rst
 
 graft bin
-graft data
 graft dev
 graft doc
 graft etc
-
-recursive-exclude etc travis*
 
 prune build
 prune dist

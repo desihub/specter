@@ -24,6 +24,7 @@ sdist
 develop-eggs
 .installed.cfg
 distribute-*.tar.gz
+MANIFEST
 
 # Other
 .*.swp

@@ -7,28 +7,36 @@ from __future__ import absolute_import, division, print_function
 import glob
 import os
 import sys
+import re
+#
+# setuptools' sdist command ignores MANIFEST.in
+#
+from distutils.command.sdist import sdist as DistutilsSdist
 from setuptools import setup, find_packages
 #
 # Begin setup
 #
 setup_keywords = dict()
+#
+# THESE SETTINGS NEED TO BE CHANGED FOR EVERY PRODUCT.
+#
 setup_keywords['name'] = 'specter'
 setup_keywords['description'] = 'A toolkit for spectroperfectionism with multi-object spectrographs.'
 setup_keywords['author'] = 'DESI Collaboration'
 setup_keywords['author_email'] = 'desi-data@desi.lbl.gov'
 setup_keywords['license'] = 'BSD'
 setup_keywords['url'] = 'https://github.com/desihub/specter'
-
-sys.path.insert(int(sys.path[0] == ''),'./py')
-try:
-    from importlib import import_module
-    product = import_module(setup_keywords['name'])
-    setup_keywords['long_description'] = product.__doc__
-    setup_keywords['version'] = product.__version__
-except ImportError:
-    print('ERROR: unable to load specter; exiting')
-    sys.exit(1)
-
+#
+# END OF SETTINGS THAT NEED TO BE CHANGED.
+#
+# setup_keywords['version'] = get_version(setup_keywords['name'])
+with open(os.path.join('py', setup_keywords['name'], '_version.py')) as v:
+    data = v.read()
+mo = re.match(r"__version__ = '(.*)'", data.strip())
+if mo:
+    setup_keywords['version'] = mo.groups()[0]
+else:
+    setup_keywords['version'] = '0.0.1.dev1'
 #
 # Use README.rst as long_description.
 #
@@ -52,7 +60,8 @@ setup_keywords['zip_safe'] = False
 setup_keywords['use_2to3'] = True
 setup_keywords['packages'] = find_packages('py')
 setup_keywords['package_dir'] = {'':'py'}
-setup_keywords['test_suite']='{name}.test.{name}_test_suite.{name}_test_suite'.format(**setup_keywords)
+setup_keywords['cmdclass'] = {'sdist': DistutilsSdist}
+setup_keywords['test_suite'] = '{name}.test.{name}_test_suite.{name}_test_suite'.format(**setup_keywords)
 #
 # Autogenerate command-line scripts.
 #
@@ -60,7 +69,8 @@ setup_keywords['test_suite']='{name}.test.{name}_test_suite.{name}_test_suite'.f
 #
 # Add internal data directories.
 #
-setup_keywords['package_data'] = {'specter.test': ['t/*']}
+setup_keywords['package_data'] = {'specter': ['data/*'],
+                                  'specter.test': ['t/*']}
 #
 # Run setup command.
 #

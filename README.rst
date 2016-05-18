@@ -95,6 +95,8 @@ If you have tagged a version and wish to set the package version based on your c
 
 And then install as usual.
 
+**This assumes that specter depends on desiutil, which it currently does not.**
+
 Full Documentation
 ------------------
 
@@ -105,6 +107,9 @@ Please visit `specter on Read the Docs`_
     :alt: Documentation Status
 
 .. _`specter on Read the Docs`: http://specter.readthedocs.org/en/latest/
+
+**This is not actually the specter documentation.  It is some other package
+that happens to also be called "specter".**
 
 Travis Build Status
 -------------------
