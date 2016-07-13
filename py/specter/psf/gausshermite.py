@@ -7,6 +7,8 @@ Stephen Bailey
 December 2013
 """
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import sys
 import os
 import numpy as np
@@ -29,16 +31,16 @@ class GaussHermitePSF(PSF):
         fx = fits.open(filename, memmap=False)
         self._polyparams = hdr = fx[1].header
         if 'PSFTYPE' not in hdr:
-            raise ValueError, 'Missing PSFTYPE keyword'
+            raise ValueError('Missing PSFTYPE keyword')
             
         if hdr['PSFTYPE'] != 'GAUSS-HERMITE':
-            raise ValueError, 'PSFTYPE %s is not GAUSS-HERMITE' % hdr['PSFTYPE']
+            raise ValueError('PSFTYPE {} is not GAUSS-HERMITE'.format(hdr['PSFTYPE']))
             
         if 'PSFVER' not in hdr:
-            raise ValueError, "PSFVER missing; this version not supported"
+            raise ValueError("PSFVER missing; this version not supported")
             
         if hdr['PSFVER'] < '1':
-            raise ValueError, "Only GAUSS-HERMITE versions 1.0 and greater are supported"
+            raise ValueError("Only GAUSS-HERMITE versions 1.0 and greater are supported")
             
         #- Calculate number of spectra from FIBERMIN and FIBERMAX (inclusive)
         self.nspec = hdr['FIBERMAX'] - hdr['FIBERMIN'] + 1

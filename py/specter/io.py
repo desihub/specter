@@ -9,6 +9,8 @@ Stephen Bailey, LBL
 January 2013
 """
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import os
 import os.path
 from astropy.io import fits
@@ -174,7 +176,7 @@ def read_simspec_table(filename):
     elif 'BUNIT' in header:
         units = header['BUNIT'].strip()
     else:
-        print >> sys.stderr, 'WARNING: using default flux units of erg/s/cm^2/A'
+        print('WARNING: using default flux units of erg/s/cm^2/A', file=sys.stderr)
         units = 'erg/s/cm^2/A'
 
     #- return results

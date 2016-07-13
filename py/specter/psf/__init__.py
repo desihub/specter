@@ -2,13 +2,15 @@
 specter.psf
 ===========
 """
-from psf import PSF
-from spotgrid import SpotGridPSF
-from pixpsf import PixPSF
-from monospot import MonoSpotPSF
-from monospot import MonoSpotPSF
-from gausshermite import GaussHermitePSF
-from gausshermite2 import GaussHermite2PSF
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+from .psf import PSF
+from .spotgrid import SpotGridPSF
+from .pixpsf import PixPSF
+from .monospot import MonoSpotPSF
+from .monospot import MonoSpotPSF
+from .gausshermite import GaussHermitePSF
+from .gausshermite2 import GaussHermite2PSF
 
 def load_psf(filename, psftype=None):
     """
@@ -34,5 +36,5 @@ def load_psf(filename, psftype=None):
     elif hdr['PSFTYPE'].strip() == 'GAUSS-HERMITE2':
         return GaussHermite2PSF(filename)
     else:
-        print "Unknown PSFTYPE", hdr['PSFTYPE']
+        print("Unknown PSFTYPE {}".format(hdr['PSFTYPE']))
         return PSF(filename)

@@ -6,6 +6,8 @@ Stephen Bailey
 Fall 2012
 """
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import sys
 import os
 import numpy as np
@@ -66,8 +68,8 @@ class SpotGridPSF(PSF):
         pix_spot_values=self._fspot(p, w)
         nx_spot=pix_spot_values.shape[1]
         ny_spot=pix_spot_values.shape[0]
-        nx_ccd=nx_spot/rebin+1 # add one bin because of resampling
-        ny_ccd=ny_spot/rebin+1 # add one bin because of resampling
+        nx_ccd=nx_spot//rebin+1 # add one bin because of resampling
+        ny_ccd=ny_spot//rebin+1 # add one bin because of resampling
         
         xc, yc = self.xy(ispec, wavelength) # center of PSF in CCD coordinates
                 
@@ -95,12 +97,12 @@ class SpotGridPSF(PSF):
         # make sure it's positive
         ccd_pix_spot_values[ccd_pix_spot_values<0]=0.
         # normalize
-        n=np.sum(ccd_pix_spot_values)
-        if n>0 :
-            ccd_pix_spot_values /= n
+        norm = np.sum(ccd_pix_spot_values)
+        if norm > 0 :
+            ccd_pix_spot_values /= norm
 
-        x_ccd_begin = int(np.floor(xc))-nx_ccd/2+1  # begin of CCD coordinate stamp
-        y_ccd_begin = int(np.floor(yc))-ny_ccd/2+1  # begin of CCD coordinate stamp
+        x_ccd_begin = int(np.floor(xc))-nx_ccd//2+1  # begin of CCD coordinate stamp
+        y_ccd_begin = int(np.floor(yc))-ny_ccd//2+1  # begin of CCD coordinate stamp
         xx = slice(x_ccd_begin, (x_ccd_begin+nx_ccd))
         yy = slice(y_ccd_begin, (y_ccd_begin+ny_ccd))
         return xx,yy,ccd_pix_spot_values

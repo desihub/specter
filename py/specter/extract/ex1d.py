@@ -7,6 +7,8 @@ Stephen Bailey, LBL
 Spring 2013
 """
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import sys
 import os
 import numpy as np
@@ -75,7 +77,7 @@ def ex1d(img, mask, psf, readnoise=2.5,
         #- Loop over CCD rows
         for irow, row in enumerate(range(ymin, ymax)):
             if debug and row%500 == 0:
-                print "Row %3d spectra %d:%d" % (row, speclo, spechi)
+                print("Row {:3d} spectra {}:{}".format(row, speclo, spechi))
         
             #- Determine x range covered for this row of this group of spectra
             wlo = psf.wavelength(speclo, y=row)
@@ -124,7 +126,7 @@ def ex1d(img, mask, psf, readnoise=2.5,
             specivar[speclo-specmin:spechi-specmin, row-ymin] = iCov.diagonal()   
             
             if debug:
-                print speclo, row
+                print(speclo, row)
                 import IPython
                 IPython.embed()                
                 

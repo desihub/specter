@@ -4,6 +4,8 @@
 Vanilla spectral extraction
 """
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import sys
 import os
 import os.path
@@ -33,7 +35,7 @@ parser.add_option("--nwavestep", type=int,  help="number of wavelength steps in 
 opts, args = parser.parse_args()
 
 #- Get wavelength grid from options
-wstart, wstop, dw = map(float, opts.wavelength.split(','))
+wstart, wstop, dw = [float(x) for x in opts.wavelength.split(',')]
 wavelengths = np.arange(wstart, wstop+dw/2.0, dw)
 nwave = len(wavelengths)
 
@@ -45,15 +47,15 @@ psf = load_psf(opts.psf)
 img, imgivar, imghdr = io.read_image(opts.input)
 
 #- Confirm that this PSF covers these wavelengths for these spectra
-psf_wavemin = np.max(psf.wavelength(range(specmin, specmax), y=0))
-psf_wavemax = np.min(psf.wavelength(range(specmin, specmax), y=psf.npix_y-1))
+psf_wavemin = np.max(psf.wavelength(list(range(specmin, specmax)), y=0))
+psf_wavemax = np.min(psf.wavelength(list(range(specmin, specmax)), y=psf.npix_y-1))
 if psf_wavemin > wstart:
-    raise ValueError, 'Start wavelength {:.2f} < min wavelength {:.2f} for these fibers'.format(wstart, psf_wavemin)
+    raise ValueError('Start wavelength {:.2f} < min wavelength {:.2f} for these fibers'.format(wstart, psf_wavemin))
 if psf_wavemax < wstop:
-    raise ValueError, 'Stop wavelength {:.2f} > max wavelength {:.2f} for these fibers'.format(wstop, psf_wavemax)
+    raise ValueError('Stop wavelength {:.2f} > max wavelength {:.2f} for these fibers'.format(wstop, psf_wavemax))
 
 #- Print parameters
-print """\
+print("""\
 #--- Extraction Parameters ---
 input:      {input}
 psf:        {psf}
@@ -67,7 +69,7 @@ regularize: {regularize}
 """.format(input=opts.input, psf=opts.psf, output=opts.output,
     wstart=wstart, wstop=wstop, dw=dw,
     specmin=opts.specmin, nspec=opts.nspec, bundlesize=opts.bundlesize,
-    regularize=opts.regularize)
+    regularize=opts.regularize))
 
 #- The actual extraction
 flux, ivar, Rd = ex2d(img, imgivar, psf, opts.specmin, opts.nspec, wavelengths,

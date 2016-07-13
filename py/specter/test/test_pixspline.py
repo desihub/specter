@@ -1,6 +1,8 @@
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import unittest
 import numpy as np
-from ..util import pixspline
+from specter.util import pixspline
 
 class TestPixSpline(unittest.TestCase):
     """
@@ -45,11 +47,11 @@ class TestPixSpline(unittest.TestCase):
             self.assertTrue(sp.point_evaluate(x[i]) == yy[i])
 
         #- Rebinning
-        y2 = y.reshape((nx/2,2)).mean(1)
+        y2 = y.reshape((nx//2,2)).mean(1)
         dy2 = sp.resample(edges[0::2]) - y2
         self.assertTrue(np.max(np.abs(dy2)) < 1e-12)
 
-        y5 = y.reshape((nx/5,5)).mean(1)
+        y5 = y.reshape((nx//5,5)).mean(1)
         dy5 = sp.resample(edges[0::5]) - y5
         self.assertTrue(np.max(np.abs(dy5)) < 1e-12)
 

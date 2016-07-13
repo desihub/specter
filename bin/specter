@@ -7,11 +7,14 @@ Stephen Bailey, LBL
 Summer 2013
 """
 
+from __future__ import absolute_import, division, print_function
+
 import sys
 import os
 import numpy as np
 import optparse
 import multiprocessing as MP
+from functools import reduce
 
 #- Parse options
 parser = optparse.OptionParser(
@@ -51,7 +54,7 @@ if opts.inspecmin is None:
 try:
     from astropy.io import fits
 except ImportError:
-    print >> sys.stderr, "ERROR: specter requires astropy.io.fits"
+    print("ERROR: specter requires astropy.io.fits", file=sys.stderr)
     sys.exit(1)
 
 #- If astropy.io.fits was there, safe to proceed with other imports
@@ -69,20 +72,20 @@ if opts.test:
 #- Check input option consistency
 badopts = False
 if opts.input is None:
-    print >> sys.stderr, "ERROR: -i/--input spectra filename required"
+    print("ERROR: -i/--input spectra filename required", file=sys.stderr)
     badopts = True
     
 if opts.output is None:
-    print >> sys.stderr, "ERROR: -o/--output image filename required"
+    print("ERROR: -o/--output image filename required", file=sys.stderr)
     badopts = True
 
 if opts.psf is None:
-    print >> sys.stderr, "ERROR: -p/--psf input psf filename required"
+    print("ERROR: -p/--psf input psf filename required", file=sys.stderr)
     badopts = True
 
 if opts.numcores < 1 or opts.numcores > MP.cpu_count():
-    print >> sys.stderr, "WARNING: overriding numcores %d -> %d" % \
-        (opts.numcores, MP.cpu_count())
+    print("WARNING: overriding numcores {:d} -> {:d}".format(
+        (opts.numcores, MP.cpu_count())), file=sys.stderr)
     opts.numcores = MP.cpu_count()
 
 if badopts:
@@ -103,18 +106,18 @@ if opts.nspec is None:
 
 if opts.specmin+opts.nspec > psf.nspec:
     opts.nspec = psf.nspec - opts.specmin
-    print >> sys.stderr, "WARNING: trimming nspec to {} to fit within {} spectra".format(opts.nspec, psf.nspec)
+    print("WARNING: trimming nspec to {} to fit within {} spectra".format(opts.nspec, psf.nspec), file=sys.stderr)
 
 #- Override default exposure time if needed
 if opts.exptime is not None:
     thru.exptime = opts.exptime
 
-specrange = range(opts.specmin, opts.specmin+opts.nspec)
+specrange = list(range(opts.specmin, opts.specmin+opts.nspec))
 assert max(specrange) < psf.nspec
 
 #-  opts.wavelength is 2-elements min,max
 if opts.wavelength is not None:
-    opts.wavelength = map(float, opts.wavelength.split(','))
+    opts.wavelength = list(map(float, opts.wavelength.split(',')))
     wmin, wmax = opts.wavelength
 else:
     wmin = np.min( psf.wavelength(None, y=-0.5) )        #- bottom edge of CCD
@@ -207,8 +210,8 @@ else:
 if opts.sky:
     sky = specter.io.read_simspec(opts.sky)
     if not units.endswith('/A') or not sky['units'].endswith('/A/arcsec^2'):
-        print "I don't know how to combine these units"
-        print units, sky['units']
+        print("I don't know how to combine these units")
+        print(units, sky['units'])
         sys.exit(1)
     
     for i in range(opts.nspec):
@@ -225,7 +228,7 @@ else:
     xyrange = None
 
 #- Project spectra onto the CCD
-print "Projecting spectra onto CCD"
+print("Projecting spectra onto CCD")
 
 if opts.numcores == 1:
     img = psf.project(wavelength, photons, specmin=specrange[0], xyrange=xyrange)
@@ -238,7 +241,7 @@ else:
     
     #- Setup list of dictionaries with arguments
     arglist = list()
-    n = max(1, (len(specrange)+1)/opts.numcores)
+    n = max(1, (len(specrange)+1)//opts.numcores)
     for i in range(0, len(specrange), n):
         arglist.append(dict(psf=psf, photons=photons[i:i+n],
                          wavelength=wavelength[i:i+n],
@@ -271,7 +274,7 @@ add them
 
 #- Read imput CCD image
 if opts.image:
-    print "Loading input image"
+    print("Loading input image")
     fx = fits.open(opts.image)
     input_image = fx[0].data
     opts.readnoise = 0.0   #- Assume input image already has read noise
@@ -319,9 +322,9 @@ if opts.gaussnoise:
     opts.noise = True
 
 if opts.noise:
-    print "Adding noise"
+    print("Adding noise")
     if opts.gaussnoise:
-        print "Adding Gaussian (not Poisson) noise"
+        print("Adding Gaussian (not Poisson) noise")
         img += np.random.normal(scale=np.sqrt(var))
     else:
         #- photon shot noise (float -> int)
@@ -355,7 +358,7 @@ else:
     output_readnoise = 0.0
         
 #- Write output
-print "Writing", opts.output
+print("Writing", opts.output)
 
 hdr = fits.Header()
 hdr['EXTNAME'] = 'CCDIMAGE'
@@ -386,16 +389,17 @@ hx.append(fits.ImageHDU(1.0/var, name='IVAR'))
 if opts.extra:
     #- Trim arrays to just those with information    
     ii = np.where(np.any(photons>0, axis=0))[0]
-    ii = range(ii[0], ii[-1]+1)
+    ii = list(range(ii[0], ii[-1]+1))
     photons = photons[:, ii]
     wavelength = wavelength[:, ii]
     nwave = wavelength.shape[1]
 
     #- Spectra in photon units
-    a = np.array(zip(photons, wavelength),
-                dtype=[('PHOTONS',     str(photons.dtype), (nwave,)),
-                       ('WAVELENGTH',  str(wavelength.dtype), (nwave,)),
-                       ])
+    a = np.array(list(zip(photons, wavelength)),
+            dtype=[('PHOTONS',     str(photons.dtype), (nwave,)),
+                   ('WAVELENGTH',  str(wavelength.dtype), (nwave,)),
+                   ])
+        
     hdr = fits.Header()
     hdr['SPECMIN'] = (specrange[0], 'First spectrum index')
     hx.append(fits.BinTableHDU(a, header=hdr, name='PHOTONS'))
@@ -410,7 +414,7 @@ if opts.extra:
         w[i] = psf.wavelength(ispec=ispec, y=yy)
         x[i] = psf.x(ispec=ispec, wavelength=w[i])
     
-    a = np.array(zip(x, y, w),
+    a = np.array(list(zip(x, y, w)),
                 dtype=[('X', str(x.dtype), (psf.npix_y,)),
                        ('Y', str(y.dtype), (psf.npix_y,)),
                        ('WAVELENGTH',  str(wavelength.dtype), (psf.npix_y,)),

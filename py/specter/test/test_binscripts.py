@@ -3,7 +3,8 @@
 """
 Unit tests for executable scripts in specter/bin
 """
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import os
 import sys
 import numpy as np
@@ -11,7 +12,7 @@ import unittest
 from astropy.io import fits
 from uuid import uuid4
 from pkg_resources import resource_filename
-from ..io import read_image, write_spectra
+from specter.io import read_image, write_spectra
 from astropy.io import fits
 
 _base = uuid4().hex
@@ -23,19 +24,44 @@ specfile2 = 'testspec2-'+_base+'.fits'
 
 class TestBinScripts(unittest.TestCase):
 
-    def setUp(self):
-        self.specter_dir = os.path.dirname( # top-level
+    @classmethod
+    def setUpClass(cls):
+        #- when running "python setup.py test", this file is run from different
+        #- locations for python 2.7 vs. 3.5
+        #- python 2.7: py/specter/test/test_binscripts.py
+        #- python 3.5: build/lib/specter/test/test_binscripts.py
+        
+        #- python 2.7 location:
+        cls.specter_dir = os.path.dirname( # top-level
             os.path.dirname( # py/
                 os.path.dirname( # specter/
                     os.path.dirname(os.path.abspath(__file__)) # test/
                     )
                 )
             )
-        self.executable = sys.executable
-        self.sky_file = resource_filename('specter', 'data/sky-uves.fits')
-        self.monospot_file = resource_filename('specter.test', 't/psf-monospot.fits')
-        self.throughput_file = resource_filename('specter.test', 't/throughput.fits')
-        self.exspec_cmd = """{executable} {specter_dir}/bin/exspec \
+        if not os.path.isdir(cls.specter_dir + '/bin'):
+            #- python 3.x setup.py test location:
+            cls.specter_dir = os.path.dirname( # top-level
+                os.path.dirname( # build/
+                    os.path.dirname( # lib/
+                        os.path.dirname( # specter/
+                            os.path.dirname(os.path.abspath(__file__)) # test/
+                            )
+                        )
+                    )
+                )
+        #- last attempt
+        if not os.path.isdir(cls.specter_dir + '/bin'):
+            cls.specter_dir = os.path.join(os.getcwd(), 'bin')
+
+        if not os.path.isdir(cls.specter_dir + '/bin'):
+            raise RuntimeError('Unable to auto-locate specter/bin from {}'.format(__file__))
+            
+        cls.executable = sys.executable
+        cls.sky_file = resource_filename('specter', 'data/sky-uves.fits')
+        cls.monospot_file = resource_filename('specter.test', 't/psf-monospot.fits')
+        cls.throughput_file = resource_filename('specter.test', 't/throughput.fits')
+        cls.exspec_cmd = """{executable} {specter_dir}/bin/exspec \
           -i {imgfile} \
           -p {monospot_file} \
           -o {specfile} \
@@ -44,17 +70,18 @@ class TestBinScripts(unittest.TestCase):
 
         #- Add this package to PYTHONPATH so that binscripts can find it
         try:
-            self.origPath = os.environ['PYTHONPATH']
-            os.environ['PYTHONPATH'] = os.path.join(self.specter_dir,'py') + ':' + self.origPath
+            cls.origPath = os.environ['PYTHONPATH']
+            os.environ['PYTHONPATH'] = os.path.join(cls.specter_dir,'py') + ':' + cls.origPath
         except KeyError:
-            self.origPath = None
-            os.environ['PYTHONPATH'] = os.path.join(self.specter_dir,'py')
+            cls.origPath = None
+            os.environ['PYTHONPATH'] = os.path.join(cls.specter_dir,'py')
 
-    def tearDown(self):
-        if self.origPath is None:
+    @classmethod
+    def tearDownClass(cls):
+        if cls.origPath is None:
             del os.environ['PYTHONPATH']
         else:
-            os.environ['PYTHONPATH'] = self.origPath
+            os.environ['PYTHONPATH'] = cls.origPath
 
     def test_aa(self):
         cmd = """{executable} {specter_dir}/bin/specter \

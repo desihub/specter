@@ -6,6 +6,8 @@ Pixelated 2D PSF
 David Schlegel & Stephen Bailey, Summer 2011
 """
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import numpy as np
 from astropy.io import fits
 from specter.psf import PSF
@@ -73,22 +75,22 @@ class PixPSF(PSF):
         ix = int(round(x))
         iy = int(round(y))
         
-        xmin = max(0, ix-nx/2)
-        xmax = min(self.npix_x, ix+nx/2+1)
-        ymin = max(0, iy-ny/2)
-        ymax = min(self.npix_y, iy+ny/2+1)
+        xmin = max(0, ix-nx//2)
+        xmax = min(self.npix_x, ix+nx//2+1)
+        ymin = max(0, iy-ny//2)
+        ymax = min(self.npix_y, iy+ny//2+1)
                 
-        if ix < nx/2:
-            psfimage = psfimage[:, nx/2-ix:]
-        if iy < ny/2:
-            psfimage = psfimage[ny/2-iy:, :]
+        if ix < nx//2:
+            psfimage = psfimage[:, nx//2-ix:]
+        if iy < ny//2:
+            psfimage = psfimage[ny//2-iy:, :]
         
-        if ix+nx/2+1 > self.npix_x:
-            dx = self.npix_x - (ix+nx/2+1)
+        if ix+nx//2+1 > self.npix_x:
+            dx = self.npix_x - (ix+nx//2+1)
             psfimage = psfimage[:, :dx]
             
-        if iy+ny/2+1 > self.npix_y:
-            dy = self.npix_y - (iy+ny/2+1)
+        if iy+ny//2+1 > self.npix_y:
+            dy = self.npix_y - (iy+ny//2+1)
             psfimage = psfimage[:dy, :]
         
         xslice = slice(xmin, xmax)
@@ -100,5 +102,8 @@ class PixPSF(PSF):
         #- Normalize integral to 1.0
         psfimage /= psfimage.sum()
         
+        assert xslice.stop-xslice.start == psfimage.shape[1]
+        assert yslice.stop-yslice.start == psfimage.shape[0]
+
         return xslice, yslice, psfimage
 

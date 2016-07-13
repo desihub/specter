@@ -11,6 +11,8 @@ Stephen Bailey, LBL
 March 2014
 """
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import sys
 import os
 import numpy as np
@@ -34,7 +36,7 @@ for filename in args:
     specset.update( set(range(xhdr['SPECMIN'], xhdr['SPECMAX']+1)) )
 
 if len(specset) != nspec:
-    print "Input files only have {} instead of {} spectra".format(len(specset), nspec)
+    print("Input files only have {} instead of {} spectra".format(len(specset), nspec))
     sys.exit(1)
 
 #- Read a file to get basic dimensions
@@ -63,13 +65,13 @@ for filename in args:
     
     lo = xhdr['SPECMIN']
     hi = xhdr['SPECMAX']+1
-    ### print filename, lo, hi
+    ### print(filename, lo, hi)
     flux[lo:hi] = xflux
     ivar[lo:hi] = xivar
     R[lo:hi] = xR
     
 #- Write it out
-print "Writing", opts.output
+print("Writing", opts.output)
 io.write_spectra(opts.output, w, flux, ivar, R, hdr)
 
 #- Scary!  Delete input files

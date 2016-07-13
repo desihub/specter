@@ -3,13 +3,14 @@
 """
 Unit tests for PSF classes.
 """
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import sys
 import os
 import numpy as np
 import unittest
 from pkg_resources import resource_filename
-from ..psf import load_psf
+from specter.psf import load_psf
 
 class GenericPSFTests(object):
     """
@@ -55,8 +56,8 @@ class GenericPSFTests(object):
 
     #- Test xsigma
     def test_xsigma(self):
-        yy = (20, self.psf.npix_y/2, self.psf.npix_y-20)
-        for ispec in (0, self.psf.nspec/2, self.psf.nspec-1):
+        yy = (20, self.psf.npix_y//2, self.psf.npix_y-20)
+        for ispec in (0, self.psf.nspec//2, self.psf.nspec-1):
             ww = self.psf.wavelength(ispec, y=yy)
             #- Get xsigma for several wavelengths at once
             xsig1 = self.psf.xsigma(ispec, ww)
@@ -77,8 +78,8 @@ class GenericPSFTests(object):
 
     #- Test wdisp
     def test_wdisp(self):
-        yy = (20, self.psf.npix_y/2, self.psf.npix_y-20)
-        for ispec in (0, self.psf.nspec/2, self.psf.nspec-1):
+        yy = (20, self.psf.npix_y//2, self.psf.npix_y-20)
+        for ispec in (0, self.psf.nspec//2, self.psf.nspec-1):
             ww = self.psf.wavelength(ispec, y=yy)
             #- Get wdisp for several wavelengths at once
             xsig1 = self.psf.wdisp(ispec, ww)
@@ -108,10 +109,10 @@ class GenericPSFTests(object):
         wtest.append(np.max(ww[:, -1]))
         wtest.append(np.mean(wtest))
 
-        for i in (0, self.psf.nspec/2, self.psf.nspec-1):
+        for i in (0, self.psf.nspec//2, self.psf.nspec-1):
             for w in wtest:
                 pix = self.psf.pix(i, w)
-                self.assertEquals(pix.ndim, 2)
+                self.assertEqual(pix.ndim, 2)
 
     #- Test that PSF spots are normalized to 1.0
     def test_pix_norm(self):
@@ -144,9 +145,9 @@ class GenericPSFTests(object):
         wtest.append(np.mean(wtest))
         wtest.append(np.min(ww)-100)
 
-        for i in (0, self.psf.nspec/2, self.psf.nspec-1):
+        for i in (0, self.psf.nspec//2, self.psf.nspec-1):
             for w in wtest:
-                xx, yy, pix = self.psf.xypix(self.psf.nspec/2, w)
+                xx, yy, pix = self.psf.xypix(self.psf.nspec//2, w)
                 shape = (yy.stop-yy.start, xx.stop-xx.start)
                 msg = "%s != %s at (i=%d, w=%.1f)" % (str(pix.shape), str(shape), i, w)
                 self.assertEqual(pix.shape, shape, msg)
@@ -156,7 +157,7 @@ class GenericPSFTests(object):
     #- TODO: Better tests when walking off edge
     def test_xypix_range(self):
         w = np.mean(self.psf.wavelength())
-        i = self.psf.nspec/2
+        i = self.psf.nspec//2
         x0, y0, pix = self.psf.xypix(i, w)
         xx, yy, pix = self.psf.xypix(i, w, xmin=x0.start)
         self.assertTrue(xx.start == 0)
@@ -206,7 +207,7 @@ class GenericPSFTests(object):
         ww = self.psf.wavelength(0)[0:10]
         phot = np.random.uniform(0,100,len(ww))
         img = self.psf.project(ww, phot, verbose=False)
-        self.assertEquals(img.shape, (self.psf.npix_y, self.psf.npix_x))
+        self.assertEqual(img.shape, (self.psf.npix_y, self.psf.npix_x))
 
     #- Test projection of 2D spectrum with shared 1D wavelength vector
     def test_project12(self):
@@ -214,7 +215,7 @@ class GenericPSFTests(object):
         phot = np.random.uniform(0,100,len(ww))
         phot = np.tile(phot, 5).reshape(5, len(ww))
         img = self.psf.project(ww, phot, verbose=False)
-        self.assertEquals(img.shape, (self.psf.npix_y, self.psf.npix_x))
+        self.assertEqual(img.shape, (self.psf.npix_y, self.psf.npix_x))
 
     #- Test projection of 2D spectrum with 2D wavelength vector
     def test_project22(self):
@@ -224,14 +225,14 @@ class GenericPSFTests(object):
         phot = np.random.uniform(0,100,nw)
         phot = np.tile(phot, 5).reshape(5, nw)
         img = self.psf.project(ww, phot, verbose=False)
-        self.assertEquals(img.shape, (self.psf.npix_y, self.psf.npix_x))
+        self.assertEqual(img.shape, (self.psf.npix_y, self.psf.npix_x))
 
     #- Test projection starting at specmin != 0
     def test_project_specmin(self):
         ww = self.psf.wavelength(0)[0:10]
         phot = np.random.uniform(0,100,len(ww))
         img = self.psf.project(ww, phot, specmin=1, verbose=False)
-        self.assertEquals(img.shape, (self.psf.npix_y, self.psf.npix_x))
+        self.assertEqual(img.shape, (self.psf.npix_y, self.psf.npix_x))
 
         #- specmin >= nspec should raise an error
         with self.assertRaises(ValueError):
@@ -282,7 +283,7 @@ class GenericPSFTests(object):
         nw = 20
         w_edge = 10  #- avoid edge effects; test that separately
         phot = np.random.uniform(100,1000, size=(nspec, nw))
-        for specmin in (0, self.psf.nspec/2, self.psf.nspec-nspec-1):
+        for specmin in (0, self.psf.nspec//2, self.psf.nspec-nspec-1):
             specrange = (specmin, specmin+nspec)
             wspec = self.psf.wavelength(specmin, [0, self.psf.npix_y])
             for wmin in (wspec[0]+w_edge, 0.5*(wspec[0]+wspec[1]), wspec[1]-nw-w_edge):
@@ -312,7 +313,7 @@ class GenericPSFTests(object):
     def test_xyrange_edges(self):
         psf = self.psf
         y = np.arange(-1, psf.npix_y, 0.2)
-        for i in range(0, psf.nspec, psf.nspec/10):
+        for i in range(0, psf.nspec, psf.nspec//10):
             w = psf.wavelength(i, y)
             xmin, xmax, ymin, ymax = psf.xyrange(i, w)
             self.assertTrue(xmin <= xmax)
@@ -405,7 +406,7 @@ class GenericPSFTests(object):
 
     #- Ensure that pix requests outside of wavelength range are blank
     def test_waverange_pix(self):
-        for ispec in (0, 1, self.psf.nspec/2, self.psf.nspec-1):
+        for ispec in (0, 1, self.psf.nspec//2, self.psf.nspec-1):
             xx, yy, pix = self.psf.xypix(ispec, self.psf.wmin-1)
             self.assertTrue(xx.start == xx.stop == 0)
             self.assertTrue(yy.start == yy.stop == 0)
@@ -516,6 +517,9 @@ class TestGaussHermite2PSF(GenericPSFTests,unittest.TestCase):
 
 if __name__ == '__main__':
 
+    import warnings
+    warnings.simplefilter('error')
+
     # unittest.main()
     s1 = unittest.defaultTestLoader.loadTestsFromTestCase(TestPixPSF)
     s2 = unittest.defaultTestLoader.loadTestsFromTestCase(TestSpotPSF)
@@ -524,3 +528,4 @@ if __name__ == '__main__':
     s5 = unittest.defaultTestLoader.loadTestsFromTestCase(TestGaussHermite2PSF)
 
     unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite([s1, s2, s3, s4, s5]))
+    # unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite([s2,]))
