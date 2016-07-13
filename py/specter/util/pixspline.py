@@ -2,6 +2,7 @@
 # Pixel-integrated sline utilities.
 # Written by A. Bolton, U. of Utah, 2010-2013.
 
+import numbers
 import numpy as np
 from scipy import linalg as la
 from scipy import sparse as sp
@@ -153,7 +154,7 @@ class PixelSpline:
         Also see: PixelSpline.resample()
         """
         input_scalar = False
-        if isinstance(xnew, float) or isinstance(xnew, int):
+        if isinstance(xnew, numbers.Real):
             input_scalar = True
             xnew = np.array( (xnew,) )
         

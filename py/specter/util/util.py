@@ -180,7 +180,7 @@ def _sincfunc(x, dx, dampfac=3.25):
         return np.exp( -(xx/(dampfac*np.pi))**2 ) * np.sin(xx) / xx
     else:
         xx = np.zeros(len(x))
-        xx[len(x)/2] = 1.0
+        xx[len(x)//2] = 1.0
         return xx
 
 #- Implementation note: the typical PSF image is 15x15.

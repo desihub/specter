@@ -6,6 +6,7 @@ import sys
 import os
 import numpy as np
 from numpy.polynomial.legendre import legfit, legval
+import numbers
 
 class TraceSet(object):
     def __init__(self, coeff, domain=[-1,1]):
@@ -22,19 +23,19 @@ class TraceSet(object):
         return self._coeff.shape[0]
         
     def _xnorm(self, x):
-        if not isinstance(x, (int,float,np.ndarray)):
+        if not isinstance(x, (numbers.Real, np.ndarray)):
             x = np.array(x)
         return 2.0 * (x - self._xmin) / (self._xmax - self._xmin) - 1.0
         
     def eval(self, ispec, x):
         xx = self._xnorm(x)
         
-        if isinstance(ispec, int):
+        if isinstance(ispec, numbers.Integral):
             return legval(xx, self._coeff[ispec])
         else:
             if ispec is None:
-                ispec = range(self._coeff.shape[0])
-            
+                ispec = list(range(self._coeff.shape[0]))
+
             y = [legval(xx, self._coeff[i]) for i in ispec]
             return np.array(y)
             

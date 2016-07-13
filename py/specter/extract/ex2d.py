@@ -64,7 +64,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
             ndiag = max(ndiag, int(round(9.0*psf.wdisp(ispec, w) / dw )))
 
     #- make sure that ndiag isn't too large for actual PSF spot size
-    wmid = (psf.wmin_all + psf.wmax_all) / 2
+    wmid = (psf.wmin_all + psf.wmax_all) / 2.0
     spotsize = psf.pix(0, wmid).shape
     ndiag = min(ndiag, spotsize[0]//2, spotsize[1]//2)
 
@@ -244,7 +244,7 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
             R, fluxivar = resolution_from_icov(iCov)
         else:
             R, fluxivar = resolution_from_icov(iCov, decorr=[nwave for x in range(nspec)])
-    except np.linalg.linalg.LinAlgError, err:
+    except np.linalg.linalg.LinAlgError as err:
         outfile = 'LinAlgError_{}-{}_{}-{}.fits'.format(specrange[0], specrange[1], waverange[0], waverange[1])
         print("ERROR: Linear Algebra didn't converge")
         print("Dumping {} for debugging".format(outfile))

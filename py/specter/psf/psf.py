@@ -12,7 +12,10 @@ the interface defined in this base class.
 Stephen Bailey, Fall 2012
 """
 
+from __future__ import absolute_import, division, print_function
+
 import sys
+import numbers
 import numpy as np
 from numpy.polynomial.legendre import Legendre, legval, legfit
 import scipy.optimize
@@ -91,7 +94,7 @@ class PSF(object):
             elif axis in ('y', 'Y', 'w', 'W'):
                 axis = 1
             else:
-                raise ValueError("Unknown axis type "+str(axis))
+                raise ValueError("Unknown axis type {}".format(axis))
                 
         if axis not in (0,1):
             raise ValueError("axis must be 0, 'x', 1, 'y', or 'w'")
@@ -104,6 +107,7 @@ class PSF(object):
             xspot /= np.sum(xspot)       #- normalize for edge cases
             xx = np.arange(len(xspot))
             mean, sigma = scipy.optimize.curve_fit(gausspix, xx, xspot)[0]
+                
             xsig.append(sigma)
         
         #- Fit Legendre polynomial and return coefficients
@@ -260,7 +264,7 @@ class PSF(object):
             xhi = xmax
 
         if ylo < ymin:
-            ccdpix = ccdpix[-(yhi-ymin):, ]
+            ccdpix = ccdpix[-(yhi-ymin):, ]                
             ylo = ymin
         elif yhi > ymax:
             ccdpix = ccdpix[0:(ymax-ylo), :]
@@ -288,12 +292,12 @@ class PSF(object):
         BUG: will fail if asking for a range where one of the spectra is
         completely off the CCD
         """
-        if isinstance(spec_range, int):
+        if isinstance(spec_range, numbers.Integral):
             specmin, specmax = spec_range, spec_range+1
         else:
             specmin, specmax = spec_range
 
-        if isinstance(wavelengths, (int, float)):
+        if isinstance(wavelengths, numbers.Real):
             wavemin = wavemax = wavelengths
         else:
             wavemin, wavemax = wavelengths[0], wavelengths[-1]
@@ -393,7 +397,7 @@ class PSF(object):
         if wavelength is None:
             #- ispec=None -> ispec=every spectrum
             if ispec is None:
-                ispec = np.arange(self.nspec)
+                ispec = np.arange(self.nspec, dtype=int)
             
             #- ispec is an array; sample at every row
             if isinstance(ispec, (np.ndarray, list, tuple)):
@@ -424,7 +428,7 @@ class PSF(object):
         vector  vector      array[nspec, nwave]
         """
         if wavelength is None:
-            raise ValueError, "PSF.y requires wavelength scalar or vector"
+            raise ValueError("PSF.y requires wavelength scalar or vector")
             
         if ispec is None:
             ispec = np.arange(self.nspec)
@@ -435,7 +439,7 @@ class PSF(object):
             if wavelength is None:
                 return np.tile(np.arange(self.npix_y), self.nspec).reshape(self.nspec, self.npix_y)
             else:
-                ispec = np.arange(self.nspec)
+                ispec = np.arange(self.nspec, dtype=int)
         
         if wavelength is None:
             wavelength = self.wavelength(ispec)
@@ -462,9 +466,9 @@ class PSF(object):
         """
         if y is None:
             y = np.arange(0, self.npix_y)
-        
+                
         if ispec is None:
-            ispec = np.arange(self.nspec)
+            ispec = np.arange(self.nspec, dtype=int)
             
         return self._w.eval(ispec, y)
     
@@ -519,7 +523,7 @@ class PSF(object):
         if specmin >= self.nspec:
             raise ValueError('specmin {} >= psf.nspec {}'.format(specmin, self.nspec))
         if specmin+phot.shape[0] > self.nspec:
-            print >> sys.stderr, "WARNING: specmin+npec ({}+{}) > psf.nspec {}".format(specmin, phot.shape[0], self.nspec)
+            print("WARNING: specmin+npec ({}+{}) > psf.nspec {}".format(specmin, phot.shape[0], self.nspec), file=sys.stderr)
         
         #- x,y ranges and number of pixels
         if xyrange is None:
@@ -543,7 +547,7 @@ class PSF(object):
         specmax = min(specmin+nspec, self.nspec)
         for i, ispec in enumerate(range(specmin, specmax)):
             if verbose:
-                print ispec
+                print(ispec)
             
             #- 1D wavelength for every spec, or 2D wavelength for 2D phot?
             if wavelength.ndim == 2:
@@ -602,7 +606,7 @@ class PSF(object):
         """
     
         #- Matrix dimensions
-        if isinstance(spec_range, int):
+        if isinstance(spec_range, numbers.Integral):
             specmin, specmax = spec_range, spec_range+1
         else:
             specmin, specmax = spec_range
@@ -622,7 +626,7 @@ class PSF(object):
                 xslice, yslice, pix = self.xypix(ispec, w, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
                 
                 #- If there is overlap with pix_range, put into sub-region of A
-                if pix.shape[0]>0 and pix.shape[1]>0:         
+                if pix.shape[0]>0 and pix.shape[1]>0:
                     tmp[yslice, xslice] = pix
                     ij = (ispec-specmin)*nflux + iflux
                     A[:, ij] = tmp.ravel()

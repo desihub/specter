@@ -5,6 +5,8 @@ Test Specter file formats.  Loop over example files and just make sure
 that we can read them.
 """
 
+from __future__ import absolute_import, division, print_function
+
 import os
 from os.path import basename, join
 from glob import glob
@@ -24,7 +26,7 @@ class TestSpecIO(unittest.TestCase):
             try:
                 x = read_simspec(specfile)
             except Exception as e:
-                print "Failed on {0}: {1}".format(basename(specfile), str(e))
+                print("Failed on {0}: {1}".format(basename(specfile), str(e)))
                 wipeout = e
         if wipeout:
             raise wipeout

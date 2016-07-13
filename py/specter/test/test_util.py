@@ -4,6 +4,8 @@
 Unit tests for PSF classes.
 """
 
+from __future__ import absolute_import, division, print_function
+
 import sys
 import os
 import numpy as np
@@ -11,7 +13,7 @@ from numpy.polynomial import legendre
 from specter import util
 import unittest
 from pkg_resources import resource_filename
-from ..psf import load_psf
+from specter.psf import load_psf
 
 class TestUtil(unittest.TestCase):
     """

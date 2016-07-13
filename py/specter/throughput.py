@@ -15,9 +15,12 @@ Hacks:
 How to handle fiber size and sky units?
 """
 
+from __future__ import absolute_import, division, print_function
+
 import sys
 import os
 import warnings
+import numbers
 import numpy as np
 from astropy.io import fits
 from specter import util
@@ -50,7 +53,7 @@ def load_throughput(filename):
         for key in tmp.dtype.names:
             fiberinput[key.upper()] = tmp[key]
     else:
-        print "no FIBERINPUT extention found"
+        print("no FIBERINPUT extention found")
         fiberinput = thru['fiberinput']
 
     if 'wavelength' in thru.dtype.names:
@@ -59,7 +62,7 @@ def load_throughput(filename):
         w = 10**thru['loglam']
     else:
         fx.close()
-        raise ValueError, 'throughput must include wavelength or loglam'
+        raise ValueError('throughput must include wavelength or loglam')
 
     if 'GEOMAREA' in hdr:
         area = hdr['GEOMAREA']
@@ -125,7 +128,7 @@ class Throughput:
 
         #- Create fiber input dict keyed by object type, including 'default'
         if fiberinput is not None:
-            if isinstance(fiberinput, float):
+            if isinstance(fiberinput, numbers.Real):
                 self._fiberinput = dict(default=np.ones(len(wave)) * fiberinput)
             elif isinstance(fiberinput, np.ndarray):
                 self._fiberinput = dict(default=np.copy(fiberinput))
@@ -134,7 +137,7 @@ class Throughput:
                 if 'default' not in fiberinput:
                     self._fiberinput['default'] = np.ones(len(wave))
             else:
-                raise ValueError('Unrecognized type for fiberinput: '+str(type(fiberinput)))
+                raise ValueError('Unrecognized type for fiberinput: {}'.format(type(fiberinput)))
         else:
             self._fiberinput = dict(default=np.ones(len(wave)))
 
@@ -175,7 +178,7 @@ class Throughput:
             t = self._fiberinput[objtype]
         else:
             msg = 'Unknown objtype {}; using default fiber input loss'.format(objtype)
-            msg += '\nKnown objtypes are '+str(self._fiberinput.keys())
+            msg += '\nKnown objtypes are '+str(list(self._fiberinput.keys()))
             warnings.warn(msg)
             t = self._fiberinput['default']
 
@@ -303,7 +306,7 @@ class Throughput:
                 flux = flux * scale
                 units = tmp[1]
             except ValueError:
-                raise ValueError, "Non-numeric units scale factor " + tmp[0]
+                raise ValueError("Non-numeric units scale factor {}".format(tmp[0]))
 
         #- Default exposure time
         if exptime is None:
@@ -317,7 +320,7 @@ class Throughput:
 
         #- Sanity check on units
         if not units.startswith('erg'):
-            raise ValueError, "Unrecognized units " + units
+            raise ValueError("Unrecognized units {}".format(units))
 
         #- If we got here, we need to apply throughputs
         flux = self.apply_throughput(wavelength, flux,
@@ -343,7 +346,7 @@ class Throughput:
             return phot * exptime * self.area * self.fiberarea
 
         else:
-            raise ValueError, "Unrecognized units " + units
+            raise ValueError("Unrecognized units {}".format(units))
 
     def apply_throughput(self, wavelength, flux, objtype="STAR", airmass=1.0):
         """

@@ -5,6 +5,8 @@ Write a suite of input spectra files with different formats, units,
 1D vs. 2D, etc. to use with testing.
 """
 
+from __future__ import absolute_import, division, print_function
+
 import sys
 import os
 import numpy as np
@@ -116,8 +118,8 @@ for flux in (flux1D, flux2D):
                 else:
                     objtype_str = ' %-6s' % objtype
                 
-                print filename, 'image', objtype_str, loglam, wdim, flux.ndim
+                print(filename, 'image', objtype_str, loglam, wdim, flux.ndim)
                 if (wave is not None) and (flux.ndim == wave.ndim):
                     filename = write_tblspec(flux, xwave, loglam, objtype)
-                    print filename, 'table', objtype_str, loglam, wdim, flux.ndim
+                    print(filename, 'table', objtype_str, loglam, wdim, flux.ndim)
 

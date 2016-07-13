@@ -71,10 +71,16 @@ matrix:
           env: PYTHON_VERSION=2.7 SETUP_CMD='build_sphinx'
           # -w is an astropy extension
 
-        # Try all python versions with the latest numpy
+        # Try 2.7 and 3.5 python versions with the latest numpy
         - os: linux
           env: PYTHON_VERSION=2.7 MAIN_CMD='coverage'
                SETUP_CMD="run py/specter/test/specter_test_suite.py"
+               CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
+               PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
+
+        - os: linux
+          env: PYTHON_VERSION=3.5 MAIN_CMD='python'
+               SETUP_CMD="py/specter/test/specter_test_suite.py"
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
@@ -107,8 +113,6 @@ matrix:
 install:
     - git clone git://github.com/astropy/ci-helpers.git
     - source ci-helpers/travis/setup_conda_$TRAVIS_OS_NAME.sh
-    # egg_info causes the astropy/ci-helpers script to exit before the pip
-    # packages are installed, thus desiutil is not installed in that script.
 
 script:
     - $MAIN_CMD $SETUP_CMD
