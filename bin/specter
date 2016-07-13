@@ -396,9 +396,10 @@ if opts.extra:
 
     #- Spectra in photon units
     a = np.array(list(zip(photons, wavelength)),
-                dtype=[('PHOTONS',     str(photons.dtype), (nwave,)),
-                       ('WAVELENGTH',  str(wavelength.dtype), (nwave,)),
-                       ])
+            dtype=[('PHOTONS',     str(photons.dtype), (nwave,)),
+                   ('WAVELENGTH',  str(wavelength.dtype), (nwave,)),
+                   ])
+        
     hdr = fits.Header()
     hdr['SPECMIN'] = (specrange[0], 'First spectrum index')
     hx.append(fits.BinTableHDU(a, header=hdr, name='PHOTONS'))

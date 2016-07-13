@@ -5,6 +5,8 @@ Squeeze a DESI GAUSS-HERMITE PSF into something smaller for testing.
 Also works for GAUSS-HERMITE2
 """
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import sys
 import numpy as np
 from astropy.io import fits

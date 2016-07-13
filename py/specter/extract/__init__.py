@@ -77,7 +77,7 @@ rows time
     N.sum(yspot*(yy-yc)**2) / N.sum(yspot)
 """
 
-from __future__ import absolute_import, division, print_function
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 ### from ex1d import ex1d
 from .ex2d import ex2d, ex2d_patch

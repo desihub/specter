@@ -10,7 +10,7 @@ TODO: GaussHermitePSF (no 2) was copied and pasted from this and then
       modified.  Can they be refactored to share code?
 """
 
-from __future__ import absolute_import, division, print_function
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import sys
 import os

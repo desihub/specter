@@ -5,7 +5,7 @@ Write a suite of input spectra files with different formats, units,
 1D vs. 2D, etc. to use with testing.
 """
 
-from __future__ import absolute_import, division, print_function
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import sys
 import os
