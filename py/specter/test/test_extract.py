@@ -12,9 +12,9 @@ import numpy as np
 import scipy.linalg
 import unittest
 from pkg_resources import resource_filename
-from ..psf import load_psf
-from ..extract.ex2d import ex2d, ex2d_patch, eigen_compose
-from ..extract.ex1d import ex1d
+from specter.psf import load_psf
+from specter.extract.ex2d import ex2d, ex2d_patch, eigen_compose
+from specter.extract.ex1d import ex1d
 
 class TestExtract(unittest.TestCase):
     """
@@ -159,6 +159,20 @@ class TestExtract(unittest.TestCase):
         self.assertEqual(Rdata.shape[0], self.nspec)
         self.assertEqual(Rdata.shape[2], len(self.ww))
         self.assertGreater(Rdata.shape[1], 15)
+
+    def test_ex2d_xyrange(self):
+        xyrange = xmin,xmax,ymin,ymax = self.psf.xyrange([0,self.nspec], self.ww)
+        subimage = self.image[ymin:ymax, xmin:xmax]
+        subivar = self.ivar[ymin:ymax, xmin:xmax]
+        flux, ivar, Rdata = ex2d(subimage, subivar, self.psf, 0, self.nspec,
+            self.ww, wavesize=len(self.ww)//5, xyrange=xyrange)
+
+    def test_ex2d_full_output(self):
+        xyrange = xmin,xmax,ymin,ymax = self.psf.xyrange([0,self.nspec], self.ww)
+        subimage = self.image[ymin:ymax, xmin:xmax]
+        subivar = self.ivar[ymin:ymax, xmin:xmax]
+        results = ex2d(subimage, subivar, self.psf, 0, self.nspec,
+            self.ww, wavesize=len(self.ww)//5, xyrange=xyrange, full_output=True)
 
     #- Pull values are wrong.  Why?  Overfitting?
     def test_ex2d_patch(self):

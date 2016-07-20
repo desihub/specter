@@ -9,6 +9,8 @@ specter Release Notes
 * Load test files in class methods to hopefully speed up tests.
 * Improve Travis test support to latest standards.
 * Added a documentation page for the specter API.
+* Added full_output option to ex2d to get model image and metrics based upon
+  goodness of fit
 
 0.4.1 (2016-03-10)
 ------------------
