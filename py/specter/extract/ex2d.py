@@ -88,7 +88,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
     ivar = np.zeros( (nspec, nwave) )
     if full_output:
         pixmask_fraction = np.zeros( (nspec, nwave) )
-        chi2flux = np.zeros( (nspec, nwave) )
+        chi2pix = np.zeros( (nspec, nwave) )
         modelimage = np.zeros_like(image)
 
     #- Diagonal elements of resolution matrix
@@ -184,9 +184,10 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                 chi2x = (A.T.dot(chi.ravel()**2) / A.sum(axis=0)).reshape(subnspec, subnwave)
 
                 #- outputs
-                modelimage[subxy] = submodel
+                #- TODO: watch out for edge effects on overlapping regions of submodels
+                modelimage[subxy] += submodel
                 pixmask_fraction[iispec, iwave:iwave+wavesize+1] = subpixmask_fraction[:, nlo:-nhi]
-                chi2flux[iispec, iwave:iwave+wavesize+1] = chi2x[:, nlo:-nhi]
+                chi2pix[iispec, iwave:iwave+wavesize+1] = chi2x[:, nlo:-nhi]
     
             #- Fill diagonals of resolution matrix
             for ispec in range(speclo, spechi):
@@ -211,7 +212,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
     
     if full_output:
         return dict(flux=flux, ivar=ivar, resolution_data=Rd, modelimage=modelimage,
-            pixmask_fraction=pixmask_fraction, chi2flux=chi2flux)
+            pixmask_fraction=pixmask_fraction, chi2pix=chi2pix)
     else:
         return flux, ivar, Rd
 
