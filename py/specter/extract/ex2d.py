@@ -39,7 +39,7 @@ class Spectra(object):
 
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
          regularize=0.0, ndecorr=False, bundlesize=25, wavesize=50,
-         full_output=False, verbose=False):
+         full_output=False, verbose=False, debug=False):
     '''
     2D PSF extraction of flux from image patch given pixel inverse variance.
     
@@ -63,6 +63,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
         full_output: Include additional outputs based upon chi2 of model
             projected into pixels
         verbose: print more stuff
+        debug: if True, enter interactive ipython session before returning
 
     Returns (flux, ivar, Rdata):
         flux[nspec, nwave] = extracted resolution convolved flux
@@ -106,6 +107,8 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
     #- Orig was ndiag = 10, which fails when dw gets too large compared to PSF size
     Rd = np.zeros( (nspec, 2*ndiag+1, nwave) )
+
+    TEST = list()
 
     #- Let's do some extractions
     for speclo in range(specmin, specmin+nspec, bundlesize):
@@ -156,6 +159,8 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                     xyrange=[xlo,xhi,ylo,yhi], regularize=regularize, ndecorr=ndecorr,
                     full_output=True)
 
+            TEST.append(results)
+
             specflux = results['flux']
             specivar = results['ivar']
             R = results['R']
@@ -185,7 +190,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
                 #- outputs
                 #- TODO: watch out for edge effects on overlapping regions of submodels
-                modelimage[subxy] += submodel
+                modelimage[subxy] = submodel
                 pixmask_fraction[iispec, iwave:iwave+wavesize+1] = subpixmask_fraction[:, nlo:-nhi]
                 chi2pix[iispec, iwave:iwave+wavesize+1] = chi2x[:, nlo:-nhi]
     
@@ -209,6 +214,12 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
     dwave = np.gradient(wavelengths)
     flux /= dwave
     ivar *= dwave**2
+
+    if debug:
+        #--- DEBUG ---
+        import IPython
+        IPython.embed()
+        #--- DEBUG ---
     
     if full_output:
         return dict(flux=flux, ivar=ivar, resolution_data=Rd, modelimage=modelimage,
@@ -345,8 +356,11 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
     rflux = R.dot(xflux.ravel()).reshape(xflux.shape)
 
     if full_output:
-        results = dict(flux=rflux, ivar=fluxivar, R=R, xflux=xflux, A=A)
-        results['iCov'] = iCov
+        results = dict(flux=rflux, ivar=fluxivar, R=R, xflux=xflux, A=A, iCov=iCov)
+        results['options'] = dict(
+            specmin=specmin, nspec=nspec, wavelengths=wavelengths,
+            xyrange=xyrange, regularize=regularize, ndecorr=ndecorr
+            )
         return results
     else:
         return rflux, fluxivar, R
