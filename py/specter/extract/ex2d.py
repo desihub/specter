@@ -108,8 +108,6 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
     #- Orig was ndiag = 10, which fails when dw gets too large compared to PSF size
     Rd = np.zeros( (nspec, 2*ndiag+1, nwave) )
 
-    TEST = list()
-
     #- Let's do some extractions
     for speclo in range(specmin, specmin+nspec, bundlesize):
         #- index of last spectrum, non-inclusive, i.e. python-style indexing
@@ -158,8 +156,6 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                     specmin=speclo, nspec=spechi-speclo, wavelengths=ww,
                     xyrange=[xlo,xhi,ylo,yhi], regularize=regularize, ndecorr=ndecorr,
                     full_output=True)
-
-            TEST.append(results)
 
             specflux = results['flux']
             specivar = results['ivar']
