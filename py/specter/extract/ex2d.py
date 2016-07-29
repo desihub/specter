@@ -10,33 +10,6 @@ import scipy.linalg
 from scipy.sparse import spdiags, issparse
 from scipy.sparse.linalg import spsolve
 
-class Spectra(object):
-    def __init__(self, wave, flux, ivar, mask, resolution_data):
-        self.wave = np.asarray(wave)
-        self.flux = np.asarray(flux)
-        self.ivar = np.asarray(ivar)
-        self.mask = np.asarray(mask)
-        self.resolution_data = np.asarray(resolution_data)
-        
-        assert self.resolution_data.ndim == 3   #- nspec, ndiag, nwave
-        assert self.flux.ndim == 2              #- nspec, nwave
-        assert self.ivar.ndim == 2              #- nspec, nwave
-        assert self.mask.ndim == 2              #- nspec, nwave
-        assert self.wave.ndim == 1              #- nwave
-        
-        assert self.wave.shape[0] == self.flux.shape[1]     #- nwave
-        assert self.flux.shape == self.ivar.shape           #- nspec, nwave
-        assert self.mask.shape == self.mask.shape           #- nspec, nwave
-        assert self.resolution_data.shape[0] == self.flux.shape[0]  #- nspec
-        assert self.resolution_data.shape[2] == self.flux.shape[1]  #- nwave
-        
-        nspec, ndiag, nwave = resolution_data.shape
-        offsets = np.arange(ndiag//2,-(ndiag//2)-1,-1)
-        self.R = list()
-        for i in range(nspec):
-            self.R.append( spdiags(resolution_data[i], offsets, nwave, nwave) )
-        
-
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
          regularize=0.0, ndecorr=False, bundlesize=25, wavesize=50,
          full_output=False, verbose=False, debug=False):
