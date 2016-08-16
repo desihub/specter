@@ -140,7 +140,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
             ivar[iispec, iwave:iwave+wavesize+1] = specivar[:, nlo:-nhi]
 
             if full_output:
-                A = results['A']
+                A = results['A'].copy()
                 xflux = results['xflux']
             
                 #- number of spectra and wavelengths for this sub-extraction
@@ -153,9 +153,23 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                 #- Fraction of input pixels that are unmasked for each flux bin
                 subpixmask_fraction = 1.0-(A.T.dot(subivar.ravel()>0)).reshape(subnspec, subnwave)
 
-                #- Weighted chi2 of pixels that contribute to each flux bin
-                chi = (subimg - submodel) * np.sqrt(subivar)
-                chi2x = (A.T.dot(chi.ravel()**2) / A.sum(axis=0)).reshape(subnspec, subnwave)
+                #- original weighted chi2 of pixels that contribute to each flux bin
+                # chi = (subimg - submodel) * np.sqrt(subivar)
+                # chi2x = (A.T.dot(chi.ravel()**2) / A.sum(axis=0)).reshape(subnspec, subnwave)
+
+                #- pixel variance including input noise and PSF model errors
+                modelivar = (submodel*psf.psferr + 1e-32)**-2
+                ii = (modelivar > 0) & (subivar > 0)
+                totpix_ivar = np.zeros(submodel.shape)
+                totpix_ivar[ii] = 1.0 / (1.0/modelivar[ii] + 1.0/subivar[ii])
+
+                #- Weighted chi2 of pixels that contribute to each flux bin;
+                #- only use unmasked pixels and avoid dividing by 0
+                chi = (subimg - submodel) * np.sqrt(totpix_ivar)
+                psfweight = A.T.dot(totpix_ivar.ravel()>0)
+                bad = (psfweight == 0.0)
+                chi2x = (A.T.dot(chi.ravel()**2) * ~bad) / (psfweight + bad)
+                chi2x = chi2x.reshape(subnspec, subnwave)
 
                 #- outputs
                 #- TODO: watch out for edge effects on overlapping regions of submodels

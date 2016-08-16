@@ -55,6 +55,12 @@ class PSF(object):
         self.npix_y = hdr['NPIX_Y']
         self.nspec  = hdr['NSPEC']
         
+        #- PSF model error
+        if 'PSFERR' in hdr:
+            self.psferr = hdr['PSFERR']
+        else:
+            self.psferr = 0.01
+        
         #- Load x, y legendre coefficient tracesets
         xc, hdr = fits.getdata(filename, 'XCOEFF', header=True)
         self._x = TraceSet(xc, domain=(hdr['WAVEMIN'], hdr['WAVEMAX']))

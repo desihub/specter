@@ -11,6 +11,7 @@ specter Release Notes
 * Added a documentation page for the specter API.
 * Added full_output option to ex2d to get model image and metrics based upon
   goodness of fit
+* PSFs can specify their model error with PSFERR header keyword; default 0.01
 
 0.4.1 (2016-03-10)
 ------------------
