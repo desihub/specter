@@ -48,7 +48,13 @@ class GaussHermitePSF(PSF):
         #- Other necessary keywords
         self.npix_x = hdr['NPIX_X']
         self.npix_y = hdr['NPIX_Y']
-        
+
+        #- PSF model error
+        if 'PSFERR' in hdr:
+            self.psferr = hdr['PSFERR']
+        else:
+            self.psferr = 0.01
+
         #- Load the parameters into self.coeff dictionary keyed by PARAM
         #- with values as TraceSets for evaluating the Legendre coefficients
         data = fx[1].data

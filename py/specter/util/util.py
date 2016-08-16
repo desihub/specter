@@ -293,9 +293,7 @@ def resample(x, xp, yp, xedges=False, xpedges=False):
     
     edges = x if xedges else pixspline.cen2bound(x)
     return ys.resample(edges)
-    
-        
-    
+
     
     
     

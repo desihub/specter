@@ -11,7 +11,8 @@ from scipy.sparse import spdiags, issparse
 from scipy.sparse.linalg import spsolve
 
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
-         regularize=0.0, ndecorr=False, bundlesize=25, wavesize=50, verbose=False):
+         regularize=0.0, ndecorr=False, bundlesize=25, wavesize=50,
+         full_output=False, verbose=False, debug=False):
     '''
     2D PSF extraction of flux from image patch given pixel inverse variance.
     
@@ -32,12 +33,17 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
         bundlesize: extract in groups of fibers of this size, assuming no
             correlation with fibers outsize of this bundle
         wavesize: number of wavelength steps to include per sub-extraction
+        full_output: Include additional outputs based upon chi2 of model
+            projected into pixels
         verbose: print more stuff
+        debug: if True, enter interactive ipython session before returning
 
     Returns (flux, ivar, Rdata):
         flux[nspec, nwave] = extracted resolution convolved flux
         ivar[nspec, nwave] = inverse variance of flux
         Rdata[nspec, 2*ndiag+1, nwave] = sparse Resolution matrix data
+
+    TODO: document output if full_output=True
 
     ex2d uses divide-and-conquer to extract many overlapping subregions
     and then stitches them back together.  Params wavesize and bundlesize
@@ -54,6 +60,10 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
     nwave = len(wavelengths)
     flux = np.zeros( (nspec, nwave) )
     ivar = np.zeros( (nspec, nwave) )
+    if full_output:
+        pixmask_fraction = np.zeros( (nspec, nwave) )
+        chi2pix = np.zeros( (nspec, nwave) )
+        modelimage = np.zeros_like(image)
 
     #- Diagonal elements of resolution matrix
     #- Keep resolution matrix terms equivalent to 9-sigma of largest spot
@@ -86,11 +96,17 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                 whi = wavelengths[-1]
         
             #- Identify subimage that covers the core wavelengths
-            xyrange = xlo,xhi,ylo,yhi = psf.xyrange(specrange, (wlo, whi))
-            subimg = image[ylo:yhi, xlo:xhi]
-            subivar = imageivar[ylo:yhi, xlo:xhi]
+            subxyrange = xlo,xhi,ylo,yhi = psf.xyrange(specrange, (wlo, whi))
+
+            if xyrange is None:
+                subxy = np.s_[ylo:yhi, xlo:xhi]
+            else:
+                subxy = np.s_[ylo-xyrange[2]:yhi-xyrange[2], xlo-xyrange[0]:xhi-xyrange[0]]
+
+            subimg = image[subxy]
+            subivar = imageivar[subxy]
     
-            #- Determine extra border wavelength extent
+            #- Determine extra border wavelength extent: nlo,nhi extra wavelength bins
             ny, nx = psf.pix(speclo, wlo).shape
             ymin = ylo-ny+2
             ymax = yhi+ny-2
@@ -108,15 +124,58 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                 sys.stdout.flush()
 
             #- Do the extraction
-            specflux, specivar, R = \
+            results = \
                 ex2d_patch(subimg, subivar, psf,
                     specmin=speclo, nspec=spechi-speclo, wavelengths=ww,
-                    xyrange=xyrange, regularize=regularize, ndecorr=ndecorr)
+                    xyrange=[xlo,xhi,ylo,yhi], regularize=regularize, ndecorr=ndecorr,
+                    full_output=True)
+
+            specflux = results['flux']
+            specivar = results['ivar']
+            R = results['R']
 
             #- Fill in the final output arrays
             iispec = slice(speclo-specmin, spechi-specmin)
             flux[iispec, iwave:iwave+wavesize+1] = specflux[:, nlo:-nhi]
             ivar[iispec, iwave:iwave+wavesize+1] = specivar[:, nlo:-nhi]
+
+            if full_output:
+                A = results['A'].copy()
+                xflux = results['xflux']
+            
+                #- number of spectra and wavelengths for this sub-extraction
+                subnspec = spechi-speclo
+                subnwave = len(ww)
+            
+                #- Model image
+                submodel = A.dot(xflux.ravel()).reshape(subimg.shape)
+            
+                #- Fraction of input pixels that are unmasked for each flux bin
+                subpixmask_fraction = 1.0-(A.T.dot(subivar.ravel()>0)).reshape(subnspec, subnwave)
+
+                #- original weighted chi2 of pixels that contribute to each flux bin
+                # chi = (subimg - submodel) * np.sqrt(subivar)
+                # chi2x = (A.T.dot(chi.ravel()**2) / A.sum(axis=0)).reshape(subnspec, subnwave)
+
+                #- pixel variance including input noise and PSF model errors
+                modelivar = (submodel*psf.psferr + 1e-32)**-2
+                ii = (modelivar > 0) & (subivar > 0)
+                totpix_ivar = np.zeros(submodel.shape)
+                totpix_ivar[ii] = 1.0 / (1.0/modelivar[ii] + 1.0/subivar[ii])
+
+                #- Weighted chi2 of pixels that contribute to each flux bin;
+                #- only use unmasked pixels and avoid dividing by 0
+                chi = (subimg - submodel) * np.sqrt(totpix_ivar)
+                psfweight = A.T.dot(totpix_ivar.ravel()>0)
+                bad = (psfweight == 0.0)
+                chi2x = (A.T.dot(chi.ravel()**2) * ~bad) / (psfweight + bad)
+                chi2x = chi2x.reshape(subnspec, subnwave)
+
+                #- outputs
+                #- TODO: watch out for edge effects on overlapping regions of submodels
+                modelimage[subxy] = submodel
+                pixmask_fraction[iispec, iwave:iwave+wavesize+1] = subpixmask_fraction[:, nlo:-nhi]
+                chi2pix[iispec, iwave:iwave+wavesize+1] = chi2x[:, nlo:-nhi]
     
             #- Fill diagonals of resolution matrix
             for ispec in range(speclo, spechi):
@@ -138,8 +197,18 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
     dwave = np.gradient(wavelengths)
     flux /= dwave
     ivar *= dwave**2
+
+    if debug:
+        #--- DEBUG ---
+        import IPython
+        IPython.embed()
+        #--- DEBUG ---
     
-    return flux, ivar, Rd
+    if full_output:
+        return dict(flux=flux, ivar=ivar, resolution_data=Rd, modelimage=modelimage,
+            pixmask_fraction=pixmask_fraction, chi2pix=chi2pix)
+    else:
+        return flux, ivar, Rd
 
 
 def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
@@ -238,6 +307,14 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
     
     xflux = spsolve(iCov, y).reshape((nspec, nwave))
 
+    #- TODO: could check for outliers, remask and re-extract
+    #- Be careful in case masking blocks off all inputs to a flux bin and
+    #- thus creates a singular array.  May need to keep regularization piece.    
+    # model = A.dot(xflux.ravel())
+    # chi = (image.ravel() - model) * np.sqrt(ivar.ravel())
+    # good = np.abs(chi)<5
+    # ...
+
     #- Solve for Resolution matrix
     try:
         if ndecorr:
@@ -262,8 +339,11 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
     rflux = R.dot(xflux.ravel()).reshape(xflux.shape)
 
     if full_output:
-        results = dict(flux=rflux, ivar=fluxivar, R=R, xflux=xflux, A=A)
-        results['iCov'] = iCov
+        results = dict(flux=rflux, ivar=fluxivar, R=R, xflux=xflux, A=A, iCov=iCov)
+        results['options'] = dict(
+            specmin=specmin, nspec=nspec, wavelengths=wavelengths,
+            xyrange=xyrange, regularize=regularize, ndecorr=ndecorr
+            )
         return results
     else:
         return rflux, fluxivar, R
