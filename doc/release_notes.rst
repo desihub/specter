@@ -5,7 +5,7 @@ specter Release Notes
 0.6.1 (unreleased)
 ------------------
 
-* no changes yet
+* Update template Module file to reflect DESI+Anaconda infrastructure.
 
 0.6.0 (2016-08-16)
 ------------------
