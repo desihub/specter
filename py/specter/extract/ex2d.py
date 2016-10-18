@@ -111,8 +111,8 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
             ymin = ylo-ny+2
             ymax = yhi+ny-2
         
-            nlo = int((wlo - psf.wavelength(speclo, ymin))/dw)-1
-            nhi = int((psf.wavelength(speclo, ymax) - whi)/dw)-1
+            nlo = max(int((wlo - psf.wavelength(speclo, ymin))/dw)-1, ndiag)
+            nhi = max(int((psf.wavelength(speclo, ymax) - whi)/dw)-1, ndiag)
             ww = np.arange(wlo-nlo*dw, whi+(nhi+0.5)*dw, dw)
             wmin, wmax = ww[0], ww[-1]
             nw = len(ww)
