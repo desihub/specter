@@ -14,6 +14,7 @@ import numpy as np
 from astropy.io import fits
 from specter.psf import PSF
 from specter.util import LinearInterp2D, rebin_image, sincshift
+import scipy.interpolate
 
 class SpotGridPSF(PSF):
     """
@@ -106,6 +107,44 @@ class SpotGridPSF(PSF):
         xx = slice(x_ccd_begin, (x_ccd_begin+nx_ccd))
         yy = slice(y_ccd_begin, (y_ccd_begin+ny_ccd))
         return xx,yy,ccd_pix_spot_values
+
+        
+        
+        
+    def _value(self, x, y, ispec, wavelength):
+
+        """
+        return PSF value (same shape as x and y), NOT integrated, for display of PSF.
+
+        Arguments:
+          x: x-coordinates baseline array
+          y: y-coordinates baseline array (same shape as x)
+          ispec: fiber
+          wavelength: wavelength
+        """
+
+        
+        p, w = self._fiberpos[ispec], wavelength
+        pix_spot_values=self._fspot(p, w)
+        nx_spot=pix_spot_values.shape[1]
+        ny_spot=pix_spot_values.shape[0]
+        x_spot=(np.arange(nx_spot)-nx_spot//2)
+        y_spot=(np.arange(ny_spot)-ny_spot//2)
+        spline=scipy.interpolate.RectBivariateSpline(x_spot,y_spot,pix_spot_values,kx=2, ky=2, s=0)
+        
+        xc, yc = self.xy(ispec, wavelength) # center of PSF in CCD coordinates
+        ratio=self.CcdPixelSize/self.SpotPixelSize
+        
+        xr=x.ravel()
+        yr=y.ravel()
+        
+        #img=spline((x-xc)*ratio,(y-yc)*ratio)
+        #return img/np.sum(img)
+        img=np.zeros(xr.shape)
+        for i in range(xr.size) :
+            img[i]=spline((xr[i]-xc)*ratio,(yr[i]-yc)*ratio)
+        return img.reshape(x.shape)/np.sum(img)
+
 
         
         
