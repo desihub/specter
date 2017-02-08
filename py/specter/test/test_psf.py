@@ -227,6 +227,25 @@ class GenericPSFTests(object):
         img = self.psf.project(ww, phot, verbose=False)
         self.assertEqual(img.shape, (self.psf.npix_y, self.psf.npix_x))
 
+    #- Test projection to multiple images at once
+    def test_project3(self):
+        nwave = 10
+        nspec = 5
+        nimg = 3
+        ww = self.psf.wavelength(0)[0:nwave]
+        ww = np.tile(ww, nspec).reshape(nspec, nwave)
+        phot = np.random.uniform(0,100,size=(nimg, nspec, nwave))
+        img = self.psf.project(ww, phot, verbose=False)
+        self.assertEqual(img.shape, (nimg, self.psf.npix_y, self.psf.npix_x))
+        img0 = self.psf.project(ww, phot[0], verbose=False)
+        img1 = self.psf.project(ww, phot[1], verbose=False)
+        self.assertTrue(np.all(img0==img[0]))
+        self.assertTrue(np.all(img1==img[1]))
+
+        #- Confirm that it also works with 1D wave and 3D phot
+        imgx = self.psf.project(ww[0], phot, verbose=False)
+        self.assertTrue(np.all(img==imgx))
+
     #- Test projection starting at specmin != 0
     def test_project_specmin(self):
         ww = self.psf.wavelength(0)[0:10]
