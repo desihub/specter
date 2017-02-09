@@ -143,7 +143,7 @@ class SpotGridPSF(PSF):
         img=np.zeros(xr.shape)
         for i in range(xr.size) :
             img[i]=spline((xr[i]-xc)*ratio,(yr[i]-yc)*ratio)
-        return img.reshape(x.shape)/np.sum(img)
+        return img.reshape(x.shape)
 
 
         
