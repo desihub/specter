@@ -516,7 +516,7 @@ class TestSpotPSF(GenericPSFTests,unittest.TestCase):
     def setUpClass(cls):
         cls.psf = load_psf(resource_filename("specter.test", "t/psf-spot.fits"))
 
-#- Test SpotGrid PSF format
+#- Test MonoSpot PSF format
 class TestMonoSpotPSF(GenericPSFTests,unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -527,6 +527,22 @@ class TestGaussHermitePSF(GenericPSFTests,unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.psf = load_psf(resource_filename("specter.test", "t/psf-gausshermite.fits"))
+
+    def test_spot_center(self):
+        import scipy.ndimage
+        for y in np.linspace(14,16,9):
+            w = self.psf.wavelength(0, y)
+            x, y = self.psf.xy(0, w)
+            xx, yy, pix = self.psf.xypix(0, w)
+
+            y0, x0 = scipy.ndimage.center_of_mass(pix)
+            dx = x0 - pix.shape[1]//2
+            dy = y0 - pix.shape[0]//2
+
+            self.assertLessEqual(np.abs(dx), 0.55)
+            self.assertLessEqual(np.abs(dy), 0.55)
+            self.assertLessEqual(np.abs(xx.start+x0-x), 0.1)
+            self.assertLessEqual(np.abs(yy.start+y0-y), 0.1)
 
 #- Test GaussHermite2PSF format
 class TestGaussHermite2PSF(GenericPSFTests,unittest.TestCase):
