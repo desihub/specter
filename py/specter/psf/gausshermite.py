@@ -117,7 +117,9 @@ class GaussHermitePSF(PSF):
             y = sp.erf(u/np.sqrt(2.))
             return 0.5 * (y[1:] - y[0:-1])
 
+
         
+
     def _xypix(self, ispec, wavelength):
 
         # x, y = self.xy(ispec, wavelength)
@@ -202,4 +204,80 @@ class GaussHermitePSF(PSF):
         return xslice, yslice, img
         # return xslice, yslice, (core1, core2, tails)
         
+
+    def _gh(self, x, m=0, xc=0.0, sigma=1.0):
+        """
+        return Gauss-Hermite function value, NOT integrated, for display of PSF.
+
+        Arguments:
+          x: coordinates baseline array
+          m: order of Hermite polynomial multiplying Gaussian core
+          xc: sub-pixel position of Gaussian centroid relative to x baseline
+          sigma: sigma parameter of Gaussian core in units of pixels
+        
+        """
+
+        
+        u = (x-xc) / sigma
+        
+        if m > 0:
+            return self._hermitenorm[m](u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
+        else:                        
+            return np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
+
+    def _value(self,x,y,ispec, wavelength):
+        
+        """
+        return PSF value (same shape as x and y), NOT integrated, for display of PSF.
+
+        Arguments:
+          x: x-coordinates baseline array
+          y: y-coordinates baseline array (same shape as x)
+          ispec: fiber
+          wavelength: wavelength
+       
+        """
+
+        # x, y = self.xy(ispec, wavelength)
+        xc = self.coeff['X'].eval(ispec, wavelength)
+        yc = self.coeff['Y'].eval(ispec, wavelength)
+                
+        #- Extract GH degree and sigma coefficients for convenience
+        degx1 = self._polyparams['GHDEGX']
+        degy1 = self._polyparams['GHDEGY']
+        sigx1 = self.coeff['GHSIGX'].eval(ispec, wavelength)
+        sigy1 = self.coeff['GHSIGY'].eval(ispec, wavelength)
+        
+        #- Background tail image
+        tailxsca = self.coeff['TAILXSCA'].eval(ispec, wavelength)
+        tailysca = self.coeff['TAILYSCA'].eval(ispec, wavelength)
+        tailamp = self.coeff['TAILAMP'].eval(ispec, wavelength)
+        tailcore = self.coeff['TAILCORE'].eval(ispec, wavelength)
+        tailinde = self.coeff['TAILINDE'].eval(ispec, wavelength)
+        
+        
+        #- Make tail image (faster, less readable version)
+        r2 = ((x-xc)*tailxsca)**2+((y-yc)*tailysca)**2
+        tails = tailamp*r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
+        
+        #- Create 1D GaussHermite functions in x and y
+        xfunc1 = [self._gh(x, i, xc, sigma=sigx1) for i in range(degx1+1)]
+        yfunc1 = [self._gh(y, i, yc, sigma=sigy1) for i in range(degy1+1)]        
+        
+        
+        #- Create core PSF image
+        core1 = np.zeros(x.shape)
+        for i in range(degx1+1):
+            for j in range(degy1+1):
+                c1 = self.coeff['GH-{}-{}'.format(i,j)].eval(ispec, wavelength)
+                core1 += c1 * yfunc1[j]*xfunc1[i]
+        
+        #- Clip negative values and normalize to 1.0
+        img = core1 + tails
+        ### img = core1 + core2 + tails
+
+        img = img.clip(0.0)
+        img /= np.sum(img)
+
+        return img
 
