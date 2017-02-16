@@ -129,8 +129,8 @@ class GaussHermitePSF(PSF):
         #- CCD pixel ranges
         hsizex = self._polyparams['HSIZEX']
         hsizey = self._polyparams['HSIZEY']
-        xccd = np.arange(int(x-hsizex), int(x+hsizex))
-        yccd = np.arange(int(y-hsizey), int(y+hsizey))
+        xccd = np.arange(int(x-hsizex+0.5), int(x+hsizex+1.5))
+        yccd = np.arange(int(y-hsizey+0.5), int(y+hsizey+1.5))
         dx = xccd - x
         dy = yccd - y
         nx = len(dx)

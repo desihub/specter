@@ -6,6 +6,8 @@ specter Release Notes
 ------------------
 
 * Update template Module file to reflect DESI+Anaconda infrastructure.
+* Enable projecting photons onto multiple images simultaneously
+* Fix GaussHermite PSF spot size bug
 
 0.6.0 (2016-08-16)
 ------------------

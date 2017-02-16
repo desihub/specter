@@ -227,6 +227,25 @@ class GenericPSFTests(object):
         img = self.psf.project(ww, phot, verbose=False)
         self.assertEqual(img.shape, (self.psf.npix_y, self.psf.npix_x))
 
+    #- Test projection to multiple images at once
+    def test_project3(self):
+        nwave = 10
+        nspec = 5
+        nimg = 3
+        ww = self.psf.wavelength(0)[0:nwave]
+        ww = np.tile(ww, nspec).reshape(nspec, nwave)
+        phot = np.random.uniform(0,100,size=(nimg, nspec, nwave))
+        img = self.psf.project(ww, phot, verbose=False)
+        self.assertEqual(img.shape, (nimg, self.psf.npix_y, self.psf.npix_x))
+        img0 = self.psf.project(ww, phot[0], verbose=False)
+        img1 = self.psf.project(ww, phot[1], verbose=False)
+        self.assertTrue(np.all(img0==img[0]))
+        self.assertTrue(np.all(img1==img[1]))
+
+        #- Confirm that it also works with 1D wave and 3D phot
+        imgx = self.psf.project(ww[0], phot, verbose=False)
+        self.assertTrue(np.all(img==imgx))
+
     #- Test projection starting at specmin != 0
     def test_project_specmin(self):
         ww = self.psf.wavelength(0)[0:10]
@@ -497,7 +516,7 @@ class TestSpotPSF(GenericPSFTests,unittest.TestCase):
     def setUpClass(cls):
         cls.psf = load_psf(resource_filename("specter.test", "t/psf-spot.fits"))
 
-#- Test SpotGrid PSF format
+#- Test MonoSpot PSF format
 class TestMonoSpotPSF(GenericPSFTests,unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -508,6 +527,22 @@ class TestGaussHermitePSF(GenericPSFTests,unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.psf = load_psf(resource_filename("specter.test", "t/psf-gausshermite.fits"))
+
+    def test_spot_center(self):
+        import scipy.ndimage
+        for y in np.linspace(14,16,9):
+            w = self.psf.wavelength(0, y)
+            x, y = self.psf.xy(0, w)
+            xx, yy, pix = self.psf.xypix(0, w)
+
+            y0, x0 = scipy.ndimage.center_of_mass(pix)
+            dx = x0 - pix.shape[1]//2
+            dy = y0 - pix.shape[0]//2
+
+            self.assertLessEqual(np.abs(dx), 0.55)
+            self.assertLessEqual(np.abs(dy), 0.55)
+            self.assertLessEqual(np.abs(xx.start+x0-x), 0.1)
+            self.assertLessEqual(np.abs(yy.start+y0-y), 0.1)
 
 #- Test GaussHermite2PSF format
 class TestGaussHermite2PSF(GenericPSFTests,unittest.TestCase):

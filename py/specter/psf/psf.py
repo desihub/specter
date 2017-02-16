@@ -512,17 +512,21 @@ class PSF(object):
 
     def project(self, wavelength, phot, specmin=0, xyrange=None, verbose=False):
         """
-        Returns 2D image of spectra projected onto the CCD
+        Returns 2D image or 3D images of spectra projected onto the CCD
 
         Required inputs:
-            phot[nwave] or phot[nspec, nwave] as photons on CCD per bin
+            phot[nwave] or phot[nspec, nwave] or phot[nimage, nspec, nwave]
+                as photons on CCD per bin
             wavelength[nwave] or wavelength[nspec, nwave] in Angstroms
-                if wavelength is 1D and spectra is 2D, then wavelength[]
+                if wavelength is 1D and spectra is 2D or 3D, then wavelength[]
                 applies to all phot[i]
 
         Optional inputs:
             specmin : starting spectrum number
             xyrange : (xmin, xmax, ymin, ymax) range of CCD pixels
+
+        if phot is 1D or 2D, output is a single 2D[ny,nx] image
+        if phot is 3D[nimage,nspec,nwave], output is 3D[nimage,ny,nx]
         """
         wavelength = np.asarray(wavelength)
         phot = np.asarray(phot)
@@ -542,12 +546,19 @@ class PSF(object):
         nx = xmax - xmin
         ny = ymax - ymin
 
-        #- For convenience, treat phot as a 2D vector
+        #- convert phot to 3D[nimage, nspec, nwave]
         phot = np.atleast_2d(phot)
-        nspec, nw = phot.shape
+        if phot.ndim == 3:
+            nimage, nspec, nw = phot.shape
+            singleimage = False
+        else:
+            nspec, nw = phot.shape
+            nimage = 1
+            phot = phot.reshape(nimage, nspec, nw)
+            singleimage = True
 
         #- Create image to fill
-        img = np.zeros( (ny, nx) )
+        img = np.zeros( (nimage, ny, nx) )
 
         #- Loop over spectra and wavelengths
         specmax = min(specmin+nspec, self.nspec)
@@ -564,13 +575,17 @@ class PSF(object):
             #- Evaluate positive photons within wavelength range
             wmin, wmax = self.wavelength(ispec, y=(0, self.npix_y))
             for j, w in enumerate(wspec):
-                if phot[i,j] > 0.0 and (wmin <= w <= wmax):
+                if np.any(phot[:,i,j] > 0.0) and (wmin <= w <= wmax):
                     xx, yy, pix = self.xypix(ispec, w, \
                         xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
                     if (xx.stop > xx.start) and (yy.stop > yy.start):
-                        img[yy, xx] += pix * phot[i,j]
+                        for k in range(nimage):
+                            img[k, yy, xx] += pix * phot[k,i,j]
 
-        return img
+        if singleimage:
+            return img[0]
+        else:
+            return img
     
     #- Convenience functions
     
