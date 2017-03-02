@@ -2,12 +2,18 @@
 specter Release Notes
 =====================
 
-0.6.1 (unreleased)
+0.7.1 (unreleased)
+------------------
+
+No changes yet
+
+0.7.0 (2017-03-02)
 ------------------
 
 * Update template Module file to reflect DESI+Anaconda infrastructure.
 * Enable projecting photons onto multiple images simultaneously
-* Fix GaussHermite PSF spot size bug
+* Fix GaussHermite PSF spot size and centering bugs
+* New PSF function ._value to evaluate non-pixel-integrated PSF values
 
 0.6.0 (2016-08-16)
 ------------------
