@@ -532,8 +532,8 @@ class PSF(object):
         phot = np.asarray(phot)
         if specmin >= self.nspec:
             raise ValueError('specmin {} >= psf.nspec {}'.format(specmin, self.nspec))
-        if specmin+phot.shape[0] > self.nspec:
-            print("WARNING: specmin+npec ({}+{}) > psf.nspec {}".format(specmin, phot.shape[0], self.nspec), file=sys.stderr)
+        if phot.shape[-1] != wavelength.shape[-1]:
+            raise ValueError('phot.shape {} vs. wavelength.shape {} mismatch'.format(phot.shape, wavelength.shape))
         
         #- x,y ranges and number of pixels
         if xyrange is None:
@@ -556,6 +556,9 @@ class PSF(object):
             nimage = 1
             phot = phot.reshape(nimage, nspec, nw)
             singleimage = True
+
+        if specmin+nspec > self.nspec:
+            print("WARNING: specmin+nspec ({}+{}) > psf.nspec {}".format(specmin, nspec, self.nspec), file=sys.stderr)
 
         #- Create image to fill
         img = np.zeros( (nimage, ny, nx) )
