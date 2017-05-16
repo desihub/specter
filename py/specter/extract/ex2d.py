@@ -453,9 +453,8 @@ def resolution_from_icov(icov, decorr=None):
     
     w, v = scipy.linalg.eigh(icov)
 
-    sqrt_icov = np.zeros_like(icov)
-
     if decorr is not None:
+        sqrt_icov = np.zeros_like(icov)
         if np.sum(decorr) != icov.shape[0]:
             raise RuntimeError("The list of spectral block sizes must sum to the matrix size")
         inverse = eigen_compose(w, v, invert=True)
