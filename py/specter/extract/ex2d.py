@@ -56,6 +56,11 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
     if not np.allclose(dw, np.diff(wavelengths)):
         raise ValueError('ex2d currently only supports linear wavelength grids')
 
+    #- Cache PSF coefficients for these spectra and wavelengths
+    if hasattr(psf, 'cache_coeffs'):
+        ispecs = range(specmin, specmin+nspec)
+        psf.cache_coeffs(ispecs, wavelengths)
+
     #- Output arrays to fill
     nwave = len(wavelengths)
     flux = np.zeros( (nspec, nwave) )

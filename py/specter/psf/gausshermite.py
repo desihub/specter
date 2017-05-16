@@ -26,25 +26,25 @@ class GaussHermitePSF(PSF):
     def __init__(self, filename):
         """
         Initialize GaussHermitePSF from input file
-        """        
+        """
         #- Check that this file is a current generation Gauss Hermite PSF
         fx = fits.open(filename, memmap=False)
         self._polyparams = hdr = fx[1].header
         if 'PSFTYPE' not in hdr:
             raise ValueError('Missing PSFTYPE keyword')
-            
+
         if hdr['PSFTYPE'] != 'GAUSS-HERMITE':
             raise ValueError('PSFTYPE {} is not GAUSS-HERMITE'.format(hdr['PSFTYPE']))
-            
+
         if 'PSFVER' not in hdr:
             raise ValueError("PSFVER missing; this version not supported")
-            
+
         if hdr['PSFVER'] < '1':
             raise ValueError("Only GAUSS-HERMITE versions 1.0 and greater are supported")
-            
+
         #- Calculate number of spectra from FIBERMIN and FIBERMAX (inclusive)
         self.nspec = hdr['FIBERMAX'] - hdr['FIBERMIN'] + 1
-        
+
         #- Other necessary keywords
         self.npix_x = hdr['NPIX_X']
         self.npix_y = hdr['NPIX_Y']
@@ -64,7 +64,7 @@ class GaussHermitePSF(PSF):
             for p in data:
                 name = p['PARAM'].strip()
                 self.coeff[name] = TraceSet(p['COEFF'], domain=domain)
-        
+
         #- Pull out x and y as special tracesets
         self._x = self.coeff['X']
         self._y = self.coeff['Y']
@@ -75,7 +75,7 @@ class GaussHermitePSF(PSF):
         self._wmin_all = np.max(self.wavelength(None, 0))
         self._wmax = np.max(self.wavelength(None, self.npix_y-1))
         self._wmax_all = np.min(self.wavelength(None, self.npix_y-1))
-               
+
         #- Filled only if needed
         self._xsigma = None
         self._ysigma = None
@@ -86,6 +86,20 @@ class GaussHermitePSF(PSF):
         maxdeg = max(hdr['GHDEGX'], hdr['GHDEGY'])
         for i in range(maxdeg+1):
             self._hermitenorm.append( sp.hermitenorm(i) )
+
+        #- No coefficients cached yet
+        self._cache_ispec = None
+        self._cache_hit = 0
+        self._cache_miss = 0
+        self._cache_coeff_keys = ['X', 'Y', 'GHSIGX', 'GHSIGY',
+            'TAILXSCA', 'TAILYSCA', 'TAILAMP', 'TAILCORE', 'TAILINDE']
+        self._cache_coeff = dict()
+        degx1 = self._polyparams['GHDEGX']
+        degy1 = self._polyparams['GHDEGY']
+        for i in range(degx1+1):
+            for j in range(degy1+1):
+                key = 'GH-{}-{}'.format(i,j)
+                self._cache_coeff_keys.append(key)
 
         fx.close()
 
@@ -109,21 +123,51 @@ class GaussHermitePSF(PSF):
         #- Evaluate H[m-1] at half-pixel offsets above and below x
         dx = x-xc-0.5
         u = np.concatenate( (dx, dx[-1:]+0.5) ) / sigma
-        
+
         if m > 0:
             y = -self._hermitenorm[m-1](u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
             return (y[1:] - y[0:-1])
-        else:            
+        else:
             y = sp.erf(u/np.sqrt(2.))
             return 0.5 * (y[1:] - y[0:-1])
 
-    def _xypix(self, ispec, wavelength):
+    def cache_coeffs(self, ispecs, wavelengths):
+        self._cache_wavelengths = wavelengths
+        self._cache_coeff = dict()
+        wavenorm = self.coeff['GH-0-0'].xnorm(wavelengths)
+        for i in ispecs:
+            self._cache_coeff[i] = dict()
+            for key in self._cache_coeff_keys:
+                self._cache_coeff[i][key] = self.coeff[key].eval(i, xnorm=wavenorm)
 
+    def get_coeff(self, key, ispec, wave, iwave=None):
+        if ispec in self._cache_coeff:
+            if iwave is None:
+                iwave = np.searchsorted(self._cache_wavelengths, wave)
+            if iwave >= len(self._cache_wavelengths) or self._cache_wavelengths[iwave] != wave:
+                self._cache_miss += 1
+                return self.coeff[key].eval(ispec, wave)
+
+            self._cache_hit += 1
+            return self._cache_coeff[ispec][key][iwave]
+        else:
+            self._cache_miss += 1
+            return self.coeff[key].eval(ispec, wave)
+
+    def _xypix(self, ispec, wavelength):
         # x, y = self.xy(ispec, wavelength)
         wavenorm = self.coeff['GH-0-0'].xnorm(wavelength)
-        x = self.coeff['X'].eval(ispec, xnorm=wavenorm)
-        y = self.coeff['Y'].eval(ispec, xnorm=wavenorm)
-        
+        # x = self.coeff['X'].eval(ispec, xnorm=wavenorm)
+        # y = self.coeff['Y'].eval(ispec, xnorm=wavenorm)
+
+        if hasattr(self, '_cache_wavelengths'):
+            iwave = np.searchsorted(self._cache_wavelengths, wavelength)
+        else:
+            iwave = None
+
+        x = self.get_coeff('X', ispec, wavelength, iwave)
+        y = self.get_coeff('Y', ispec, wavelength, iwave)
+
         #- CCD pixel ranges
         hsizex = self._polyparams['HSIZEX']
         hsizey = self._polyparams['HSIZEY']
@@ -133,20 +177,27 @@ class GaussHermitePSF(PSF):
         dy = yccd - y
         nx = len(dx)
         ny = len(dy)
-        
+
         #- Extract GH degree and sigma coefficients for convenience
         degx1 = self._polyparams['GHDEGX']
         degy1 = self._polyparams['GHDEGY']
-        sigx1 = self.coeff['GHSIGX'].eval(ispec, xnorm=wavenorm)
-        sigy1 = self.coeff['GHSIGY'].eval(ispec, xnorm=wavenorm)
-        
+        # sigx1 = self.coeff['GHSIGX'].eval(ispec, xnorm=wavenorm)
+        # sigy1 = self.coeff['GHSIGY'].eval(ispec, xnorm=wavenorm)
+        sigx1 = self.get_coeff('GHSIGX', ispec, wavelength, iwave)
+        sigy1 = self.get_coeff('GHSIGY', ispec, wavelength, iwave)
+
         #- Background tail image
-        tailxsca = self.coeff['TAILXSCA'].eval(ispec, xnorm=wavenorm)
-        tailysca = self.coeff['TAILYSCA'].eval(ispec, xnorm=wavenorm)
-        tailamp = self.coeff['TAILAMP'].eval(ispec, xnorm=wavenorm)
-        tailcore = self.coeff['TAILCORE'].eval(ispec, xnorm=wavenorm)
-        tailinde = self.coeff['TAILINDE'].eval(ispec, xnorm=wavenorm)
-        
+        # tailxsca = self.coeff['TAILXSCA'].eval(ispec, xnorm=wavenorm)
+        # tailysca = self.coeff['TAILYSCA'].eval(ispec, xnorm=wavenorm)
+        # tailamp = self.coeff['TAILAMP'].eval(ispec, xnorm=wavenorm)
+        # tailcore = self.coeff['TAILCORE'].eval(ispec, xnorm=wavenorm)
+        # tailinde = self.coeff['TAILINDE'].eval(ispec, xnorm=wavenorm)
+        tailxsca = self.get_coeff('TAILXSCA', ispec, wavelength, iwave)
+        tailysca = self.get_coeff('TAILYSCA', ispec, wavelength, iwave)
+        tailamp  = self.get_coeff('TAILAMP',  ispec, wavelength, iwave)
+        tailcore = self.get_coeff('TAILCORE', ispec, wavelength, iwave)
+        tailinde = self.get_coeff('TAILINDE', ispec, wavelength, iwave)
+
         #- Make tail image (slow version)
         # img = np.zeros((len(yccd), len(xccd)))
         # for i, dyy in enumerate(dy):
@@ -159,17 +210,18 @@ class GaussHermitePSF(PSF):
         r2 = np.tile((dx*tailxsca)**2, ny).reshape(ny, nx) + \
              np.repeat((dy*tailysca)**2, nx).reshape(ny, nx)
         tails = tailamp*r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
-        
+
         #- Create 1D GaussHermite functions in x and y
         xfunc1 = [self._pgh(xccd, i, x, sigma=sigx1) for i in range(degx1+1)]
-        yfunc1 = [self._pgh(yccd, i, y, sigma=sigy1) for i in range(degy1+1)]        
-        
+        yfunc1 = [self._pgh(yccd, i, y, sigma=sigy1) for i in range(degy1+1)]
+
         #- Create core PSF image
         core1 = np.zeros((ny, nx))
         spot1 = np.empty_like(core1)
         for i in range(degx1+1):
             for j in range(degy1+1):
-                c1 = self.coeff['GH-{}-{}'.format(i,j)].eval(ispec, xnorm=wavenorm)
+                # c1 = self.coeff['GH-{}-{}'.format(i,j)].eval(ispec, xnorm=wavenorm)
+                c1 = self.get_coeff('GH-{}-{}'.format(i,j), ispec, wavelength, iwave)
                 np.outer(yfunc1[j], xfunc1[i], out=spot1)
                 core1 += c1 * spot1
 
@@ -184,7 +236,7 @@ class GaussHermitePSF(PSF):
         yslice = slice(yccd[0], yccd[-1]+1)
         return xslice, yslice, img
         # return xslice, yslice, (core1, core2, tails)
-        
+
 
     def _gh(self, x, m=0, xc=0.0, sigma=1.0):
         """
@@ -195,19 +247,19 @@ class GaussHermitePSF(PSF):
           m: order of Hermite polynomial multiplying Gaussian core
           xc: sub-pixel position of Gaussian centroid relative to x baseline
           sigma: sigma parameter of Gaussian core in units of pixels
-        
+
         """
 
-        
+
         u = (x-xc) / sigma
-        
+
         if m > 0:
             return self._hermitenorm[m](u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
-        else:                        
+        else:
             return np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
 
     def _value(self,x,y,ispec, wavelength):
-        
+
         """
         return PSF value (same shape as x and y), NOT integrated, for display of PSF.
 
@@ -216,43 +268,43 @@ class GaussHermitePSF(PSF):
           y: y-coordinates baseline array (same shape as x)
           ispec: fiber
           wavelength: wavelength
-       
+
         """
 
         # x, y = self.xy(ispec, wavelength)
         xc = self.coeff['X'].eval(ispec, wavelength)
         yc = self.coeff['Y'].eval(ispec, wavelength)
-                
+
         #- Extract GH degree and sigma coefficients for convenience
         degx1 = self._polyparams['GHDEGX']
         degy1 = self._polyparams['GHDEGY']
         sigx1 = self.coeff['GHSIGX'].eval(ispec, wavelength)
         sigy1 = self.coeff['GHSIGY'].eval(ispec, wavelength)
-        
+
         #- Background tail image
         tailxsca = self.coeff['TAILXSCA'].eval(ispec, wavelength)
         tailysca = self.coeff['TAILYSCA'].eval(ispec, wavelength)
         tailamp = self.coeff['TAILAMP'].eval(ispec, wavelength)
         tailcore = self.coeff['TAILCORE'].eval(ispec, wavelength)
         tailinde = self.coeff['TAILINDE'].eval(ispec, wavelength)
-        
-        
+
+
         #- Make tail image (faster, less readable version)
         r2 = ((x-xc)*tailxsca)**2+((y-yc)*tailysca)**2
         tails = tailamp*r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
-        
+
         #- Create 1D GaussHermite functions in x and y
         xfunc1 = [self._gh(x, i, xc, sigma=sigx1) for i in range(degx1+1)]
-        yfunc1 = [self._gh(y, i, yc, sigma=sigy1) for i in range(degy1+1)]        
-        
-        
+        yfunc1 = [self._gh(y, i, yc, sigma=sigy1) for i in range(degy1+1)]
+
+
         #- Create core PSF image
         core1 = np.zeros(x.shape)
         for i in range(degx1+1):
             for j in range(degy1+1):
                 c1 = self.coeff['GH-{}-{}'.format(i,j)].eval(ispec, wavelength)
                 core1 += c1 * yfunc1[j]*xfunc1[i]
-        
+
         #- Clip negative values and normalize to 1.0
         img = core1 + tails
         ### img = core1 + core2 + tails
