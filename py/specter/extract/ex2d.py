@@ -298,8 +298,13 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
         wx = w
 
     #- Inverse covariance
-    Wx = spdiags(wx, 0, len(wx), len(wx))
-    iCov = Ax.T.dot(Wx.dot(Ax))
+    nwx = len(wx)
+    Wx = spdiags(wx, 0, nwx, nwx)
+
+    ### iCov = Ax.T.dot(Wx.dot(Ax))
+    sqrtWx = spdiags(np.sqrt(wx), 0, nwx, nwx)
+    Axtmp = sqrtWx.dot(Ax)
+    iCov = Axtmp.T.dot(Axtmp)
 
     #- Solve (image = A flux) weighted by Wx:
     #-     A^T W image = (A^T W A) flux = iCov flux    
@@ -441,11 +446,11 @@ def resolution_from_icov(icov, decorr=None):
         ivar : R C R.T  -- decorrelated resolution convolved inverse variance
     """
     #- force symmetry since due to rounding it might not be exactly symmetric
-    icov = 0.5*(icov + icov.T)
-    
+    # icov = 0.5*(icov + icov.T)
+
     if issparse(icov):
         icov = icov.toarray()
-
+    
     w, v = scipy.linalg.eigh(icov)
 
     sqrt_icov = np.zeros_like(icov)
