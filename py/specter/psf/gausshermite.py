@@ -29,7 +29,7 @@ class GaussHermitePSF(PSF):
         """
         #- Check that this file is a current generation Gauss Hermite PSF
         fx = fits.open(filename, memmap=False)
-        self._polyparams = hdr = fx[1].header
+        self._polyparams = hdr = dict(fx[1].header)
         if 'PSFTYPE' not in hdr:
             raise ValueError('Missing PSFTYPE keyword')
 
