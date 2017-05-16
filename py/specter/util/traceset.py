@@ -24,21 +24,29 @@ class TraceSet(object):
     def ntrace(self):    
         return self._coeff.shape[0]
         
-    def _xnorm(self, x):
+    def xnorm(self, x):
+        '''
+        Convert x -> [-1,1]
+        '''
         if not isinstance(x, (numbers.Real, np.ndarray)):
             x = np.array(x)
         return 2.0 * (x - self._xmin) / (self._xmax - self._xmin) - 1.0
         
-    def eval(self, ispec, x):
-        xx = self._xnorm(x)
+    def eval(self, ispec, x=None, xnorm=None):
+        '''
+        Evaluate traceset at values x
+        if x1 is provided, it is the "reduced x" converted to domain [-1,1]
+        '''
+        if xnorm is None:
+            xnorm = self.xnorm(x)
         
         if isinstance(ispec, numbers.Integral):
-            return legval(xx, self._coeff[ispec])
+            return legval(xnorm, self._coeff[ispec])
         else:
             if ispec is None:
                 ispec = list(range(self._coeff.shape[0]))
 
-            y = [legval(xx, self._coeff[i]) for i in ispec]
+            y = [legval(xnorm, self._coeff[i]) for i in ispec]
             return np.array(y)
             
     # def __call__(self, ispec, x):

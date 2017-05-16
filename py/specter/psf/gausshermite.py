@@ -169,9 +169,10 @@ class GaussHermitePSF(PSF):
         #- Create core PSF image
         core1 = np.zeros((ny, nx))
         spot1 = np.empty_like(core1)
+        wx = self.coeff['GH-0-0'].xnorm(wavelength)
         for i in range(degx1+1):
             for j in range(degy1+1):
-                c1 = self.coeff['GH-{}-{}'.format(i,j)].eval(ispec, wavelength)
+                c1 = self.coeff['GH-{}-{}'.format(i,j)].eval(ispec, xnorm=wx)
                 np.outer(yfunc1[j], xfunc1[i], out=spot1)
                 core1 += c1 * spot1
         
