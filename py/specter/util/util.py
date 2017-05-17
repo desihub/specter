@@ -7,6 +7,7 @@ Fall 2012
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import os
 import math
 import numpy as np
 import scipy.signal
@@ -15,8 +16,6 @@ from scipy.sparse import spdiags
 from scipy.signal import convolve, convolve2d
 from specter.util import pixspline
 from time import time
-
-from specter.extract.ex2d import resolution_from_icov
 
 _t0 = 0.0
 def _timeit():
@@ -75,101 +74,104 @@ class LinearInterp2D(object):
 
         return dataxy
         
-def psfbias(p1, p2, wave, phot, ispec=0, readnoise=3.0):
-    """
-    Return bias from extracting with PSF p2 if the real PSF is p1
-    
-    Inputs:
-        p1, p2 : PSF objects
-        wave[] : wavelengths in Angstroms
-        phot[] : spectrum in photons
-        
-    Optional Inputs:
-        ispec : spectrum number
-        readnoise : CCD read out noise (optional)
-        
-    Returns:
-        bias array same length as wave
-    """
-    #- flux -> pixels projection matrices
-    xyrange = p1.xyrange( (ispec,ispec+1), (wave[0], wave[-1]) )
-    A = p1.projection_matrix((ispec,ispec+1), wave, xyrange)
-    B = p2.projection_matrix((ispec,ispec+1), wave, xyrange)
-
-    #- Pixel weights from photon shot noise and CCD read noise
-    img = A.dot(phot)            #- True noiseless image
-    imgvar = readnoise**2 + img  #- pixel variance
-    npix = img.size
-    W = spdiags(1.0/imgvar, 0, npix, npix)
-    
-    #- covariance matrix for each PSF
-    iACov = A.T.dot(W.dot(A))
-    iBCov = B.T.dot(W.dot(B))
-    BCov = np.linalg.inv(iBCov.toarray())
-    
-    #- Resolution matricies
-    RA, _ = resolution_from_icov(iACov)
-    RB, _ = resolution_from_icov(iBCov)
-
-    #- Bias
-    bias = (RB.dot(BCov.dot(B.T.dot(W.dot(A)).toarray())) - RA).dot(phot) / RA.dot(phot)
-
-    return bias
-
-def psfabsbias(p1, p2, wave, phot, ispec=0, readnoise=3.0):
-    """
-    Return absolute bias from extracting with PSF p2 if the real PSF is p1.
-    
-    Inputs:
-        p1, p2 : PSF objects
-        wave[] : wavelengths in Angstroms
-        phot[] : spectrum in photons
-        
-    Optional Inputs:
-        ispec : spectrum number
-        readnoise : CCD read out noise (optional)
-        
-    Returns bias, R
-        bias array same length as wave
-        R resolution matrix for PSF p1
-        
-        
-    See psfbias() for relative bias
-    """
-    #- flux -> pixels projection matrices
-    xyrange = p1.xyrange( (ispec,ispec+1), (wave[0], wave[-1]) )
-    A = p1.projection_matrix((ispec,ispec+1), wave, xyrange)
-    B = p2.projection_matrix((ispec,ispec+1), wave, xyrange)
-
-    #- Pixel weights from photon shot noise and CCD read noise
-    img = A.dot(phot)            #- True noiseless image
-    imgvar = readnoise**2 + img  #- pixel variance
-    npix = img.size
-    W = spdiags(1.0/imgvar, 0, npix, npix)
-    
-    #- covariance matrix for each PSF
-    iACov = A.T.dot(W.dot(A))
-    iBCov = B.T.dot(W.dot(B))
-    BCov = np.linalg.inv(iBCov.toarray())
-    
-    #- Resolution matricies
-    RA, _ = resolution_from_icov(iACov)
-    RB, _ = resolution_from_icov(iBCov)
-
-    #- Bias
-    bias = (RB.dot(BCov.dot(B.T.dot(W.dot(A)).toarray())) - RA).dot(phot)
-
-    return bias, RA
+#- Commenting these out since they cause a recursive dependency
+#- Uncomment and move them if we need this code again in the future
+# from specter.extract.ex2d import resolution_from_icov
+# def psfbias(p1, p2, wave, phot, ispec=0, readnoise=3.0):
+#     """
+#     Return bias from extracting with PSF p2 if the real PSF is p1
+#
+#     Inputs:
+#         p1, p2 : PSF objects
+#         wave[] : wavelengths in Angstroms
+#         phot[] : spectrum in photons
+#
+#     Optional Inputs:
+#         ispec : spectrum number
+#         readnoise : CCD read out noise (optional)
+#
+#     Returns:
+#         bias array same length as wave
+#     """
+#     #- flux -> pixels projection matrices
+#     xyrange = p1.xyrange( (ispec,ispec+1), (wave[0], wave[-1]) )
+#     A = p1.projection_matrix((ispec,ispec+1), wave, xyrange)
+#     B = p2.projection_matrix((ispec,ispec+1), wave, xyrange)
+#
+#     #- Pixel weights from photon shot noise and CCD read noise
+#     img = A.dot(phot)            #- True noiseless image
+#     imgvar = readnoise**2 + img  #- pixel variance
+#     npix = img.size
+#     W = spdiags(1.0/imgvar, 0, npix, npix)
+#
+#     #- covariance matrix for each PSF
+#     iACov = A.T.dot(W.dot(A))
+#     iBCov = B.T.dot(W.dot(B))
+#     BCov = np.linalg.inv(iBCov.toarray())
+#
+#     #- Resolution matricies
+#     RA, _ = resolution_from_icov(iACov)
+#     RB, _ = resolution_from_icov(iBCov)
+#
+#     #- Bias
+#     bias = (RB.dot(BCov.dot(B.T.dot(W.dot(A)).toarray())) - RA).dot(phot) / RA.dot(phot)
+#
+#     return bias
+#
+# def psfabsbias(p1, p2, wave, phot, ispec=0, readnoise=3.0):
+#     """
+#     Return absolute bias from extracting with PSF p2 if the real PSF is p1.
+#
+#     Inputs:
+#         p1, p2 : PSF objects
+#         wave[] : wavelengths in Angstroms
+#         phot[] : spectrum in photons
+#
+#     Optional Inputs:
+#         ispec : spectrum number
+#         readnoise : CCD read out noise (optional)
+#
+#     Returns bias, R
+#         bias array same length as wave
+#         R resolution matrix for PSF p1
+#
+#
+#     See psfbias() for relative bias
+#     """
+#     #- flux -> pixels projection matrices
+#     xyrange = p1.xyrange( (ispec,ispec+1), (wave[0], wave[-1]) )
+#     A = p1.projection_matrix((ispec,ispec+1), wave, xyrange)
+#     B = p2.projection_matrix((ispec,ispec+1), wave, xyrange)
+#
+#     #- Pixel weights from photon shot noise and CCD read noise
+#     img = A.dot(phot)            #- True noiseless image
+#     imgvar = readnoise**2 + img  #- pixel variance
+#     npix = img.size
+#     W = spdiags(1.0/imgvar, 0, npix, npix)
+#
+#     #- covariance matrix for each PSF
+#     iACov = A.T.dot(W.dot(A))
+#     iBCov = B.T.dot(W.dot(B))
+#     BCov = np.linalg.inv(iBCov.toarray())
+#
+#     #- Resolution matricies
+#     RA, _ = resolution_from_icov(iACov)
+#     RB, _ = resolution_from_icov(iBCov)
+#
+#     #- Bias
+#     bias = (RB.dot(BCov.dot(B.T.dot(W.dot(A)).toarray())) - RA).dot(phot)
+#
+#     return bias, RA
 
 def rebin_image(image, n):
     """
     rebin 2D array pix into bins of size n x n
-    
+
     New binsize must be evenly divisible into original pix image
     """
     assert image.shape[0] % n == 0
     assert image.shape[1] % n == 0
-    
+
     s = image.shape[0]//n, n, image.shape[1]//n, n
     return image.reshape(s).sum(-1).sum(1)
 
@@ -294,7 +296,26 @@ def resample(x, xp, yp, xedges=False, xpedges=False):
     edges = x if xedges else pixspline.cen2bound(x)
     return ys.resample(edges)
 
+#- Faster versions than np.outer, which has to do type checking and raveling
+try:
+    #- ~3x faster if numba is installed
+    if 'NUMBA_DISABLE_JIT' in os.environ:
+        raise ImportError
+    import numba
+    @numba.jit
+    def outer(x, y, out):
+        for i in range(len(x)):
+            for j in range(len(y)):
+                out[i,j] = x[i] * y[j]
+        return out
+        
+except ImportError:
+    #- 1.5x faster otherwise
+    def outer(x, y, out):
+        return np.multiply(x[:, None], y[None, :], out)
     
+
+
     
     
     

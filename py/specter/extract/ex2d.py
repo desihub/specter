@@ -10,6 +10,8 @@ import scipy.linalg
 from scipy.sparse import spdiags, issparse
 from scipy.sparse.linalg import spsolve
 
+from specter.util import outer
+
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
          regularize=0.0, ndecorr=False, bundlesize=25, wavesize=50,
          full_output=False, verbose=False, debug=False):
@@ -473,6 +475,10 @@ def resolution_from_icov(icov, decorr=None):
         sqrt_icov = eigen_compose(w, v, sqr=True)
 
     norm_vector = np.sum(sqrt_icov, axis=1)
-    R = np.outer(norm_vector**(-1), np.ones(norm_vector.size)) * sqrt_icov
+    # R = np.outer(norm_vector**(-1), np.ones(norm_vector.size)) * sqrt_icov
+    R = np.empty_like(icov)
+    np.outer(norm_vector**(-1), np.ones(norm_vector.size), out=R)
+    R *= sqrt_icov
+    
     ivar = norm_vector**2  #- Bolton & Schlegel 2010 Eqn 13
     return R, ivar

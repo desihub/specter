@@ -16,7 +16,7 @@ from scipy import special as sp
 
 from astropy.io import fits
 from specter.psf import PSF
-from specter.util import TraceSet
+from specter.util import TraceSet, outer
 
 class GaussHermitePSF(PSF):
     """
@@ -222,7 +222,7 @@ class GaussHermitePSF(PSF):
             for j in range(degy1+1):
                 # c1 = self.coeff['GH-{}-{}'.format(i,j)].eval(ispec, xnorm=wavenorm)
                 c1 = self.get_coeff('GH-{}-{}'.format(i,j), ispec, wavelength, iwave)
-                np.outer(yfunc1[j], xfunc1[i], out=spot1)
+                outer(yfunc1[j], xfunc1[i], out=spot1)
                 core1 += c1 * spot1
 
         #- Clip negative values and normalize to 1.0
