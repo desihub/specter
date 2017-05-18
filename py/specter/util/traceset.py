@@ -90,8 +90,11 @@ def fit_traces(x, yy, deg=5, domain=None):
         xmin, xmax = domain
         
     c = np.zeros((nspec, deg+1))
+    # xx = 2.0 * (x-xmin) / (xmax-xmin) - 1.0
+    xx = x - xmin
+    xx *= 2.0/(xmax-xmin)
+    xx -= 1.0
     for i in range(nspec):
-        xx = 2.0 * (x-xmin) / (xmax-xmin) - 1.0
         c[i] = legfit(xx, yy[i], deg)
 
     return TraceSet(c, [xmin, xmax])
