@@ -30,7 +30,7 @@ class TraceSet(object):
         '''
         if not isinstance(x, (numbers.Real, np.ndarray)):
             x = np.array(x)
-        return 2.0 * (x - self._xmin) / (self._xmax - self._xmin) - 1.0
+        return (x - self._xmin) * (2.0 / (self._xmax - self._xmin)) - 1.0
         
     def eval(self, ispec, x=None, xnorm=None):
         '''
@@ -66,7 +66,7 @@ class TraceSet(object):
         c = np.zeros((self.ntrace, deg+1))
         for i in range(self.ntrace):
             y = self.eval(i, x)
-            yy = 2.0 * (y-ymin) / (ymax-ymin) - 1.0
+            yy = (y-ymin) * (2.0 / (ymax-ymin)) - 1.0
             c[i] = legfit(yy, x, deg)
             
         return TraceSet(c, domain=(ymin, ymax))
