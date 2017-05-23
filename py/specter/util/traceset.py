@@ -46,8 +46,9 @@ class TraceSet(object):
             if ispec is None:
                 ispec = list(range(self._coeff.shape[0]))
 
-            y = [legval(xnorm, self._coeff[i]) for i in ispec]
-            return np.array(y)
+            #y = [legval(xnorm, self._coeff[i]) for i in ispec]
+            #return np.array(y)
+            return legval(xnorm, self._coeff[ispec].T)
             
     # def __call__(self, ispec, x):
     #     return self.eval(ispec, x)
