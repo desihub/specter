@@ -11,8 +11,8 @@ from scipy.sparse import spdiags, issparse
 from scipy.sparse.linalg import spsolve
 
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
-         regularize=0.0, ndecorr=False, bundlesize=25, wavesize=50,
-         full_output=False, verbose=False, debug=False):
+         regularize=0.0, ndecorr=False, bundlesize=25, nsubbundles=1,
+         wavesize=50, full_output=False, verbose=False, debug=False):
     '''
     2D PSF extraction of flux from image patch given pixel inverse variance.
     
@@ -31,7 +31,8 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
         ndecorr : if True, decorrelate the noise between fibers, at the
             cost of residual signal correlations between fibers.
         bundlesize: extract in groups of fibers of this size, assuming no
-            correlation with fibers outsize of this bundle
+            correlation with fibers outside of this bundle
+        nsubbundles: (int) number of overlapping subbundles to use per bundle
         wavesize: number of wavelength steps to include per sub-extraction
         full_output: Include additional outputs based upon chi2 of model
             projected into pixels
@@ -82,9 +83,15 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
     Rd = np.zeros( (nspec, 2*ndiag+1, nwave) )
 
     #- Let's do some extractions
-    for speclo in range(specmin, specmin+nspec, bundlesize):
+    for bundlelo in range(specmin, specmin+nspec, bundlesize):
         #- index of last spectrum, non-inclusive, i.e. python-style indexing
-        spechi = min(speclo+bundlesize, specmin+nspec)
+        bundlehi = min(bundlelo+bundlesize, specmin+nspec)
+
+        # iibundle, iiextract = split_bundle(bundlehi-bundlelo, nsubbundles)
+
+        speclo = bundlelo
+        spechi = bundlehi
+
         specrange = (speclo, spechi)
 
         for iwave in range(0, len(wavelengths), wavesize):
@@ -467,3 +474,51 @@ def resolution_from_icov(icov, decorr=None):
     R = np.outer(norm_vector**(-1), np.ones(norm_vector.size)) * sqrt_icov
     ivar = norm_vector**2  #- Bolton & Schlegel 2010 Eqn 13
     return R, ivar
+
+def split_bundle(bundlesize, n):
+    '''
+    Partitions a bundle into subbundles for extraction
+
+    Args:
+        bundlesize: (int) number of fibers in the bundle
+        n: (int) number of subbundles to generate
+
+    Returns (subbundles, extract_subbundles) where
+
+    subbundles = list of arrays of indices belonging to each subbundle
+    extract_subbundles = list of arrays of indices to extract for each
+        subbundle, including edge overlaps except for first and last fiber
+
+    NOTE: resulting partition is such that the lengths of the extract_subbundles
+    differ by at most 1.
+    
+    Example: split_bundle(10, 3) returns
+    ([array([0, 1, 2]), array([3, 4, 5]), array([6, 7, 8, 9])],
+     [array([0, 1, 2, 3]), array([2, 3, 4, 5, 6]), array([5, 6, 7, 8, 9])])
+    '''
+    #- initial partition into subbundles
+    n_per_subbundle = [len(x) for x in np.array_split(np.arange(bundlesize), n)]
+
+    #- rearrange to put smaller subbundles in middle instead of at edge,
+    #- which can happen when bundlesize % n != 0
+    i = 0
+    while i < n-1:
+        if n_per_subbundle[i] > n_per_subbundle[i+1]:
+            n_per_subbundle[i+1], n_per_subbundle[i] = n_per_subbundle[i], n_per_subbundle[i+1]
+        i += 1
+
+    #- populate non-overlapping indices for subbundles
+    subbundles = list()
+    imin = 0
+    for nsub in n_per_subbundle:
+        subbundles.append(np.arange(imin, imin+nsub, dtype=int))
+        imin += nsub
+
+    #- populate overlapping indices for extract_subbundles
+    extract_subbundles = list()
+    for ii in subbundles:
+        ipre  = [ii[0]-1,] if ii[0]>0 else np.empty(0, dtype=int)
+        ipost = [ii[-1]+1,] if ii[-1]<bundlesize-1 else np.empty(0, dtype=int)
+        extract_subbundles.append( np.concatenate( [ipre, ii, ipost] ) )
+
+    return subbundles, extract_subbundles

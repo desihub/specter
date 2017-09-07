@@ -13,7 +13,7 @@ import scipy.linalg
 import unittest
 from pkg_resources import resource_filename
 from specter.psf import load_psf
-from specter.extract.ex2d import ex2d, ex2d_patch, eigen_compose
+from specter.extract.ex2d import ex2d, ex2d_patch, eigen_compose, split_bundle
 from specter.extract.ex1d import ex1d
 
 class TestExtract(unittest.TestCase):
@@ -250,6 +250,35 @@ class TestExtract(unittest.TestCase):
 
         self.assertTrue( np.all(flux == flux) )
 
+    def test_subbundles(self):
+        for nsubbundles in (2,3):
+            flux, ivar, Rdata = ex2d(self.image, self.ivar, self.psf, 0, self.nspec,
+                self.ww, wavesize=len(self.ww)//5, nsubbundles=nsubbundles)
+
+            self.assertEqual(flux.shape, (self.nspec, len(self.ww)))
+            self.assertEqual(ivar.shape, (self.nspec, len(self.ww)))
+
+    def test_split_bundle(self):
+        for bundlesize in range(18,26):
+            for n in range(3,6):
+                iisub, iiextract = split_bundle(bundlesize, n)
+                self.assertEqual(len(iisub), n)
+                self.assertEqual(len(iiextract), n)
+                self.assertEqual(len(np.concatenate(iisub)), bundlesize)
+                self.assertEqual(len(np.unique(np.concatenate(iisub))), bundlesize)
+                self.assertEqual(len(np.concatenate(iiextract)), bundlesize + 2*(n-1))
+                self.assertEqual(len(np.unique(np.concatenate(iiextract))), bundlesize)
+                #- test overlaps
+                for i in range(n-1):
+                    msg = 'Bad overlap bundlesize {} n {}: {} {}'.format(
+                        bundlesize, n, iiextract[i], iiextract[i+1])
+                    self.assertTrue(np.all(iiextract[i][-2:] == iiextract[i+1][0:2]), msg)
+
+        iisub, iiextract = split_bundle(25, 1)
+        self.assertEqual(len(iisub), 1)
+        self.assertEqual(len(iiextract), 1)
+        self.assertEqual(len(iisub[0]), 25)
+        self.assertTrue(np.all(iisub[0] == iiextract[0]))
 
 if __name__ == '__main__':
     unittest.main()
