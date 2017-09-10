@@ -2,10 +2,10 @@
 specter Release Notes
 =====================
 
-0.7.1 (unreleased)
+0.8.0 (unreleased)
 ------------------
 
-No changes yet
+* Added subbundle divide-and-conquer extractions for ~2x speedup
 
 0.7.0 (2017-03-02)
 ------------------
