@@ -146,13 +146,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                 #- Fill in the final output arrays
                 ## iispec = slice(speclo-specmin, spechi-specmin)
                 iispec = np.arange(speclo-specmin, spechi-specmin)
-                try:
-                    flux[iispec[keep], iwave:iwave+wavesize+1] = specflux[keep, nlo:-nhi]
-                except:
-                    #--- DEBUG ---
-                    import IPython
-                    IPython.embed()
-                    #--- DEBUG ---
+                flux[iispec[keep], iwave:iwave+wavesize+1] = specflux[keep, nlo:-nhi]
                 ivar[iispec[keep], iwave:iwave+wavesize+1] = specivar[keep, nlo:-nhi]
 
                 if full_output:
