@@ -13,7 +13,7 @@ import scipy.linalg
 import unittest
 from pkg_resources import resource_filename
 from specter.psf import load_psf
-from specter.extract.ex2d import ex2d, ex2d_patch, eigen_compose
+from specter.extract.ex2d import ex2d, ex2d_patch, eigen_compose, split_bundle
 from specter.extract.ex1d import ex1d
 
 class TestExtract(unittest.TestCase):
@@ -26,10 +26,10 @@ class TestExtract(unittest.TestCase):
 
         np.random.seed(0)
         nspec = 10
-        wmin = min(cls.psf.wavelength(0, y=0), cls.psf.wavelength(nspec-1, y=0))
+        ### wmin = min(cls.psf.wavelength(0, y=0), cls.psf.wavelength(nspec-1, y=0))
         ### ww = psf.wavelength(0, y=np.arange(10,60))
-        wmin, wmax = cls.psf.wavelength(0, y=(10,50))
-        ww = np.arange(wmin, wmax, 0.5)
+        wmin, wmax = cls.psf.wavelength(0, y=(10,90))
+        ww = np.arange(wmin, wmax, 1.0)
         nwave = len(ww)
 
         phot_shape = (nspec, nwave)
@@ -151,14 +151,31 @@ class TestExtract(unittest.TestCase):
 
     def test_ex2d(self):
         flux, ivar, Rdata = ex2d(self.image, self.ivar, self.psf, 0, self.nspec,
-            self.ww, wavesize=len(self.ww)//5)
+            self.ww, wavesize=len(self.ww)//5, nsubbundles=1)
         self.assertEqual(flux.shape, (self.nspec, len(self.ww)))
         self.assertEqual(ivar.shape, (self.nspec, len(self.ww)))
 
         self.assertEqual(Rdata.ndim, 3)
         self.assertEqual(Rdata.shape[0], self.nspec)
         self.assertEqual(Rdata.shape[2], len(self.ww))
-        self.assertGreater(Rdata.shape[1], 15)
+        self.assertGreater(Rdata.shape[1], 13)
+
+        flux3, ivar3, Rdata3 = ex2d(self.image, self.ivar, self.psf, 0, self.nspec,
+            self.ww, wavesize=len(self.ww)//2, nsubbundles=2)
+
+        self.assertEqual(flux.shape, flux3.shape)
+        self.assertEqual(ivar.shape, ivar3.shape)
+        self.assertEqual(Rdata.shape, Rdata3.shape)
+
+        err = np.sqrt(1/ivar + 1/ivar3)
+        chi = (flux-flux3)/err
+        errchi = (np.sqrt(1/ivar)-np.sqrt(1/ivar3))/err
+
+        self.assertLess(np.max(np.abs(chi)), 0.1)
+        self.assertLess(np.max(np.abs(errchi)), 0.1)
+        for i in range(Rdata.shape[0]):
+            dR = (Rdata[i] - Rdata3[i]) / np.max(Rdata[i])
+            self.assertLess(np.max(np.abs(dR)), 0.01)
 
     def test_ex2d_xyrange(self):
         xyrange = xmin,xmax,ymin,ymax = self.psf.xyrange([0,self.nspec], self.ww)
@@ -250,6 +267,35 @@ class TestExtract(unittest.TestCase):
 
         self.assertTrue( np.all(flux == flux) )
 
+    def test_subbundles(self):
+        for nsubbundles in (2,3):
+            flux, ivar, Rdata = ex2d(self.image, self.ivar, self.psf, 0, self.nspec,
+                self.ww, wavesize=len(self.ww)//5, nsubbundles=nsubbundles)
+
+            self.assertEqual(flux.shape, (self.nspec, len(self.ww)))
+            self.assertEqual(ivar.shape, (self.nspec, len(self.ww)))
+
+    def test_split_bundle(self):
+        for bundlesize in range(18,26):
+            for n in range(3,6):
+                iisub, iiextract = split_bundle(bundlesize, n)
+                self.assertEqual(len(iisub), n)
+                self.assertEqual(len(iiextract), n)
+                self.assertEqual(len(np.concatenate(iisub)), bundlesize)
+                self.assertEqual(len(np.unique(np.concatenate(iisub))), bundlesize)
+                self.assertEqual(len(np.concatenate(iiextract)), bundlesize + 2*(n-1))
+                self.assertEqual(len(np.unique(np.concatenate(iiextract))), bundlesize)
+                #- test overlaps
+                for i in range(n-1):
+                    msg = 'Bad overlap bundlesize {} n {}: {} {}'.format(
+                        bundlesize, n, iiextract[i], iiextract[i+1])
+                    self.assertTrue(np.all(iiextract[i][-2:] == iiextract[i+1][0:2]), msg)
+
+        iisub, iiextract = split_bundle(25, 1)
+        self.assertEqual(len(iisub), 1)
+        self.assertEqual(len(iiextract), 1)
+        self.assertEqual(len(iisub[0]), 25)
+        self.assertTrue(np.all(iisub[0] == iiextract[0]))
 
 if __name__ == '__main__':
     unittest.main()

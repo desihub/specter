@@ -11,8 +11,8 @@ from scipy.sparse import spdiags, issparse
 from scipy.sparse.linalg import spsolve
 
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
-         regularize=0.0, ndecorr=False, bundlesize=25, wavesize=50,
-         full_output=False, verbose=False, debug=False):
+         regularize=0.0, ndecorr=False, bundlesize=25, nsubbundles=1,
+         wavesize=50, full_output=False, verbose=False, debug=False):
     '''
     2D PSF extraction of flux from image patch given pixel inverse variance.
     
@@ -31,7 +31,8 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
         ndecorr : if True, decorrelate the noise between fibers, at the
             cost of residual signal correlations between fibers.
         bundlesize: extract in groups of fibers of this size, assuming no
-            correlation with fibers outsize of this bundle
+            correlation with fibers outside of this bundle
+        nsubbundles: (int) number of overlapping subbundles to use per bundle
         wavesize: number of wavelength steps to include per sub-extraction
         full_output: Include additional outputs based upon chi2 of model
             projected into pixels
@@ -82,110 +83,119 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
     Rd = np.zeros( (nspec, 2*ndiag+1, nwave) )
 
     #- Let's do some extractions
-    for speclo in range(specmin, specmin+nspec, bundlesize):
+    for bundlelo in range(specmin, specmin+nspec, bundlesize):
         #- index of last spectrum, non-inclusive, i.e. python-style indexing
-        spechi = min(speclo+bundlesize, specmin+nspec)
-        specrange = (speclo, spechi)
+        bundlehi = min(bundlelo+bundlesize, specmin+nspec)
 
-        for iwave in range(0, len(wavelengths), wavesize):
-            #- Low and High wavelengths for the core region
-            wlo = wavelengths[iwave]
-            if iwave+wavesize < len(wavelengths):
-                whi = wavelengths[iwave+wavesize]
-            else:
-                whi = wavelengths[-1]
+        iibundle, iiextract = split_bundle(bundlehi-bundlelo, nsubbundles)
+
+        for subbundle_index in range(nsubbundles):
+            speclo = bundlelo + iiextract[subbundle_index][0]
+            spechi = bundlelo + iiextract[subbundle_index][-1]+1
+            keep = np.in1d(iiextract[subbundle_index], iibundle[subbundle_index])
+
+            specrange = (speclo, spechi)
+
+            for iwave in range(0, len(wavelengths), wavesize):
+                #- Low and High wavelengths for the core region
+                wlo = wavelengths[iwave]
+                if iwave+wavesize < len(wavelengths):
+                    whi = wavelengths[iwave+wavesize]
+                else:
+                    whi = wavelengths[-1]
         
-            #- Identify subimage that covers the core wavelengths
-            subxyrange = xlo,xhi,ylo,yhi = psf.xyrange(specrange, (wlo, whi))
+                #- Identify subimage that covers the core wavelengths
+                subxyrange = xlo,xhi,ylo,yhi = psf.xyrange(specrange, (wlo, whi))
 
-            if xyrange is None:
-                subxy = np.s_[ylo:yhi, xlo:xhi]
-            else:
-                subxy = np.s_[ylo-xyrange[2]:yhi-xyrange[2], xlo-xyrange[0]:xhi-xyrange[0]]
+                if xyrange is None:
+                    subxy = np.s_[ylo:yhi, xlo:xhi]
+                else:
+                    subxy = np.s_[ylo-xyrange[2]:yhi-xyrange[2], xlo-xyrange[0]:xhi-xyrange[0]]
 
-            subimg = image[subxy]
-            subivar = imageivar[subxy]
+                subimg = image[subxy]
+                subivar = imageivar[subxy]
     
-            #- Determine extra border wavelength extent: nlo,nhi extra wavelength bins
-            ny, nx = psf.pix(speclo, wlo).shape
-            ymin = ylo-ny+2
-            ymax = yhi+ny-2
+                #- Determine extra border wavelength extent: nlo,nhi extra wavelength bins
+                ny, nx = psf.pix(speclo, wlo).shape
+                ymin = ylo-ny+2
+                ymax = yhi+ny-2
         
-            nlo = max(int((wlo - psf.wavelength(speclo, ymin))/dw)-1, ndiag)
-            nhi = max(int((psf.wavelength(speclo, ymax) - whi)/dw)-1, ndiag)
-            ww = np.arange(wlo-nlo*dw, whi+(nhi+0.5)*dw, dw)
-            wmin, wmax = ww[0], ww[-1]
-            nw = len(ww)
-        
-            #- include \r carriage return to prevent scrolling
-            if verbose:
-                sys.stdout.write("\rSpectra {specrange} wavelengths ({wmin:.2f}, {wmax:.2f}) -> ({wlo:.2f}, {whi:.2f})".format(\
-                    specrange=specrange, wmin=wmin, wmax=wmax, wlo=wlo, whi=whi))
-                sys.stdout.flush()
+                nlo = max(int((wlo - psf.wavelength(speclo, ymin))/dw)-1, ndiag)
+                nhi = max(int((psf.wavelength(speclo, ymax) - whi)/dw)-1, ndiag)
+                ww = np.arange(wlo-nlo*dw, whi+(nhi+0.5)*dw, dw)
+                wmin, wmax = ww[0], ww[-1]
+                nw = len(ww)
 
-            #- Do the extraction
-            results = \
-                ex2d_patch(subimg, subivar, psf,
-                    specmin=speclo, nspec=spechi-speclo, wavelengths=ww,
-                    xyrange=[xlo,xhi,ylo,yhi], regularize=regularize, ndecorr=ndecorr,
-                    full_output=True)
+                #- include \r carriage return to prevent scrolling
+                if verbose:
+                    sys.stdout.write("\rSpectra {specrange} wavelengths ({wmin:.2f}, {wmax:.2f}) -> ({wlo:.2f}, {whi:.2f})".format(\
+                        specrange=specrange, wmin=wmin, wmax=wmax, wlo=wlo, whi=whi))
+                    sys.stdout.flush()
 
-            specflux = results['flux']
-            specivar = results['ivar']
-            R = results['R']
+                #- Do the extraction
+                results = \
+                    ex2d_patch(subimg, subivar, psf,
+                        specmin=speclo, nspec=spechi-speclo, wavelengths=ww,
+                        xyrange=[xlo,xhi,ylo,yhi], regularize=regularize, ndecorr=ndecorr,
+                        full_output=True)
 
-            #- Fill in the final output arrays
-            iispec = slice(speclo-specmin, spechi-specmin)
-            flux[iispec, iwave:iwave+wavesize+1] = specflux[:, nlo:-nhi]
-            ivar[iispec, iwave:iwave+wavesize+1] = specivar[:, nlo:-nhi]
+                specflux = results['flux']
+                specivar = results['ivar']
+                R = results['R']
 
-            if full_output:
-                A = results['A'].copy()
-                xflux = results['xflux']
+                #- Fill in the final output arrays
+                ## iispec = slice(speclo-specmin, spechi-specmin)
+                iispec = np.arange(speclo-specmin, spechi-specmin)
+                flux[iispec[keep], iwave:iwave+wavesize+1] = specflux[keep, nlo:-nhi]
+                ivar[iispec[keep], iwave:iwave+wavesize+1] = specivar[keep, nlo:-nhi]
+
+                if full_output:
+                    A = results['A'].copy()
+                    xflux = results['xflux']
             
-                #- number of spectra and wavelengths for this sub-extraction
-                subnspec = spechi-speclo
-                subnwave = len(ww)
+                    #- number of spectra and wavelengths for this sub-extraction
+                    subnspec = spechi-speclo
+                    subnwave = len(ww)
             
-                #- Model image
-                submodel = A.dot(xflux.ravel()).reshape(subimg.shape)
+                    #- Model image
+                    submodel = A.dot(xflux.ravel()).reshape(subimg.shape)
             
-                #- Fraction of input pixels that are unmasked for each flux bin
-                subpixmask_fraction = 1.0-(A.T.dot(subivar.ravel()>0)).reshape(subnspec, subnwave)
+                    #- Fraction of input pixels that are unmasked for each flux bin
+                    subpixmask_fraction = 1.0-(A.T.dot(subivar.ravel()>0)).reshape(subnspec, subnwave)
 
-                #- original weighted chi2 of pixels that contribute to each flux bin
-                # chi = (subimg - submodel) * np.sqrt(subivar)
-                # chi2x = (A.T.dot(chi.ravel()**2) / A.sum(axis=0)).reshape(subnspec, subnwave)
+                    #- original weighted chi2 of pixels that contribute to each flux bin
+                    # chi = (subimg - submodel) * np.sqrt(subivar)
+                    # chi2x = (A.T.dot(chi.ravel()**2) / A.sum(axis=0)).reshape(subnspec, subnwave)
 
-                #- pixel variance including input noise and PSF model errors
-                modelivar = (submodel*psf.psferr + 1e-32)**-2
-                ii = (modelivar > 0) & (subivar > 0)
-                totpix_ivar = np.zeros(submodel.shape)
-                totpix_ivar[ii] = 1.0 / (1.0/modelivar[ii] + 1.0/subivar[ii])
+                    #- pixel variance including input noise and PSF model errors
+                    modelivar = (submodel*psf.psferr + 1e-32)**-2
+                    ii = (modelivar > 0) & (subivar > 0)
+                    totpix_ivar = np.zeros(submodel.shape)
+                    totpix_ivar[ii] = 1.0 / (1.0/modelivar[ii] + 1.0/subivar[ii])
 
-                #- Weighted chi2 of pixels that contribute to each flux bin;
-                #- only use unmasked pixels and avoid dividing by 0
-                chi = (subimg - submodel) * np.sqrt(totpix_ivar)
-                psfweight = A.T.dot(totpix_ivar.ravel()>0)
-                bad = (psfweight == 0.0)
-                chi2x = (A.T.dot(chi.ravel()**2) * ~bad) / (psfweight + bad)
-                chi2x = chi2x.reshape(subnspec, subnwave)
+                    #- Weighted chi2 of pixels that contribute to each flux bin;
+                    #- only use unmasked pixels and avoid dividing by 0
+                    chi = (subimg - submodel) * np.sqrt(totpix_ivar)
+                    psfweight = A.T.dot(totpix_ivar.ravel()>0)
+                    bad = (psfweight == 0.0)
+                    chi2x = (A.T.dot(chi.ravel()**2) * ~bad) / (psfweight + bad)
+                    chi2x = chi2x.reshape(subnspec, subnwave)
 
-                #- outputs
-                #- TODO: watch out for edge effects on overlapping regions of submodels
-                modelimage[subxy] = submodel
-                pixmask_fraction[iispec, iwave:iwave+wavesize+1] = subpixmask_fraction[:, nlo:-nhi]
-                chi2pix[iispec, iwave:iwave+wavesize+1] = chi2x[:, nlo:-nhi]
+                    #- outputs
+                    #- TODO: watch out for edge effects on overlapping regions of submodels
+                    modelimage[subxy] = submodel
+                    pixmask_fraction[iispec[keep], iwave:iwave+wavesize+1] = subpixmask_fraction[keep, nlo:-nhi]
+                    chi2pix[iispec[keep], iwave:iwave+wavesize+1] = chi2x[keep, nlo:-nhi]
     
-            #- Fill diagonals of resolution matrix
-            for ispec in range(speclo, spechi):
-                #- subregion of R for this spectrum
-                ii = slice(nw*(ispec-speclo), nw*(ispec-speclo+1))
-                Rx = R[ii, ii]
+                #- Fill diagonals of resolution matrix
+                for ispec in np.arange(speclo, spechi)[keep]:
+                    #- subregion of R for this spectrum
+                    ii = slice(nw*(ispec-speclo), nw*(ispec-speclo+1))
+                    Rx = R[ii, ii]
 
-                for j in range(nlo,nw-nhi):
-                    # Rd dimensions [nspec, 2*ndiag+1, nwave]
-                    Rd[ispec-specmin, :, iwave+j-nlo] = Rx[j-ndiag:j+ndiag+1, j]
+                    for j in range(nlo,nw-nhi):
+                        # Rd dimensions [nspec, 2*ndiag+1, nwave]
+                        Rd[ispec-specmin, :, iwave+j-nlo] = Rx[j-ndiag:j+ndiag+1, j]
 
     #- Add extra print because of carriage return \r progress trickery
     if verbose:
@@ -467,3 +477,51 @@ def resolution_from_icov(icov, decorr=None):
     R = np.outer(norm_vector**(-1), np.ones(norm_vector.size)) * sqrt_icov
     ivar = norm_vector**2  #- Bolton & Schlegel 2010 Eqn 13
     return R, ivar
+
+def split_bundle(bundlesize, n):
+    '''
+    Partitions a bundle into subbundles for extraction
+
+    Args:
+        bundlesize: (int) number of fibers in the bundle
+        n: (int) number of subbundles to generate
+
+    Returns (subbundles, extract_subbundles) where
+
+    subbundles = list of arrays of indices belonging to each subbundle
+    extract_subbundles = list of arrays of indices to extract for each
+        subbundle, including edge overlaps except for first and last fiber
+
+    NOTE: resulting partition is such that the lengths of the extract_subbundles
+    differ by at most 1.
+    
+    Example: split_bundle(10, 3) returns
+    ([array([0, 1, 2]), array([3, 4, 5]), array([6, 7, 8, 9])],
+     [array([0, 1, 2, 3]), array([2, 3, 4, 5, 6]), array([5, 6, 7, 8, 9])])
+    '''
+    #- initial partition into subbundles
+    n_per_subbundle = [len(x) for x in np.array_split(np.arange(bundlesize), n)]
+
+    #- rearrange to put smaller subbundles in middle instead of at edge,
+    #- which can happen when bundlesize % n != 0
+    i = 0
+    while i < n-1:
+        if n_per_subbundle[i] > n_per_subbundle[i+1]:
+            n_per_subbundle[i+1], n_per_subbundle[i] = n_per_subbundle[i], n_per_subbundle[i+1]
+        i += 1
+
+    #- populate non-overlapping indices for subbundles
+    subbundles = list()
+    imin = 0
+    for nsub in n_per_subbundle:
+        subbundles.append(np.arange(imin, imin+nsub, dtype=int))
+        imin += nsub
+
+    #- populate overlapping indices for extract_subbundles
+    extract_subbundles = list()
+    for ii in subbundles:
+        ipre  = [ii[0]-1,] if ii[0]>0 else np.empty(0, dtype=int)
+        ipost = [ii[-1]+1,] if ii[-1]<bundlesize-1 else np.empty(0, dtype=int)
+        extract_subbundles.append( np.concatenate( [ipre, ii, ipost] ) )
+
+    return subbundles, extract_subbundles
