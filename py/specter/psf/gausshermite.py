@@ -29,7 +29,23 @@ class GaussHermitePSF(PSF):
         """        
         #- Check that this file is a current generation Gauss Hermite PSF
         fx = fits.open(filename, memmap=False)
-        self._polyparams = hdr = fx[1].header
+
+        #- Read primary header
+        phdr = fx[0].header
+        if 'PSFTYPE' not in phdr:
+            raise ValueError('Missing PSFTYPE keyword')
+        if phdr['PSFTYPE'] != 'GAUSS-HERMITE':
+            raise ValueError('PSFTYPE {} is not GAUSS-HERMITE'.format(phdr['PSFTYPE']))
+        if 'PSFVER' not in phdr:
+            raise ValueError("PSFVER missing; this version not supported")
+        PSFVER = float(phdr["PSFVER"])
+        
+        if PSFVER<3 :
+            psf_hdu = 1
+        else :
+            psf_hdu = "PSF"
+        
+        self._polyparams = hdr = fx[psf_hdu].header
         if 'PSFTYPE' not in hdr:
             raise ValueError('Missing PSFTYPE keyword')
             
@@ -57,18 +73,31 @@ class GaussHermitePSF(PSF):
 
         #- Load the parameters into self.coeff dictionary keyed by PARAM
         #- with values as TraceSets for evaluating the Legendre coefficients
-        data = fx[1].data
+        data = fx[psf_hdu].data
         self.coeff = dict()
-        for p in data:
-            domain = (p['WAVEMIN'], p['WAVEMAX'])
+        if PSFVER<3 : # old format
+            
+            for p in data:
+                domain = (p['WAVEMIN'], p['WAVEMAX'])
+                for p in data:
+                    name = p['PARAM'].strip()
+                    self.coeff[name] = TraceSet(p['COEFF'], domain=domain)
+    
+            #- Pull out x and y as special tracesets
+            self._x = self.coeff['X']
+            self._y = self.coeff['Y']
+
+        else : # new format
+            
+            domain = (hdr['WAVEMIN'], hdr['WAVEMAX'])
             for p in data:
                 name = p['PARAM'].strip()
                 self.coeff[name] = TraceSet(p['COEFF'], domain=domain)
+            
+            self._x = TraceSet(fx["XTRACE"].data, domain=(fx['XTRACE'].header["WAVEMIN"], fx['XTRACE'].header['WAVEMAX']))
+            self._y = TraceSet(fx["YTRACE"].data, domain=(fx['YTRACE'].header["WAVEMIN"], fx['YTRACE'].header['WAVEMAX']))
+            
         
-        #- Pull out x and y as special tracesets
-        self._x = self.coeff['X']
-        self._y = self.coeff['Y']
-
         #- Create inverse y -> wavelength mapping
         self._w = self._y.invert()
         self._wmin = np.min(self.wavelength(None, 0))
@@ -123,8 +152,8 @@ class GaussHermitePSF(PSF):
     def _xypix(self, ispec, wavelength):
 
         # x, y = self.xy(ispec, wavelength)
-        x = self.coeff['X'].eval(ispec, wavelength)
-        y = self.coeff['Y'].eval(ispec, wavelength)
+        x = self._x.eval(ispec, wavelength)
+        y = self._y.eval(ispec, wavelength)
         
         #- CCD pixel ranges
         hsizex = self._polyparams['HSIZEX']
@@ -239,8 +268,8 @@ class GaussHermitePSF(PSF):
         """
 
         # x, y = self.xy(ispec, wavelength)
-        xc = self.coeff['X'].eval(ispec, wavelength)
-        yc = self.coeff['Y'].eval(ispec, wavelength)
+        xc = self._x.eval(ispec, wavelength)
+        yc = self._y.eval(ispec, wavelength)
                 
         #- Extract GH degree and sigma coefficients for convenience
         degx1 = self._polyparams['GHDEGX']
