@@ -5,7 +5,7 @@ specter Release Notes
 0.8.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Robust even if nsubbundles>bundlesize.
 
 0.8.0 (2017-09-29)
 ------------------

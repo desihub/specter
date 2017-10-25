@@ -268,9 +268,11 @@ class TestExtract(unittest.TestCase):
         self.assertTrue( np.all(flux == flux) )
 
     def test_subbundles(self):
-        for nsubbundles in (2,3):
-            flux, ivar, Rdata = ex2d(self.image, self.ivar, self.psf, 0, self.nspec,
-                self.ww, wavesize=len(self.ww)//5, nsubbundles=nsubbundles)
+        #- should work even if nsubbundles > bundlesize
+        for nsubbundles in (2,3, 2*self.nspec):
+            flux, ivar, Rdata = ex2d(self.image, self.ivar, self.psf, 0,
+                self.nspec, self.ww, wavesize=len(self.ww)//5,
+                bundlesize=self.nspec, nsubbundles=nsubbundles)
 
             self.assertEqual(flux.shape, (self.nspec, len(self.ww)))
             self.assertEqual(ivar.shape, (self.nspec, len(self.ww)))
@@ -296,6 +298,10 @@ class TestExtract(unittest.TestCase):
         self.assertEqual(len(iiextract), 1)
         self.assertEqual(len(iisub[0]), 25)
         self.assertTrue(np.all(iisub[0] == iiextract[0]))
+
+        #- n>bundlesize isn't allowed
+        with self.assertRaises(ValueError):
+            iisub, iiextract = split_bundle(3, 7)
 
 if __name__ == '__main__':
     unittest.main()
