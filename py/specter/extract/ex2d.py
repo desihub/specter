@@ -87,9 +87,10 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
         #- index of last spectrum, non-inclusive, i.e. python-style indexing
         bundlehi = min(bundlelo+bundlesize, specmin+nspec)
 
-        iibundle, iiextract = split_bundle(bundlehi-bundlelo, nsubbundles)
+        nsub = min(bundlehi-bundlelo, nsubbundles)
+        iibundle, iiextract = split_bundle(bundlehi-bundlelo, nsub)
 
-        for subbundle_index in range(nsubbundles):
+        for subbundle_index in range(len(iiextract)):
             speclo = bundlelo + iiextract[subbundle_index][0]
             spechi = bundlelo + iiextract[subbundle_index][-1]+1
             keep = np.in1d(iiextract[subbundle_index], iibundle[subbundle_index])
@@ -499,6 +500,10 @@ def split_bundle(bundlesize, n):
     ([array([0, 1, 2]), array([3, 4, 5]), array([6, 7, 8, 9])],
      [array([0, 1, 2, 3]), array([2, 3, 4, 5, 6]), array([5, 6, 7, 8, 9])])
     '''
+    if n > bundlesize:
+        raise ValueError('n={} should be less or equal to bundlesize={}'.format(
+                         n, bundlesize))
+
     #- initial partition into subbundles
     n_per_subbundle = [len(x) for x in np.array_split(np.arange(bundlesize), n)]
 
