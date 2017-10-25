@@ -2,15 +2,21 @@
 specter Release Notes
 =====================
 
-0.8.1 (unreleased)
+0.8.2 (unreleased)
 ------------------
 
-* Robust even if nsubbundles>bundlesize.
+* No changes yet.
+
+0.8.1 (2017-10-25)
+------------------
+
+* Robust even if nsubbundles>bundlesize (PR #53)
 
 0.8.0 (2017-09-29)
 ------------------
 
-* Added subbundle divide-and-conquer extractions for ~2x speedup
+* Added subbundle divide-and-conquer extractions for ~2x speedup (PR #51)
+* Added GaussHermite PSF format v3 (PR #52)
 
 0.7.0 (2017-03-02)
 ------------------
