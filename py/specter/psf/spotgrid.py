@@ -168,7 +168,7 @@ class SpotGridPSF(PSF):
         print("offset fraction used is %s" %(offset_frac))
         print("resample fraction used is %s" %(resample_frac))
         print("ccd_rebin fraction used is %s" %(ccd_rebin_frac))
-        print("ccd_slice fraction used is %s" %(cdd_slice_frac))
+        print("ccd_slice fraction used is %s" %(ccd_slice_frac))
         
         return xx,yy,ccd_pix_spot_values
 
