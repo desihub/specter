@@ -62,6 +62,9 @@ class SpotGridPSF(PSF):
         """
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
         """
+        #add timer
+        xypix_interp_t0=time.time()
+        
         #- Ratio of CCD to Spot pixel sizes
         rebin = int(self.CcdPixelSize / self.SpotPixelSize)
         
@@ -106,6 +109,12 @@ class SpotGridPSF(PSF):
         y_ccd_begin = int(np.floor(yc))-ny_ccd//2+1  # begin of CCD coordinate stamp
         xx = slice(x_ccd_begin, (x_ccd_begin+nx_ccd))
         yy = slice(y_ccd_begin, (y_ccd_begin+ny_ccd))
+        
+        #add final timer
+        xypix_interp_t1=time.time()
+        xypix_elapsed_t=xypix_interp_t1-xypix_interp_t0
+        print("_xypix_interp elapsed time is %s" %((xypix_elapsed_t))
+        
         return xx,yy,ccd_pix_spot_values
 
         
