@@ -163,12 +163,15 @@ class SpotGridPSF(PSF):
         resample_frac=resample_elapsed_t/xypix_elapsed_t
         ccd_rebin_frac=ccd_rebin_elapsed_t/xypix_elapsed_t
         ccd_slice_frac=ccd_slice_elapsed_t/xypix_elapsed_t
+        #for a sanity check, check total fraction tracked
+        total_frac=rebin_frac + offset_frac + resample_frac + ccd_rebin_frac + ccd_slice_frac
         
         print("rebin fraction used is %s" %(rebin_frac))
         print("offset fraction used is %s" %(offset_frac))
         print("resample fraction used is %s" %(resample_frac))
         print("ccd_rebin fraction used is %s" %(ccd_rebin_frac))
         print("ccd_slice fraction used is %s" %(ccd_slice_frac))
+        print("total fraction tracked is %s"%(total_frac))
         
         return xx,yy,ccd_pix_spot_values
 
