@@ -114,7 +114,14 @@ class SpotGridPSF(PSF):
         resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx:nx_spot+dx]     += w10*pix_spot_values
         resampled_pix_spot_values[dy:ny_spot+dy,dx+1:nx_spot+dx+1]     += w01*pix_spot_values
         resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx+1:nx_spot+dx+1] += w11*pix_spot_values
+        
+        resample_t1=time.time()
+        #done timing resample ------------------------------
+        resample_elapsed_t=resample_t1-resample_t0
+        print("resample elapsed time is %s s" %(resample_elapsed_t))
             
+        #start timing ccd_rebin -------------------------------
+        ccd_rebin_t0=time.time()
         # rebinning
         ccd_pix_spot_values=resampled_pix_spot_values.reshape(ny_spot+rebin,nx_ccd,rebin).sum(2).reshape(ny_ccd,rebin,nx_ccd).sum(1)
         # make sure it's positive
@@ -123,18 +130,26 @@ class SpotGridPSF(PSF):
         norm = np.sum(ccd_pix_spot_values)
         if norm > 0 :
             ccd_pix_spot_values /= norm
+            
+        ccd_rebin_t1=time.time()
+        #done timing ccd_rebin ----------------------------------
+        ccd_rebin_elapsed_t=ccd_rebin_t1-ccd_rebin_t0
+        print("ccd_rebin elapsed time is % s" %(ccd_rebin_elapsed_t))
+        
+        #start timing ccd_slice ------------------------------
+        ccd_slice_t0=time.time()
 
         x_ccd_begin = int(np.floor(xc))-nx_ccd//2+1  # begin of CCD coordinate stamp
         y_ccd_begin = int(np.floor(yc))-ny_ccd//2+1  # begin of CCD coordinate stamp
         xx = slice(x_ccd_begin, (x_ccd_begin+nx_ccd))
         yy = slice(y_ccd_begin, (y_ccd_begin+ny_ccd))
         
-        resample_t1=time.time()
-        #done timing resample ------------------------------
-        resample_elapsed_t=resample_t1-resample_t0
-        print("resample elapsed time is %s s" %(resample_elapsed_t))
+        ccd_slice_t1=time.time()
+        #done timing ccd_slice -------------------------------
+        ccd_slice_elapsed_t=ccd_slice_t1-ccd_slice_t0
+        print("ccd_slice elapsed time is % s" %(ccd_slice_elapsed_t))
         
-        
+
         #add final timer
         xypix_interp_t1=time.time()
         xypix_elapsed_t=xypix_interp_t1-xypix_interp_t0
@@ -146,10 +161,14 @@ class SpotGridPSF(PSF):
         rebin_frac=rebin_elapsed_t/xypix_elapsed_t
         offset_frac=offset_elapsed_t/xypix_elapsed_t
         resample_frac=resample_elapsed_t/xypix_elapsed_t
+        ccd_rebin_frac=ccd_rebin_elapsed_t/xypix_elapsed_t
+        ccd_slice_frac=ccd_slice_elapsed_t/xypix_elapsed_t
         
         print("rebin fraction used is %s" %(rebin_frac))
         print("offset fraction used is %s" %(offset_frac))
         print("resample fraction used is %s" %(resample_frac))
+        print("ccd_rebin fraction used is %s" %(ccd_rebin_frac))
+        print("ccd_slice fraction used is %s" %(cdd_slice_frac))
         
         return xx,yy,ccd_pix_spot_values
 
