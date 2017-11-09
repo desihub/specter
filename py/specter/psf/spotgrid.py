@@ -106,11 +106,19 @@ class SpotGridPSF(PSF):
         #done timing offset -----------------------
         #print("offset elapsed time is %s s" %(offset_elapsed_t))
         
-        #start timer for resampling grid -----------------------
-        resample_t0=time.time()
+
         
-        # resampled spot grid      
-        resampled_pix_spot_values=np.zeros((ny_spot+rebin,nx_spot+rebin))            
+        # resampled spot grid     
+        #start timer for zeros creation ------------
+        zeros_t0=time.time()        
+        resampled_pix_spot_values=np.zeros((ny_spot+rebin,nx_spot+rebin))     
+        zeros_t1=time.time()
+        #done timing zeros -------------------
+        zeros_elapsed_t=zeros_t1-zeros_t0
+
+        #start timer for resampling grid -----------------------
+        resample_t0=time.time()    
+        
         resampled_pix_spot_values[dy:ny_spot+dy,dx:nx_spot+dx]         += w00*pix_spot_values
         resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx:nx_spot+dx]     += w10*pix_spot_values
         resampled_pix_spot_values[dy:ny_spot+dy,dx+1:nx_spot+dx+1]     += w01*pix_spot_values
@@ -163,11 +171,12 @@ class SpotGridPSF(PSF):
         #now compute fraction of time each part of xypix_interp each time block takes
         rebin_frac=rebin_elapsed_t/xypix_elapsed_t
         offset_frac=offset_elapsed_t/xypix_elapsed_t
+        zeros_frac=zeros_elapsed_t/xypix_elapsed_t
         resample_frac=resample_elapsed_t/xypix_elapsed_t
         ccd_rebin_frac=ccd_rebin_elapsed_t/xypix_elapsed_t
         ccd_slice_frac=ccd_slice_elapsed_t/xypix_elapsed_t
         #for a sanity check, check total fraction tracked
-        total_frac=rebin_frac + offset_frac + resample_frac + ccd_rebin_frac + ccd_slice_frac
+        total_frac=rebin_frac + offset_frac + zeros_frac + resample_frac + ccd_rebin_frac + ccd_slice_frac
         
         print("rebin fraction used is %s" %(rebin_frac))
         print("offset fraction used is %s" %(offset_frac))
