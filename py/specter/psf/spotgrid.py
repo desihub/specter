@@ -63,10 +63,12 @@ class SpotGridPSF(PSF):
         """
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
         """
-        #add timer
+        #add timer for whole function ---------------------------------------------
         xypix_interp_t0=time.time()
         
         #- Ratio of CCD to Spot pixel sizes
+        #rebinning timer ------------------------------
+        rebin_t0=time.time()
         rebin = int(self.CcdPixelSize / self.SpotPixelSize)
         
         p, w = self._fiberpos[ispec], wavelength
@@ -77,6 +79,14 @@ class SpotGridPSF(PSF):
         ny_ccd=ny_spot//rebin+1 # add one bin because of resampling
         
         xc, yc = self.xy(ispec, wavelength) # center of PSF in CCD coordinates
+        
+        rebin_t1=time.time()
+        rebin_elapsed_t=rebin_t1-rebin_t0
+        #done timing rebinning -----------------------------
+        print("rebin_interp elapsed time is %s s" %(rebin_elapsed_t))
+                
+        #timer for pixel offset --------------------
+        offset_t0=time.time()
                 
         # fraction pixel offset requiring interpolation
         dx=xc*rebin-int(np.floor(xc*rebin)) # positive value between 0 and 1
@@ -89,6 +99,14 @@ class SpotGridPSF(PSF):
         # now the rest of the offset is an integer shift
         dx=int(np.floor(xc*rebin))-int(np.floor(xc))*rebin # positive integer between 0 and 14
         dy=int(np.floor(yc*rebin))-int(np.floor(yc))*rebin # positive integer between 0 and 14
+        
+        offset_t1=time.time()
+        offset_elapsed_t=offset_t1-offset_t0
+        #done timing offset -----------------------
+        print("offset elapsed time is %s s" %(offset_elapsed_t))
+        
+        #start timer for resampling grid -----------------------
+        resample_t0=time.time()
         
         # resampled spot grid
         resampled_pix_spot_values=np.zeros((ny_spot+rebin,nx_spot+rebin))            
@@ -111,10 +129,27 @@ class SpotGridPSF(PSF):
         xx = slice(x_ccd_begin, (x_ccd_begin+nx_ccd))
         yy = slice(y_ccd_begin, (y_ccd_begin+ny_ccd))
         
+        resample_t1=time.time()
+        #done timing resample ------------------------------
+        resample_elapsed_t=resample_t1-resample_t0
+        print("resample elapsed time is %s s" %(resample_elapsed_t))
+        
+        
         #add final timer
         xypix_interp_t1=time.time()
         xypix_elapsed_t=xypix_interp_t1-xypix_interp_t0
+        
+        #done timing -------------------------------------------------------
         print("_xypix_interp elapsed time is %s s" %(xypix_elapsed_t))
+        
+        #now compute fraction of time each part of xypix_interp each time block takes
+        rebin_frac=rebin_elapsed_t/xypix_elapsed_t
+        offset_frac=offset_elapsed_t/xypix_elapsed_t
+        resample_frac=resample_elapsed_t/xypix_elapsed_t
+        
+        print("rebin fraction used is %s" %(rebin_frac))
+        print("offset fraction used is %s" %(offset_frac))
+        print("resample fraction used is %s" %(resample_frac))
         
         return xx,yy,ccd_pix_spot_values
 
