@@ -83,7 +83,7 @@ class SpotGridPSF(PSF):
         rebin_t1=time.time()
         rebin_elapsed_t=rebin_t1-rebin_t0
         #done timing rebinning -----------------------------
-        print("rebin_interp elapsed time is %s s" %(rebin_elapsed_t))
+        #print("rebin_interp elapsed time is %s s" %(rebin_elapsed_t))
                 
         #timer for pixel offset --------------------
         offset_t0=time.time()
@@ -103,7 +103,7 @@ class SpotGridPSF(PSF):
         offset_t1=time.time()
         offset_elapsed_t=offset_t1-offset_t0
         #done timing offset -----------------------
-        print("offset elapsed time is %s s" %(offset_elapsed_t))
+        #print("offset elapsed time is %s s" %(offset_elapsed_t))
         
         #start timer for resampling grid -----------------------
         resample_t0=time.time()
@@ -118,7 +118,7 @@ class SpotGridPSF(PSF):
         resample_t1=time.time()
         #done timing resample ------------------------------
         resample_elapsed_t=resample_t1-resample_t0
-        print("resample elapsed time is %s s" %(resample_elapsed_t))
+        #print("resample elapsed time is %s s" %(resample_elapsed_t))
             
         #start timing ccd_rebin -------------------------------
         ccd_rebin_t0=time.time()
@@ -134,7 +134,7 @@ class SpotGridPSF(PSF):
         ccd_rebin_t1=time.time()
         #done timing ccd_rebin ----------------------------------
         ccd_rebin_elapsed_t=ccd_rebin_t1-ccd_rebin_t0
-        print("ccd_rebin elapsed time is % s" %(ccd_rebin_elapsed_t))
+        #print("ccd_rebin elapsed time is % s" %(ccd_rebin_elapsed_t))
         
         #start timing ccd_slice ------------------------------
         ccd_slice_t0=time.time()
@@ -147,7 +147,7 @@ class SpotGridPSF(PSF):
         ccd_slice_t1=time.time()
         #done timing ccd_slice -------------------------------
         ccd_slice_elapsed_t=ccd_slice_t1-ccd_slice_t0
-        print("ccd_slice elapsed time is % s" %(ccd_slice_elapsed_t))
+        #print("ccd_slice elapsed time is % s" %(ccd_slice_elapsed_t))
         
 
         #add final timer
@@ -155,7 +155,7 @@ class SpotGridPSF(PSF):
         xypix_elapsed_t=xypix_interp_t1-xypix_interp_t0
         
         #done timing -------------------------------------------------------
-        print("_xypix_interp elapsed time is %s s" %(xypix_elapsed_t))
+        #print("_xypix_interp elapsed time is %s s" %(xypix_elapsed_t))
         
         #now compute fraction of time each part of xypix_interp each time block takes
         rebin_frac=rebin_elapsed_t/xypix_elapsed_t
