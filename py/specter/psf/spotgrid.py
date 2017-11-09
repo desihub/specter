@@ -96,7 +96,7 @@ class SpotGridPSF(PSF):
         w10=dy*(1-dx)
         w01=(1-dy)*dx
         w11=dy*dx
-        print(w00,w10,w01,w11)        
+   
         # now the rest of the offset is an integer shift
         dx=int(np.floor(xc*rebin))-int(np.floor(xc))*rebin # positive integer between 0 and 14
         dy=int(np.floor(yc*rebin))-int(np.floor(yc))*rebin # positive integer between 0 and 14
@@ -180,6 +180,7 @@ class SpotGridPSF(PSF):
         
         print("rebin fraction used is %s" %(rebin_frac))
         print("offset fraction used is %s" %(offset_frac))
+        print("zeros fraction used is %s" %(zeros_frac))
         print("resample fraction used is %s" %(resample_frac))
         print("ccd_rebin fraction used is %s" %(ccd_rebin_frac))
         print("ccd_slice fraction used is %s" %(ccd_slice_frac))
