@@ -95,7 +95,8 @@ class SpotGridPSF(PSF):
         w00=(1-dy)*(1-dx)
         w10=dy*(1-dx)
         w01=(1-dy)*dx
-        w11=dy*dx        
+        w11=dy*dx
+        print(w00,w10,w01,w11)        
         # now the rest of the offset is an integer shift
         dx=int(np.floor(xc*rebin))-int(np.floor(xc))*rebin # positive integer between 0 and 14
         dy=int(np.floor(yc*rebin))-int(np.floor(yc))*rebin # positive integer between 0 and 14
@@ -115,7 +116,7 @@ class SpotGridPSF(PSF):
         resampled_pix_spot_values[dy:ny_spot+dy,dx+1:nx_spot+dx+1]     += w01*pix_spot_values
         resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx+1:nx_spot+dx+1] += w11*pix_spot_values
         #add shape check to see what we're dealing with
-        print(pix_spot_values.shape)
+        #print(pix_spot_values.shape)
         
         resample_t1=time.time()
         #done timing resample ------------------------------
