@@ -108,12 +108,14 @@ class SpotGridPSF(PSF):
         #start timer for resampling grid -----------------------
         resample_t0=time.time()
         
-        # resampled spot grid
+        # resampled spot grid      
         resampled_pix_spot_values=np.zeros((ny_spot+rebin,nx_spot+rebin))            
         resampled_pix_spot_values[dy:ny_spot+dy,dx:nx_spot+dx]         += w00*pix_spot_values
         resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx:nx_spot+dx]     += w10*pix_spot_values
         resampled_pix_spot_values[dy:ny_spot+dy,dx+1:nx_spot+dx+1]     += w01*pix_spot_values
         resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx+1:nx_spot+dx+1] += w11*pix_spot_values
+        #add shape check to see what we're dealing with
+        print("dimensions of pix_spot_values %s" %(pix_spot_values.shape))
         
         resample_t1=time.time()
         #done timing resample ------------------------------
