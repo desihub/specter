@@ -13,13 +13,13 @@ Stephen Bailey, Fall 2012
 """
 
 from __future__ import absolute_import, division, print_function, unicode_literals
-
 import sys
 import numbers
 import numpy as np
 from numpy.polynomial.legendre import Legendre, legval, legfit
 import scipy.optimize
 import scipy.sparse
+import time
 
 from specter.util import gausspix, TraceSet, CacheDict
 from astropy.io import fits
@@ -227,6 +227,12 @@ class PSF(object):
         if xmin or ymin are set, the slices are relative to those
         minima (useful for simulating subimages)
         """
+        #add timing statements to this function ----------------------------------------------
+        xypix_t0=time.time()
+        
+        #add timing to wavelength_check
+        wavelength_t0=time.time()
+        
         if xmax is None:
             xmax = self.npix_x
         if ymax is None:
@@ -235,7 +241,14 @@ class PSF(object):
         if wavelength < self.wavelength(ispec, -0.5):
             return slice(0,0), slice(0,0), np.zeros((0,0))
         elif wavelength > self.wavelength(ispec, self.npix_y-0.5):
-            return slice(0,0), slice(ymax, ymax), np.zeros((0,0))
+            return slice(0,0), slice(ymax, ymax), np.zeros((0,0))    
+            
+        wavelength_t1=time.time()
+        #done timing wavelength check ----------------------------
+        wavelength_elapsed_t=wavelength_t1-wavelength_t0       
+        
+        #timing for lohi check -----------------------------------
+        lohi_t0=time.time()
         
         key = (ispec, wavelength)
         try:
@@ -250,6 +263,13 @@ class PSF(object):
             
         xlo, xhi = xx.start, xx.stop
         ylo, yhi = yy.start, yy.stop
+        
+        lohi_t1=time.time()
+        #done timing for lohi check ------------------------------
+        lohi_elapsed_t=lohi_t1-lohi_t0
+        
+        #timing for edge_check -------------------------------
+        edge_check_t0=time.time()
 
         #- Check if completely off the edge in any direction
         if (ylo >= ymax):
@@ -282,6 +302,27 @@ class PSF(object):
         #- Check if we are off the edge
         if (xx.stop-xx.start == 0) or (yy.stop-yy.start == 0):
             ccdpix = np.zeros( (0,0) )
+            
+        edge_check_t1=time.time()
+        #done timing edge_check --------------------------------------
+        edge_check_elapsed_t=edge_check_t1-edge_check_t0        
+            
+        #timing statement for whole function --------------------------------------------------
+        xypix_t1=time.time()
+        xypix_elapsed_t=xypix_t1-xypix_t0
+        
+        #now see what fraction of the whole function each piece takes
+        wavelength_frac=wavelength_elapsed_t/xypix_elapsed_t
+        lohi_frac=lohi_elapsed_t/xypix_elapsed_t
+        edge_check_frac=edge_check_elapsed_t/xypix_elapsed_t
+        xypix_total=wavelength_frac + lohi_frac + edge_check_frac 
+        
+        print("wavelength fraction used is %s" %(wavelength_frac))
+        print("lohi fraction used is %s" %(lohi_frac))
+        print("edge_check fraction used is %s" %(edge_check_frac))
+        print("total xypix tracked is %s"%(xypix_total))
+        
+        print("runtime for xypix is %s s" %(xypix_elapsed_t))
                              
         return xx, yy, ccdpix
 
