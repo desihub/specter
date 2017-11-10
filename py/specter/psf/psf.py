@@ -325,11 +325,11 @@ class PSF(object):
         edge_check_frac=edge_check_elapsed_t/xypix_elapsed_t
         xypix_total=wavelength_frac + lohi_frac + edge_check_frac 
         
-        print("wavelength fraction used is %s" %(wavelength_frac))
-        print("lohi fraction used is %s" %(lohi_frac))
-        print("lohi_start_stop fraction used is %s" %(lohi_start_stop_frac))
-        print("edge_check fraction used is %s" %(edge_check_frac))
-        print("total xypix tracked is %s"%(xypix_total))
+        print("xypix wavelength fraction used is %s" %(wavelength_frac))
+        print("xyppix lohi fraction used is %s" %(lohi_frac))
+        print("xypix lohi_start_stop fraction used is %s" %(lohi_start_stop_frac))
+        print("xypix edge_check fraction used is %s" %(edge_check_frac))
+        print("xypix total xypix tracked is %s"%(xypix_total))
         
         print("runtime for xypix is %s s" %(xypix_elapsed_t))
                              

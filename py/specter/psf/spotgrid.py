@@ -177,12 +177,12 @@ class SpotGridPSF(PSF):
         #for a sanity check, check total fraction tracked
         xypix_interp_frac=rebin_frac + offset_frac + zeros_frac + resample_frac + ccd_rebin_frac + ccd_slice_frac
         
-        print("rebin fraction used is %s" %(rebin_frac))
-        print("offset fraction used is %s" %(offset_frac))
-        print("zeros fraction used is %s" %(zeros_frac))
-        print("resample fraction used is %s" %(resample_frac))
-        print("ccd_rebin fraction used is %s" %(ccd_rebin_frac))
-        print("ccd_slice fraction used is %s" %(ccd_slice_frac))
+        print("xypix_interp rebin fraction used is %s" %(rebin_frac))
+        print("xypix_interp offset fraction used is %s" %(offset_frac))
+        print("xypix_interp zeros fraction used is %s" %(zeros_frac))
+        print("xypix_interp resample fraction used is %s" %(resample_frac))
+        print("xypix_interp ccd_rebin fraction used is %s" %(ccd_rebin_frac))
+        print("xypix_interp ccd_slice fraction used is %s" %(ccd_slice_frac))
         print("total xypix_interp tracked is %s"%(xypix_interp_frac))
         
         print("runtime for xypix_interp is %s s" %(xypix_interp_elapsed_t))
