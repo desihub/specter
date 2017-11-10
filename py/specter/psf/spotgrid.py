@@ -112,7 +112,7 @@ class SpotGridPSF(PSF):
         #start timer for zeros creation ------------
         zeros_t0=time.time()        
         resampled_pix_spot_values=np.zeros((ny_spot+rebin,nx_spot+rebin))     
-        print(resampled_pix_spot_values.shape)
+       
         zeros_t1=time.time()
         #done timing zeros -------------------
         zeros_elapsed_t=zeros_t1-zeros_t0
