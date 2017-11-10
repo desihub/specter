@@ -192,6 +192,8 @@ class SpotGridPSF(PSF):
         xypix_interp_frac=rebin_frac + offset_frac + zeros_frac + resample_frac + ccd_rebin_frac + ccd_slice_frac
         
         print("xypix_interp rebin fraction used is %s" %(rebin_frac))
+        print("xypix_interp fiberpos fraction used is %s" %(fiberpos_frac))
+        print("xypix_interp fspot fraction used is %s" %(fspot_frac))
         print("xypix_interp offset fraction used is %s" %(offset_frac))
         print("xypix_interp zeros fraction used is %s" %(zeros_frac))
         print("xypix_interp resample fraction used is %s" %(resample_frac))
