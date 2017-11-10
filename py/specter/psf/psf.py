@@ -253,7 +253,12 @@ class PSF(object):
         key = (ispec, wavelength)
         try:
             if key in self._cache:
+                #timing for cache --------------------
+                cache_t0=time.time()
                 xx, yy, ccdpix = self._cache[key]
+                cache_t1=time.time()
+                #done timing cache --------------------
+                cache_elapsed_t=cache_t1-cache_t0
             else:
                 #timing for _xypix1 ---------------------------------------
                 _xypix1_t0=time.time()
@@ -333,6 +338,7 @@ class PSF(object):
         #now see what fraction of the whole function each piece takes
         wavelength_frac=wavelength_elapsed_t/xypix_elapsed_t
         lohi_frac=lohi_elapsed_t/xypix_elapsed_t
+        cache_frac=cache_elapsed_t/xypix_elapsed_t
         #_xypix1_frac=_xypix1_elapsed_t/xypix_elapsed_t
         #_xypix2_frac=_xypix2_elapsed_t/xypix_elapsed_t
         lohi_start_stop_frac=lohi_start_stop_elapsed_t/xypix_elapsed_t
@@ -341,6 +347,7 @@ class PSF(object):
         
         print("xypix wavelength fraction used is %s" %(wavelength_frac))
         print("xypix lohi fraction used is %s" %(lohi_frac))
+        print("xypix cache fraction used is %s" %(cache_frac))
         #print("xypix _xypix1 fraction used is %s" %(_xypix1_frac))
         #print("xypix _xypix2 fraction used is %s" %(_xypix2_frac))
         print("xypix lohi_start_stop fraction used is %s" %(lohi_start_stop_frac))
