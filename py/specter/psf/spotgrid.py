@@ -79,6 +79,7 @@ class SpotGridPSF(PSF):
         fiberpos_elapsed_t=fiberpos_t1-fiberpos_t0
         
         #add timer for fspot -------------------------
+        #this is the slower one (20 percent), fspot calls LinearInterp2D, which is probably the slow part
         fspot_t0=time.time()
         pix_spot_values=self._fspot(p, w)
         fspot_t1=time.time()
