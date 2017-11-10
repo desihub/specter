@@ -71,8 +71,20 @@ class SpotGridPSF(PSF):
         rebin_t0=time.time()
         rebin = int(self.CcdPixelSize / self.SpotPixelSize)
         
+        #add timer for fiberpos ----------------------
+        fiberpos_t0=time.time()
         p, w = self._fiberpos[ispec], wavelength
+        fiberpos_t1=time.time()
+        #done timing fiberpos -----------------------
+        fiberpos_elapsed_t=fiberpos_t1-fiberpos_t0
+        
+        #add timer for fspot -------------------------
+        fspot_t0=time.time()
         pix_spot_values=self._fspot(p, w)
+        fspot_t1=time.time()
+        #done timing fspot ---------------------------
+        fspot_elapsed_t=fspot_t1-fspot_t0
+        
         nx_spot=pix_spot_values.shape[1]
         ny_spot=pix_spot_values.shape[0]
         nx_ccd=nx_spot//rebin+1 # add one bin because of resampling
@@ -169,6 +181,8 @@ class SpotGridPSF(PSF):
         
         #now compute fraction of time each part of xypix_interp each time block takes
         rebin_frac=rebin_elapsed_t/xypix_interp_elapsed_t
+        fiberpos_frac=fiberpos_elapsed_t/xypix_interp_elapsed_t
+        fspot_frac=fspot_elapsed_t/xypix_interp_elapsed_t
         offset_frac=offset_elapsed_t/xypix_interp_elapsed_t
         zeros_frac=zeros_elapsed_t/xypix_interp_elapsed_t
         resample_frac=resample_elapsed_t/xypix_interp_elapsed_t
