@@ -162,20 +162,20 @@ class SpotGridPSF(PSF):
 
         #add final timer
         xypix_interp_t1=time.time()
-        xypix_elapsed_t=xypix_interp_t1-xypix_interp_t0
+        xypix_interp_elapsed_t=xypix_interp_t1-xypix_interp_t0
         
         #done timing -------------------------------------------------------
         #print("_xypix_interp elapsed time is %s s" %(xypix_elapsed_t))
         
         #now compute fraction of time each part of xypix_interp each time block takes
-        rebin_frac=rebin_elapsed_t/xypix_elapsed_t
-        offset_frac=offset_elapsed_t/xypix_elapsed_t
-        zeros_frac=zeros_elapsed_t/xypix_elapsed_t
-        resample_frac=resample_elapsed_t/xypix_elapsed_t
-        ccd_rebin_frac=ccd_rebin_elapsed_t/xypix_elapsed_t
-        ccd_slice_frac=ccd_slice_elapsed_t/xypix_elapsed_t
+        rebin_frac=rebin_elapsed_t/xypix_interp_elapsed_t
+        offset_frac=offset_elapsed_t/xypix_interp_elapsed_t
+        zeros_frac=zeros_elapsed_t/xypix_interp_elapsed_t
+        resample_frac=resample_elapsed_t/xypix_interp_elapsed_t
+        ccd_rebin_frac=ccd_rebin_elapsed_t/xypix_interp_elapsed_t
+        ccd_slice_frac=ccd_slice_elapsed_t/xypix_interp_elapsed_t
         #for a sanity check, check total fraction tracked
-        total_frac=rebin_frac + offset_frac + zeros_frac + resample_frac + ccd_rebin_frac + ccd_slice_frac
+        xypix_interp_frac=rebin_frac + offset_frac + zeros_frac + resample_frac + ccd_rebin_frac + ccd_slice_frac
         
         print("rebin fraction used is %s" %(rebin_frac))
         print("offset fraction used is %s" %(offset_frac))
@@ -183,7 +183,9 @@ class SpotGridPSF(PSF):
         print("resample fraction used is %s" %(resample_frac))
         print("ccd_rebin fraction used is %s" %(ccd_rebin_frac))
         print("ccd_slice fraction used is %s" %(ccd_slice_frac))
-        print("total fraction tracked is %s"%(total_frac))
+        print("total xypix_interp tracked is %s"%(xypix_interp_frac))
+        
+        print("runtime for xypix_interp is %s s" %(xypix_interp_elapsed_t))
         
         return xx,yy,ccd_pix_spot_values
 
