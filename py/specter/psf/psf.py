@@ -261,7 +261,7 @@ class PSF(object):
                 _xypix1_t1=time.time() # ---------------------------------
                 self._cache[key] = (xx, yy, ccdpix)
                 #done timing for _xypix1 
-                _xypix1_elapsed_t=_xypix1_t1-xypix1_t0   
+                _xypix1_elapsed_t=_xypix1_t1-_xypix1_t0   
         
                 
         except AttributeError:
