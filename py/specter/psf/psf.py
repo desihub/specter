@@ -269,7 +269,7 @@ class PSF(object):
             xx, yy, ccdpix = self._xypix(ispec, wavelength)
             _xypix2_t1=time.time()
             #done timing for _xypix2 ---------------------------------
-           _xypix2_elapsed_t=_xypix2_t1-_xypix2_t0        
+            _xypix2_elapsed_t=_xypix2_t1-_xypix2_t0        
             
         lohi_t1=time.time()
         #done timing for lohi check ------------------------------
