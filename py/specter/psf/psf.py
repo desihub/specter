@@ -341,18 +341,26 @@ class PSF(object):
         #now see what fraction of the whole function each piece takes
         wavelength_frac=wavelength_elapsed_t/xypix_elapsed_t
         lohi_frac=lohi_elapsed_t/xypix_elapsed_t
-        #cache_frac=cache_elapsed_t/xypix_elapsed_t
-        _xypix1_frac=_xypix1_elapsed_t/xypix_elapsed_t
-        #_xypix2_frac=_xypix2_elapsed_t/xypix_elapsed_t
         lohi_start_stop_frac=lohi_start_stop_elapsed_t/xypix_elapsed_t
         edge_check_frac=edge_check_elapsed_t/xypix_elapsed_t
         xypix_total=wavelength_frac + lohi_frac + edge_check_frac 
         
+        #for the timers in loops, need to check if they exist
+        if 'cache_elapsed_t' in locals():
+            cache_frac=cache_elapsed_t/xypix_elapsed_t
+            print("xypix cache fraction used is %s" %(cache_frac))
+            
+        if '_xypix1_elapsed_t' in locals():
+            _xypix1_frac=_xypix1_elapsed_t/xypix_elapsed_t
+            print("xypix _xypix1 fraction used is %s" %(_xypix1_frac))
+            
+        if '_xypix2_elapsed_t' in locals():
+            _xypix2_frac=_xypix2_elapsed_t/xypix_elapsed_t
+            print("xypix _xypix2 fraction used is %s" %(_xypix2_frac))
+                   
+        
         print("xypix wavelength fraction used is %s" %(wavelength_frac))
         print("xypix lohi fraction used is %s" %(lohi_frac))
-        #print("xypix cache fraction used is %s" %(cache_frac))
-        print("xypix _xypix1 fraction used is %s" %(_xypix1_frac))
-        #print("xypix _xypix2 fraction used is %s" %(_xypix2_frac))
         print("xypix lohi_start_stop fraction used is %s" %(lohi_start_stop_frac))
         print("xypix edge_check fraction used is %s" %(edge_check_frac))
         print("xypix total xypix tracked is %s"%(xypix_total))
