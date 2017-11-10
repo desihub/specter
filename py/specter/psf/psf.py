@@ -259,17 +259,21 @@ class PSF(object):
                 _xypix1_t0=time.time()
                 xx, yy, ccdpix = self._xypix(ispec, wavelength)
                 _xypix1_t1=time.time()
-                #done timing for _xypix1 ----------------------------------
-                _xypix1_elapsed_t=_xypix1_t1-xypix1_t0
                 self._cache[key] = (xx, yy, ccdpix)
+                
+        #done timing for _xypix1 ----------------------------------
+        _xypix1_elapsed_t=_xypix1_t1-xypix1_t0
+        
+                
         except AttributeError:
             self._cache = CacheDict(2500)
             #timing for _xypix2 ---------------------------------------
             _xypix2_t0=time.time()        
             xx, yy, ccdpix = self._xypix(ispec, wavelength)
             _xypix2_t1=time.time()
-            #done timing for _xypix2 ---------------------------------
-            _xypix2_elapsed_t=_xypix2_t1-_xypix2_t0        
+            
+        #done timing for _xypix2 ---------------------------------
+        _xypix2_elapsed_t=_xypix2_t1-_xypix2_t0        
             
         lohi_t1=time.time()
         #done timing for lohi check ------------------------------
