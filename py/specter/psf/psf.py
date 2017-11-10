@@ -255,11 +255,21 @@ class PSF(object):
             if key in self._cache:
                 xx, yy, ccdpix = self._cache[key]
             else:
+        #timing for _xypix1 ---------------------------------------
+        _xypix1_t0=time.time()
                 xx, yy, ccdpix = self._xypix(ispec, wavelength)
+        _xypix1_t1=time.time()
+        #done timing for _xypix1 ----------------------------------
+        _xypix1_elapsed_t=_xypix1_t1-xypix1_t0
                 self._cache[key] = (xx, yy, ccdpix)
         except AttributeError:
             self._cache = CacheDict(2500)
+        #timing for _xypix2 ---------------------------------------
+        _xypix2_t0=time.time()        
             xx, yy, ccdpix = self._xypix(ispec, wavelength)
+        _xypix2_t1=time.time()
+        #done timing for _xypix2 ---------------------------------
+        _xypix2_elapsed_t=_xypix2_t1-_xypix2_t0        
             
         lohi_t1=time.time()
         #done timing for lohi check ------------------------------
@@ -321,12 +331,16 @@ class PSF(object):
         #now see what fraction of the whole function each piece takes
         wavelength_frac=wavelength_elapsed_t/xypix_elapsed_t
         lohi_frac=lohi_elapsed_t/xypix_elapsed_t
+        _xypix1_frac=_xypix1_elapsed_t/xypix_elapsed_t
+        _xypix2_frac=_xypix2_elapsed_t/xypix_elapsed_t
         lohi_start_stop_frac=lohi_start_stop_elapsed_t/xypix_elapsed_t
         edge_check_frac=edge_check_elapsed_t/xypix_elapsed_t
         xypix_total=wavelength_frac + lohi_frac + edge_check_frac 
         
         print("xypix wavelength fraction used is %s" %(wavelength_frac))
-        print("xyppix lohi fraction used is %s" %(lohi_frac))
+        print("xypix lohi fraction used is %s" %(lohi_frac))
+        print("xypix _xypix1 fraction used is %s" %(_xypix1_frac))
+        print("xypix _xypix2 fraction used is %s" %(_xypix2_frac))
         print("xypix lohi_start_stop fraction used is %s" %(lohi_start_stop_frac))
         print("xypix edge_check fraction used is %s" %(edge_check_frac))
         print("xypix total xypix tracked is %s"%(xypix_total))
