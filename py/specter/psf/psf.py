@@ -261,12 +261,19 @@ class PSF(object):
             self._cache = CacheDict(2500)
             xx, yy, ccdpix = self._xypix(ispec, wavelength)
             
+        lohi_t1=time.time()
+        #done timing for lohi check ------------------------------
+        lohi_elapsed_t=lohi_t1-lohi_t0    
+        
+        #timing for lohi start -----------------------------
+        lohi_start_stop_t0=time.time()
+            
         xlo, xhi = xx.start, xx.stop
         ylo, yhi = yy.start, yy.stop
         
-        lohi_t1=time.time()
-        #done timing for lohi check ------------------------------
-        lohi_elapsed_t=lohi_t1-lohi_t0
+        lohi_start_stop_t1=time.time()
+        #done timing lohi_start_stop --------------------------
+        lohi_start_stop_elapsed_t=lohi_start_stop_t1-lohi_start_stop_t0
         
         #timing for edge_check -------------------------------
         edge_check_t0=time.time()
@@ -314,11 +321,13 @@ class PSF(object):
         #now see what fraction of the whole function each piece takes
         wavelength_frac=wavelength_elapsed_t/xypix_elapsed_t
         lohi_frac=lohi_elapsed_t/xypix_elapsed_t
+        lohi_start_stop_frac=lohi_start_stop_elapsed_t/xypix_elapsed_t
         edge_check_frac=edge_check_elapsed_t/xypix_elapsed_t
         xypix_total=wavelength_frac + lohi_frac + edge_check_frac 
         
         print("wavelength fraction used is %s" %(wavelength_frac))
         print("lohi fraction used is %s" %(lohi_frac))
+        print("lohi_start_stop fraction used is %s" %(lohi_start_stop_frac))
         print("edge_check fraction used is %s" %(edge_check_frac))
         print("total xypix tracked is %s"%(xypix_total))
         
