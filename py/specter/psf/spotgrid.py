@@ -174,7 +174,7 @@ class SpotGridPSF(PSF):
         #add final timer
         xypix_interp_t1=time.time()
         #add previously stored value, initially zero
-        xypix_interp_elapsed_t=xypix_interp_t1-xypix_interp_t0
+        xypix_interp_elapsed_t=xypix_interp_elapsed_t + xypix_interp_t1-xypix_interp_t0
         
         #done timing -------------------------------------------------------
         #print("_xypix_interp elapsed time is %s s" %(xypix_elapsed_t))
