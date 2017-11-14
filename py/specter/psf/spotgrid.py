@@ -67,8 +67,7 @@ class SpotGridPSF(PSF):
         xypix_interp_t0=time.time()
         
         #- Ratio of CCD to Spot pixel sizes
-        #rebinning timer ------------------------------
-        rebin_t0=time.time()
+
         rebin = int(self.CcdPixelSize / self.SpotPixelSize)
         
         #add timer for fiberpos ----------------------
@@ -92,11 +91,6 @@ class SpotGridPSF(PSF):
         ny_ccd=ny_spot//rebin+1 # add one bin because of resampling
         
         xc, yc = self.xy(ispec, wavelength) # center of PSF in CCD coordinates
-        
-        rebin_t1=time.time()
-        rebin_elapsed_t=rebin_t1-rebin_t0
-        #done timing rebinning -----------------------------
-        #print("rebin_interp elapsed time is %s s" %(rebin_elapsed_t))
                 
         #timer for pixel offset --------------------
         offset_t0=time.time()
@@ -181,7 +175,6 @@ class SpotGridPSF(PSF):
         #print("_xypix_interp elapsed time is %s s" %(xypix_elapsed_t))
         
         #now compute fraction of time each part of xypix_interp each time block takes
-        rebin_frac=rebin_elapsed_t/xypix_interp_elapsed_t
         fiberpos_frac=fiberpos_elapsed_t/xypix_interp_elapsed_t
         fspot_frac=fspot_elapsed_t/xypix_interp_elapsed_t
         offset_frac=offset_elapsed_t/xypix_interp_elapsed_t
@@ -192,7 +185,6 @@ class SpotGridPSF(PSF):
         #for a sanity check, check total fraction tracked
         xypix_interp_frac=rebin_frac + offset_frac + zeros_frac + resample_frac + ccd_rebin_frac + ccd_slice_frac
         
-        print("xypix_interp rebin fraction used is %s" %(rebin_frac))
         print("xypix_interp fiberpos fraction used is %s" %(fiberpos_frac))
         print("xypix_interp fspot fraction used is %s" %(fspot_frac))
         print("xypix_interp offset fraction used is %s" %(offset_frac))
