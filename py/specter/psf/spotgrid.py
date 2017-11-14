@@ -39,7 +39,7 @@ class SpotGridPSF(PSF):
         self._spotpos = fx['SPOTPOS'].data    #- Slit loc of sampled spots
         self._spotwave = fx['SPOTWAVE'].data  #- Wavelengths of spots
         #try defining an elapsed time variable #- elapsed time in function
-        self._xypix_interp_elapsed_t = 0             #- start by setting to zero when object is created
+        self._xypix_interp_elapsed_time = 0   #- start by setting to zero
         
         #- 2D linerar interpolators
         pp = self._spotpos
@@ -120,8 +120,6 @@ class SpotGridPSF(PSF):
         offset_elapsed_t=offset_t1-offset_t0
         #done timing offset -----------------------
         #print("offset elapsed time is %s s" %(offset_elapsed_t))
-        
-
         
         # resampled spot grid     
         #start timer for zeros creation ------------
