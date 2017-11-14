@@ -186,10 +186,10 @@ class SpotGridPSF(PSF):
         offset_frac=offset_elapsed_t/xypix_interp_elapsed_t
         zeros_frac=zeros_elapsed_t/xypix_interp_elapsed_t
         resample_frac=resample_elapsed_t/xypix_interp_elapsed_t
-        ccd_rebin_frac=ccd_rebin_elapsed_t/xypix_interp_elapsed_t
+        ccd_frac=ccd_rebin_elapsed_t/xypix_interp_elapsed_t
         ccd_slice_frac=ccd_slice_elapsed_t/xypix_interp_elapsed_t
         #for a sanity check, check total fraction tracked
-        xypix_interp_frac=rebin_frac + offset_frac + zeros_frac + resample_frac + ccd_rebin_frac + ccd_slice_frac
+        xypix_interp_frac=fiberpos_frac + fspot_frac + xy_frac + offset_frac + zeros_frac + resample_frac + ccd_rebin_frac + ccd_slice_frac
         
         print("xypix_interp fiberpos fraction used is %s" %(fiberpos_frac))
         print("xypix_interp fspot fraction used is %s" %(fspot_frac))
