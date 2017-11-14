@@ -206,7 +206,7 @@ class SpotGridPSF(PSF):
         print("runtime for xypix_interp is %s s" %(xypix_interp_elapsed_t))
         
         #return the elapsed time in the function so we can continue aggregating statistics
-        return xx,yy,ccd_pix_spot_values,xypix_interp_elapsed_t
+        return xx,yy,ccd_pix_spot_values
 
         
         
