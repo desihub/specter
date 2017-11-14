@@ -60,7 +60,6 @@ class SpotGridPSF(PSF):
         """
         return self._xypix_interp(ispec, wavelength)
     
-    @profile
     def _xypix_interp(self, ispec, wavelength):
         """
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
