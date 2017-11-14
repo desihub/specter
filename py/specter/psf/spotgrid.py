@@ -61,7 +61,7 @@ class SpotGridPSF(PSF):
         """
         return self._xypix_interp(ispec, wavelength)
     
-    def _xypix_interp(self, ispec, wavelength):
+    def _xypix_interp(self, ispec, wavelength,xypix_interp_elapsed_t):
         """
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
         """
@@ -205,7 +205,7 @@ class SpotGridPSF(PSF):
         print("runtime for xypix_interp is %s s" %(xypix_interp_elapsed_t))
         
         #return the elapsed time in the function so we can continue aggregating statistics
-        return xx,yy,ccd_pix_spot_values
+        return xx,yy,ccd_pix_spot_values,xypix_interp_elapsed_t
 
         
         
