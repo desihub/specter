@@ -64,7 +64,6 @@ class SpotGridPSF(PSF):
         """
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
         """
-        xypix_interp_elapsed_t=self._xypix_interp_elapsed_t
         #add timer for whole function ---------------------------------------------
         xypix_interp_t0=time.time()
         
