@@ -5,7 +5,7 @@ Base class for 2D PSFs
 
 Provides PSF base class which defines the interface for other code
 using PSFs.  Subclasses implement specific models of the PSF and
-override/extend the __init__ and (ispec, wavelength) methods,
+override/extend the __init__ and xypix(ispec, wavelength) methods,
 while allowing interchangeable use of different PSF models through
 the interface defined in this base class.
 
@@ -13,13 +13,13 @@ Stephen Bailey, Fall 2012
 """
 
 from __future__ import absolute_import, division, print_function, unicode_literals
+
 import sys
 import numbers
 import numpy as np
 from numpy.polynomial.legendre import Legendre, legval, legfit
 import scipy.optimize
 import scipy.sparse
-import time
 
 from specter.util import gausspix, TraceSet, CacheDict
 from astropy.io import fits
@@ -227,7 +227,6 @@ class PSF(object):
         if xmin or ymin are set, the slices are relative to those
         minima (useful for simulating subimages)
         """
-        
         if xmax is None:
             xmax = self.npix_x
         if ymax is None:
@@ -236,27 +235,21 @@ class PSF(object):
         if wavelength < self.wavelength(ispec, -0.5):
             return slice(0,0), slice(0,0), np.zeros((0,0))
         elif wavelength > self.wavelength(ispec, self.npix_y-0.5):
-            return slice(0,0), slice(ymax, ymax), np.zeros((0,0))    
+            return slice(0,0), slice(ymax, ymax), np.zeros((0,0))
         
         key = (ispec, wavelength)
         try:
             if key in self._cache:
                 xx, yy, ccdpix = self._cache[key]
-
-
             else:
                 xx, yy, ccdpix = self._xypix(ispec, wavelength)
                 self._cache[key] = (xx, yy, ccdpix)
-
-        
-                
         except AttributeError:
-            self._cache = CacheDict(2500)  
+            self._cache = CacheDict(2500)
             xx, yy, ccdpix = self._xypix(ispec, wavelength)
             
         xlo, xhi = xx.start, xx.stop
         ylo, yhi = yy.start, yy.stop
-
 
         #- Check if completely off the edge in any direction
         if (ylo >= ymax):
@@ -289,7 +282,6 @@ class PSF(object):
         #- Check if we are off the edge
         if (xx.stop-xx.start == 0) or (yy.stop-yy.start == 0):
             ccdpix = np.zeros( (0,0) )
-
                              
         return xx, yy, ccdpix
 
