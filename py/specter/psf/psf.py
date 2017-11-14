@@ -241,9 +241,7 @@ class PSF(object):
         key = (ispec, wavelength)
         try:
             if key in self._cache:
-                cache_t0=time.time()
                 xx, yy, ccdpix = self._cache[key]
-                cache_t1=time.time()
 
 
             else:
