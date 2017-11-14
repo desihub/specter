@@ -90,7 +90,12 @@ class SpotGridPSF(PSF):
         nx_ccd=nx_spot//rebin+1 # add one bin because of resampling
         ny_ccd=ny_spot//rebin+1 # add one bin because of resampling
         
+        #add timer for xy----------------------------
+        xy_t0=time.time()
         xc, yc = self.xy(ispec, wavelength) # center of PSF in CCD coordinates
+        xy_t1=time.time()
+        #done timing for xy ------------------------
+        xy_elapsed_t=xy_t1-xy_t0
                 
         #timer for pixel offset --------------------
         offset_t0=time.time()
@@ -177,6 +182,7 @@ class SpotGridPSF(PSF):
         #now compute fraction of time each part of xypix_interp each time block takes
         fiberpos_frac=fiberpos_elapsed_t/xypix_interp_elapsed_t
         fspot_frac=fspot_elapsed_t/xypix_interp_elapsed_t
+        xy_frac=xy_elapsed_t/xypix_interp_elapsed_t
         offset_frac=offset_elapsed_t/xypix_interp_elapsed_t
         zeros_frac=zeros_elapsed_t/xypix_interp_elapsed_t
         resample_frac=resample_elapsed_t/xypix_interp_elapsed_t
@@ -187,6 +193,7 @@ class SpotGridPSF(PSF):
         
         print("xypix_interp fiberpos fraction used is %s" %(fiberpos_frac))
         print("xypix_interp fspot fraction used is %s" %(fspot_frac))
+        print("xypix_interp xy fraction used is %s" %(xy_frac))
         print("xypix_interp offset fraction used is %s" %(offset_frac))
         print("xypix_interp zeros fraction used is %s" %(zeros_frac))
         print("xypix_interp resample fraction used is %s" %(resample_frac))
