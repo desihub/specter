@@ -38,6 +38,8 @@ class SpotGridPSF(PSF):
         self._fiberpos = fx['FIBERPOS'].data  #- Location of fibers on slit
         self._spotpos = fx['SPOTPOS'].data    #- Slit loc of sampled spots
         self._spotwave = fx['SPOTWAVE'].data  #- Wavelengths of spots
+        #try defining an elapsed time variable #- elapsed time in function
+        xypix_interp_elapsed_t = 0             #- start by setting to zero when object is created
         
         #- 2D linerar interpolators
         pp = self._spotpos
@@ -174,7 +176,8 @@ class SpotGridPSF(PSF):
 
         #add final timer
         xypix_interp_t1=time.time()
-        xypix_interp_elapsed_t=xypix_interp_t1-xypix_interp_t0
+        #add previously stored value, initially zero
+        xypix_interp_elapsed_t=xypix_interp_elapsed_t + xypix_interp_t1-xypix_interp_t0
         
         #done timing -------------------------------------------------------
         #print("_xypix_interp elapsed time is %s s" %(xypix_elapsed_t))
@@ -191,19 +194,20 @@ class SpotGridPSF(PSF):
         #for a sanity check, check total fraction tracked
         xypix_interp_frac=fiberpos_frac + fspot_frac + xy_frac + offset_frac + zeros_frac + resample_frac + ccd_rebin_frac + ccd_slice_frac
         
-        print("xypix_interp fiberpos fraction used is %s" %(fiberpos_frac))
-        print("xypix_interp fspot fraction used is %s" %(fspot_frac))
-        print("xypix_interp xy fraction used is %s" %(xy_frac))
-        print("xypix_interp offset fraction used is %s" %(offset_frac))
-        print("xypix_interp zeros fraction used is %s" %(zeros_frac))
-        print("xypix_interp resample fraction used is %s" %(resample_frac))
-        print("xypix_interp ccd_rebin fraction used is %s" %(ccd_rebin_frac))
-        print("xypix_interp ccd_slice fraction used is %s" %(ccd_slice_frac))
-        print("total xypix_interp tracked is %s"%(xypix_interp_frac))
+        #print("xypix_interp fiberpos fraction used is %s" %(fiberpos_frac))
+        #print("xypix_interp fspot fraction used is %s" %(fspot_frac))
+        #print("xypix_interp xy fraction used is %s" %(xy_frac))
+        #print("xypix_interp offset fraction used is %s" %(offset_frac))
+        #print("xypix_interp zeros fraction used is %s" %(zeros_frac))
+        #print("xypix_interp resample fraction used is %s" %(resample_frac))
+        #print("xypix_interp ccd_rebin fraction used is %s" %(ccd_rebin_frac))
+        #print("xypix_interp ccd_slice fraction used is %s" %(ccd_slice_frac))
+        #print("total xypix_interp tracked is %s"%(xypix_interp_frac))
         
         print("runtime for xypix_interp is %s s" %(xypix_interp_elapsed_t))
         
-        return xx,yy,ccd_pix_spot_values
+        #return the elapsed time in the function so we can continue aggregating statistics
+        return xx,yy,ccd_pix_spot_values,xypix_interp_elapsed_t
 
         
         
