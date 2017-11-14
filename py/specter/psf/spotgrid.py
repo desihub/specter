@@ -21,6 +21,7 @@ class SpotGridPSF(PSF):
     """
     Model PSF with a linear interpolation of high resolution sampled spots
     """
+    
     def __init__(self, filename):
         """
         Initialize SpotGridPSF from input file
@@ -38,8 +39,6 @@ class SpotGridPSF(PSF):
         self._fiberpos = fx['FIBERPOS'].data  #- Location of fibers on slit
         self._spotpos = fx['SPOTPOS'].data    #- Slit loc of sampled spots
         self._spotwave = fx['SPOTWAVE'].data  #- Wavelengths of spots
-        #try defining an elapsed time variable #- elapsed time in function
-        self._xypix_interp_elapsed_t = 0   #- start by setting to zero
         
         #- 2D linerar interpolators
         pp = self._spotpos
@@ -176,7 +175,7 @@ class SpotGridPSF(PSF):
         #add final timer
         xypix_interp_t1=time.time()
         #add previously stored value, initially zero
-        xypix_interp_elapsed_t=xypix_interp_elapsed_t + xypix_interp_t1-xypix_interp_t0
+        xypix_interp_elapsed_t=xypix_interp_t1-xypix_interp_t0
         
         #done timing -------------------------------------------------------
         #print("_xypix_interp elapsed time is %s s" %(xypix_elapsed_t))
