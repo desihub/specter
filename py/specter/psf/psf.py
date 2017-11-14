@@ -5,7 +5,7 @@ Base class for 2D PSFs
 
 Provides PSF base class which defines the interface for other code
 using PSFs.  Subclasses implement specific models of the PSF and
-override/extend the __init__ and xypix(ispec, wavelength) methods,
+override/extend the __init__ and (ispec, wavelength) methods,
 while allowing interchangeable use of different PSF models through
 the interface defined in this base class.
 
@@ -227,11 +227,6 @@ class PSF(object):
         if xmin or ymin are set, the slices are relative to those
         minima (useful for simulating subimages)
         """
-        #add timing statements to this function ----------------------------------------------
-        xypix_t0=time.time()
-        
-        #add timing to wavelength_check
-        wavelength_t0=time.time()
         
         if xmax is None:
             xmax = self.npix_x
@@ -242,59 +237,28 @@ class PSF(object):
             return slice(0,0), slice(0,0), np.zeros((0,0))
         elif wavelength > self.wavelength(ispec, self.npix_y-0.5):
             return slice(0,0), slice(ymax, ymax), np.zeros((0,0))    
-            
-        wavelength_t1=time.time()
-        #done timing wavelength check ----------------------------
-        wavelength_elapsed_t=wavelength_t1-wavelength_t0       
-        
-        #timing for lohi check -----------------------------------
-        lohi_t0=time.time()
         
         key = (ispec, wavelength)
         try:
             if key in self._cache:
-                #timing for cache --------------------
                 cache_t0=time.time()
                 xx, yy, ccdpix = self._cache[key]
                 cache_t1=time.time()
-                #done timing cache --------------------
-                cache_elapsed_t=cache_t1-cache_t0
+
 
             else:
-                #timing for _xypix1 ---------------------------------------
-                _xypix1_t0=time.time()
                 xx, yy, ccdpix = self._xypix(ispec, wavelength)
-                _xypix1_t1=time.time() # ---------------------------------
                 self._cache[key] = (xx, yy, ccdpix)
-                #done timing for _xypix1 
-                _xypix1_elapsed_t=_xypix1_t1-_xypix1_t0   
+
         
                 
         except AttributeError:
-            self._cache = CacheDict(2500)
-            #timing for _xypix2 ---------------------------------------
-            _xypix2_t0=time.time()        
+            self._cache = CacheDict(2500)  
             xx, yy, ccdpix = self._xypix(ispec, wavelength)
-            _xypix2_t1=time.time() # -----------------------------------
-            #done timing for _xypix2 
-            _xypix2_elapsed_t=_xypix2_t1-_xypix2_t0        
-            
-        lohi_t1=time.time()
-        #done timing for lohi check ------------------------------
-        lohi_elapsed_t=lohi_t1-lohi_t0    
-        
-        #timing for lohi start -----------------------------
-        lohi_start_stop_t0=time.time()
             
         xlo, xhi = xx.start, xx.stop
         ylo, yhi = yy.start, yy.stop
-        
-        lohi_start_stop_t1=time.time()
-        #done timing lohi_start_stop --------------------------
-        lohi_start_stop_elapsed_t=lohi_start_stop_t1-lohi_start_stop_t0
-        
-        #timing for edge_check -------------------------------
-        edge_check_t0=time.time()
+
 
         #- Check if completely off the edge in any direction
         if (ylo >= ymax):
@@ -327,43 +291,7 @@ class PSF(object):
         #- Check if we are off the edge
         if (xx.stop-xx.start == 0) or (yy.stop-yy.start == 0):
             ccdpix = np.zeros( (0,0) )
-            
-        edge_check_t1=time.time()
-        #done timing edge_check --------------------------------------
-        edge_check_elapsed_t=edge_check_t1-edge_check_t0        
-            
-        #timing statement for whole function --------------------------------------------------
-        xypix_t1=time.time()
-        xypix_elapsed_t=xypix_t1-xypix_t0
-        
-        #now see what fraction of the whole function each piece takes
-        wavelength_frac=wavelength_elapsed_t/xypix_elapsed_t
-        lohi_frac=lohi_elapsed_t/xypix_elapsed_t
-        lohi_start_stop_frac=lohi_start_stop_elapsed_t/xypix_elapsed_t
-        edge_check_frac=edge_check_elapsed_t/xypix_elapsed_t
-        xypix_total=wavelength_frac + lohi_frac + edge_check_frac 
-        
-        #for the timers in loops, need to check if they exist
-        if 'cache_elapsed_t' in locals():
-            cache_frac=cache_elapsed_t/xypix_elapsed_t
-            #print("xypix cache fraction used is %s" %(cache_frac))
-            
-        if '_xypix1_elapsed_t' in locals():
-            _xypix1_frac=_xypix1_elapsed_t/xypix_elapsed_t
-            #print("xypix _xypix1 fraction used is %s" %(_xypix1_frac))
-            
-        if '_xypix2_elapsed_t' in locals():
-            _xypix2_frac=_xypix2_elapsed_t/xypix_elapsed_t
-            #print("xypix _xypix2 fraction used is %s" %(_xypix2_frac))
-                   
-        
-        #print("xypix wavelength fraction used is %s" %(wavelength_frac))
-        #print("xypix lohi fraction used is %s" %(lohi_frac))
-        #print("xypix lohi_start_stop fraction used is %s" %(lohi_start_stop_frac))
-        #print("xypix edge_check fraction used is %s" %(edge_check_frac))
-        #print("xypix total xypix tracked is %s"%(xypix_total))
-        
-        #print("runtime for xypix is %s s" %(xypix_elapsed_t))
+
                              
         return xx, yy, ccdpix
 
