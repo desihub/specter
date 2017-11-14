@@ -39,7 +39,7 @@ class SpotGridPSF(PSF):
         self._spotpos = fx['SPOTPOS'].data    #- Slit loc of sampled spots
         self._spotwave = fx['SPOTWAVE'].data  #- Wavelengths of spots
         #try defining an elapsed time variable #- elapsed time in function
-        xypix_interp_elapsed_t = 0             #- start by setting to zero when object is created
+        self._xypix_interp_elapsed_t = 0             #- start by setting to zero when object is created
         
         #- 2D linerar interpolators
         pp = self._spotpos
@@ -65,6 +65,7 @@ class SpotGridPSF(PSF):
         """
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
         """
+        xypix_interp_elapsed_time=self._xypix_interp_elapsed_t
         #add timer for whole function ---------------------------------------------
         xypix_interp_t0=time.time()
         
