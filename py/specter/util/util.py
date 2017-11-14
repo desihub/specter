@@ -42,7 +42,8 @@ class LinearInterp2D(object):
         self.x = np.array(x)
         self.y = np.array(y)
         self.data = np.array(data)
-
+        
+    @profile
     def __call__(self, x, y):
         """
         Evaluate data at (x,y)
