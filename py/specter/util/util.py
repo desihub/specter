@@ -69,10 +69,17 @@ class LinearInterp2D(object):
         # data2 = (self.data[ix-1,iy].T*(1-dx) + self.data[ix,iy].T*dx).T
         # dataxy = (data1.T*(1-dy) + data2.T*dy).T
 
-        #- Updated without transposes
-        data1 = (self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx)
-        data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx)
-        dataxy = (data1*(1-dy) + data2*dy)
+#         #- Updated without transposes (orig version, commented for testing)
+#         data1 = (self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx)
+#         data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx)
+#         dataxy = (data1*(1-dy) + data2*dy)
+        
+        #- try combining lines, we might be generating new copies of data1 and data2
+        data1 = ((self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx))*(1-dy)
+        data2 = ((self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx))*dy
+        dataxy = data1 + data2
+        
+        
 
         return dataxy
         
