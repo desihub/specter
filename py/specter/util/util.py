@@ -51,6 +51,8 @@ class LinearInterp2D(object):
         #- TODO: compare speed to solution at
         #- http://stackoverflow.com/questions/12729228/simple-efficient-bilinear-interpolation-of-images-in-numpy-and-python
         
+        print(self.data.shape)
+        
         #- Find where we are in grid
         #- clip to 1 because we will use i and i-1
         #- clip to len(x)-1 to allow extrapolation beyond grid boundary
@@ -58,10 +60,9 @@ class LinearInterp2D(object):
         iy = np.searchsorted(self.y, y).clip(1, len(self.y)-1)
         
         #- Interpolation distances from points
-        dx = (x - self.x[ix-1]) / (self.x[ix] - self.x[ix-1])
-        dy = (y - self.y[iy-1]) / (self.y[iy] - self.y[iy-1])
-        print(dx)
-        print(dy)
+        dx = (x - self.x[ix-1]) / (self.x[ix] - self.x[ix-1]) #float, single value
+        dy = (y - self.y[iy-1]) / (self.y[iy] - self.y[iy-1]) #float, single value
+
 
         #- Interpolate, allowing x and/or y to be multi-dimensional
         #- NOTE: these are the slow steps, about equal time each
