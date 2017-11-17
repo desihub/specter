@@ -69,20 +69,14 @@ class LinearInterp2D(object):
         # data2 = (self.data[ix-1,iy].T*(1-dx) + self.data[ix,iy].T*dx).T
         # dataxy = (data1.T*(1-dy) + data2.T*dy).T
 
-#         #- Updated without transposes (orig version, commented for testing)
-#         data1 = (self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx)
-#         data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx)
-#         dataxy = (data1*(1-dy) + data2*dy)
+        #- Updated without transposes (orig version, commented for testing)
+        data1 = (self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx)
+        data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx)
+        print(data1.shape)
+        print(data2.shape)
+        dataxy = (data1*(1-dy) + data2*dy)
         
-        #- try combining lines, gives us a tiny speedup
-        #try pulling out only the square we need and then indexing into the square
-        data_subset=self.data[:,:,ix-1:ix,iy-1:iy]
-        print(data_subset.shape)
-        data1 = ((data_subset[0,0]*(1-dx) + data_subset[1,0]*dx))*(1-dy)
-        data2 = ((data_subset[0,1]*(1-dx) + data_subset[1,1]*dx))*dy
-        #just add, these are already numpy arrays
-        dataxy = data1 + data2
-        
+
 
         return dataxy
         
