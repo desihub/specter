@@ -51,13 +51,15 @@ class LinearInterp2D(object):
         #- TODO: compare speed to solution at
         #- http://stackoverflow.com/questions/12729228/simple-efficient-bilinear-interpolation-of-images-in-numpy-and-python
         
-        print(self.data.shape)
+        #print(self.data.shape) size is 11, 11, 225, 225, maybe more if we are using all cameras?
         
         #- Find where we are in grid
         #- clip to 1 because we will use i and i-1
         #- clip to len(x)-1 to allow extrapolation beyond grid boundary
         ix = np.searchsorted(self.x, x).clip(1, len(self.x)-1)
         iy = np.searchsorted(self.y, y).clip(1, len(self.y)-1)
+        print(ix.shape)
+        print(ix)
         
         #- Interpolation distances from points
         dx = (x - self.x[ix-1]) / (self.x[ix] - self.x[ix-1]) #float, single value
