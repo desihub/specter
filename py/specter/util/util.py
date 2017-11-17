@@ -75,10 +75,20 @@ class LinearInterp2D(object):
         # dataxy = (data1.T*(1-dy) + data2.T*dy).T
 
         #- Updated without transposes (orig version, commented for testing)
-        data1 = (self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx) #size 225 by 225
+#         data1 = (self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx) #size 225 by 225
+#         data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx) #size 225 by 225
+#         dataxy = (data1*(1-dy) + data2*dy)
+        
+        
+        #- Updated without transposes (orig version, commented for testing)
+        #see if the extract step or the multiply step is the slow part
+        data1_0_ex = self.data[ix-1,iy-1] #size 225 by 225
+        data1_1_ex = self.data[ix,iy-1]
+        data1_0_mult = data1_0_ex*(1-dx)
+        data1_1_mult = data1_1_ex*(dx)
+        data1 = data1_0_mult + data1_1_mult
         data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx) #size 225 by 225
         dataxy = (data1*(1-dy) + data2*dy)
-        
 
 
         return dataxy
