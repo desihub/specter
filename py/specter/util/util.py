@@ -60,6 +60,8 @@ class LinearInterp2D(object):
         #- Interpolation distances from points
         dx = (x - self.x[ix-1]) / (self.x[ix] - self.x[ix-1])
         dy = (y - self.y[iy-1]) / (self.y[iy] - self.y[iy-1])
+        print(dx.shape)
+        print(dy.shape)
 
         #- Interpolate, allowing x and/or y to be multi-dimensional
         #- NOTE: these are the slow steps, about equal time each
@@ -70,8 +72,8 @@ class LinearInterp2D(object):
         # dataxy = (data1.T*(1-dy) + data2.T*dy).T
 
         #- Updated without transposes (orig version, commented for testing)
-        data1 = (self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx)
-        data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx)
+        data1 = (self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx) #size 225 by 225
+        data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx) #size 225 by 225
         print(data1.shape)
         print(data2.shape)
         dataxy = (data1*(1-dy) + data2*dy)
