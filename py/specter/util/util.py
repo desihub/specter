@@ -77,8 +77,8 @@ class LinearInterp2D(object):
         #- try combining lines, we might be generating new copies of data1 and data2
         data1 = ((self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx))*(1-dy)
         data2 = ((self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx))*dy
-        dataxy = data1 + data2
-        
+        #see if numpy sum speeds this up at all
+        dataxy = np.sum([data1, data2])
         
 
         return dataxy
