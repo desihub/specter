@@ -77,6 +77,7 @@ class LinearInterp2D(object):
         #- try combining lines, gives us a tiny speedup
         #try pulling out only the square we need and then indexing into the square
         data_subset=self.data[ix-1:ix,iy-1:iy]
+        print(data_subset.shape)
         data1 = ((data_subset[0,0]*(1-dx) + data_subset[1,0]*dx))*(1-dy)
         data2 = ((data_subset[0,1]*(1-dx) + data_subset[1,1]*dx))*dy
         #just add, these are already numpy arrays
