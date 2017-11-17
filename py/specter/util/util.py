@@ -58,8 +58,7 @@ class LinearInterp2D(object):
         #- clip to len(x)-1 to allow extrapolation beyond grid boundary
         ix = np.searchsorted(self.x, x).clip(1, len(self.x)-1)
         iy = np.searchsorted(self.y, y).clip(1, len(self.y)-1)
-        print(ix.shape)
-        print(ix)
+
         
         #- Interpolation distances from points
         dx = (x - self.x[ix-1]) / (self.x[ix] - self.x[ix-1]) #float, single value
