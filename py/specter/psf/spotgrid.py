@@ -105,7 +105,9 @@ class SpotGridPSF(PSF):
         #try removing numpy since the the overhead might be costly since the arrays are small
         #first just multiply by the weights
         #consider subbing for map function
-        #preallocate resampled_pix_spot_values 2d list of zeros
+        #initialize as 2d list instead of 2d numpy array
+        #pix spot values is also a numpy array, change back to list
+        pix_spot_values.tolist()
         resampled_pix_spot_values=[[0 for x in range (nyspot_rebin)] for y in range(nx_spot+rebin)]
         pix_prod_bl= w00*pix_spot_values #bottom left
         pix_prod_br= w10*pix_spot_values #bottom right
@@ -114,9 +116,11 @@ class SpotGridPSF(PSF):
         #consider padding these arrays with zeros so they can just be added when we are done
         #then insert these values into the right part of the resampled_pix_spot_values array
         #insert at beginning, append at end
-        resampled_pix_spot_values[0][0]=pix_prod_bl
-        #see if this insertion method even works
-        
+        #see if this list insertion thing even works
+        resampled_pix_spot_values[dy:ny_spot+dy,dx:nx_spot+dx]+=pix_prod_bl
+        resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx:nx_spot+dx]+=pix_prod_br
+        resampled_pix_spot_values[dy:ny_spot+dy,dx+1:nx_spot+dx+1]+=pix_prod_tl      
+        resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx+1:nx_spot+dx+1]+=pix_prod_tr
         
         # rebinning
         ccd_pix_spot_values=resampled_pix_spot_values.reshape(ny_spot+rebin,nx_ccd,rebin).sum(2).reshape(ny_ccd,rebin,nx_ccd).sum(1)
