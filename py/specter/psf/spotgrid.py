@@ -65,42 +65,21 @@ class SpotGridPSF(PSF):
         """
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
         """
-        #add timer for whole function ---------------------------------------------
-        xypix_interp_t0=time.time()
-        
+
         #- Ratio of CCD to Spot pixel sizes
 
         rebin = int(self.CcdPixelSize / self.SpotPixelSize)
         
-        #add timer for fiberpos ----------------------
-        fiberpos_t0=time.time()
         p, w = self._fiberpos[ispec], wavelength
-        fiberpos_t1=time.time()
-        #done timing fiberpos -----------------------
-        fiberpos_elapsed_t=fiberpos_t1-fiberpos_t0
-        
-        #add timer for fspot -------------------------
-        #this is the slower one (20 percent), fspot calls LinearInterp2D, which is probably the slow part
-        fspot_t0=time.time()
+
         pix_spot_values=self._fspot(p, w)
-        fspot_t1=time.time()
-        #done timing fspot ---------------------------
-        fspot_elapsed_t=fspot_t1-fspot_t0
-        
+ 
         nx_spot=pix_spot_values.shape[1]
         ny_spot=pix_spot_values.shape[0]
         nx_ccd=nx_spot//rebin+1 # add one bin because of resampling
         ny_ccd=ny_spot//rebin+1 # add one bin because of resampling
         
-        #add timer for xy----------------------------
-        xy_t0=time.time()
         xc, yc = self.xy(ispec, wavelength) # center of PSF in CCD coordinates
-        xy_t1=time.time()
-        #done timing for xy ------------------------
-        xy_elapsed_t=xy_t1-xy_t0
-                
-        #timer for pixel offset --------------------
-        offset_t0=time.time()
                 
         # fraction pixel offset requiring interpolation
         dx=xc*rebin-int(np.floor(xc*rebin)) # positive value between 0 and 1
@@ -114,42 +93,31 @@ class SpotGridPSF(PSF):
         # now the rest of the offset is an integer shift
         dx=int(np.floor(xc*rebin))-int(np.floor(xc))*rebin # positive integer between 0 and 14
         dy=int(np.floor(yc*rebin))-int(np.floor(yc))*rebin # positive integer between 0 and 14
-        
-        offset_t1=time.time()
-        offset_elapsed_t=offset_t1-offset_t0
-        #done timing offset -----------------------
-        #print("offset elapsed time is %s s" %(offset_elapsed_t))
-        
-        # resampled spot grid     
-        #start timer for zeros creation ------------
-        zeros_t0=time.time()        
-        resampled_pix_spot_values=np.zeros((ny_spot+rebin,nx_spot+rebin))     
-       
-        zeros_t1=time.time()
-        #done timing zeros -------------------
-        zeros_elapsed_t=zeros_t1-zeros_t0
+           
 
-        #start timer for resampling grid -----------------------
-        resample_t0=time.time()    
-        
         #orig version, commented for testing
+#          resampled_pix_spot_values=np.zeros((ny_spot+rebin,nx_spot+rebin))    
 #         resampled_pix_spot_values[dy:ny_spot+dy,dx:nx_spot+dx]         += w00*pix_spot_values
 #         resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx:nx_spot+dx]     += w10*pix_spot_values
 #         resampled_pix_spot_values[dy:ny_spot+dy,dx+1:nx_spot+dx+1]     += w01*pix_spot_values
 #         resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx+1:nx_spot+dx+1] += w11*pix_spot_values
 
-        resampled_pix_spot_values[dy:ny_spot+dy,dx:nx_spot+dx]         = w00*pix_spot_values + resampled_pix_spot_values[dy:ny_spot+dy,dx:nx_spot+dx] 
-        resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx:nx_spot+dx]     = w10*pix_spot_values + resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx:nx_spot+dx]
-        resampled_pix_spot_values[dy:ny_spot+dy,dx+1:nx_spot+dx+1]     = w01*pix_spot_values + resampled_pix_spot_values[dy:ny_spot+dy,dx+1:nx_spot+dx+1]
-        resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx+1:nx_spot+dx+1] = w11*pix_spot_values + resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx+1:nx_spot+dx+1]
+        #try removing numpy since the the overhead might be costly since the arrays are small
+        #first just multiply by the weights
+        #consider subbing for map function
+        #preallocate resampled_pix_spot_values 2d list of zeros
+        resampled_pix_spot_values=[[0 for x in range (nyspot_rebin)] for y in range(nx_spot+rebin)]
+        pix_prod_bl= w00*pix_spot_values #bottom left
+        pix_prod_br= w10*pix_spot_values #bottom right
+        pix_prod_tl= w01*pix_spot_values #top left
+        pix_prod_tr= w11*pix_spot_values #top right
+        #consider padding these arrays with zeros so they can just be added when we are done
+        #then insert these values into the right part of the resampled_pix_spot_values array
+        #insert at beginning, append at end
+        resampled_pix_spot_values[0][0]=pix_prod_bl
+        #see if this insertion method even works
         
-        resample_t1=time.time()
-        #done timing resample ------------------------------
-        resample_elapsed_t=resample_t1-resample_t0
-        #print("resample elapsed time is %s s" %(resample_elapsed_t))
-            
-        #start timing ccd_rebin -------------------------------
-        ccd_rebin_t0=time.time()
+        
         # rebinning
         ccd_pix_spot_values=resampled_pix_spot_values.reshape(ny_spot+rebin,nx_ccd,rebin).sum(2).reshape(ny_ccd,rebin,nx_ccd).sum(1)
         # make sure it's positive
@@ -158,57 +126,12 @@ class SpotGridPSF(PSF):
         norm = np.sum(ccd_pix_spot_values)
         if norm > 0 :
             ccd_pix_spot_values /= norm
-            
-        ccd_rebin_t1=time.time()
-        #done timing ccd_rebin ----------------------------------
-        ccd_rebin_elapsed_t=ccd_rebin_t1-ccd_rebin_t0
-        #print("ccd_rebin elapsed time is % s" %(ccd_rebin_elapsed_t))
-        
-        #start timing ccd_slice ------------------------------
-        ccd_slice_t0=time.time()
 
         x_ccd_begin = int(np.floor(xc))-nx_ccd//2+1  # begin of CCD coordinate stamp
         y_ccd_begin = int(np.floor(yc))-ny_ccd//2+1  # begin of CCD coordinate stamp
         xx = slice(x_ccd_begin, (x_ccd_begin+nx_ccd))
         yy = slice(y_ccd_begin, (y_ccd_begin+ny_ccd))
         
-        ccd_slice_t1=time.time()
-        #done timing ccd_slice -------------------------------
-        ccd_slice_elapsed_t=ccd_slice_t1-ccd_slice_t0
-        #print("ccd_slice elapsed time is % s" %(ccd_slice_elapsed_t))
-        
-
-        #add final timer
-        xypix_interp_t1=time.time()
-        #add previously stored value, initially zero
-        xypix_interp_elapsed_t=xypix_interp_t1-xypix_interp_t0
-        
-        #done timing -------------------------------------------------------
-        #print("_xypix_interp elapsed time is %s s" %(xypix_elapsed_t))
-        
-        #now compute fraction of time each part of xypix_interp each time block takes
-        fiberpos_frac=fiberpos_elapsed_t/xypix_interp_elapsed_t
-        fspot_frac=fspot_elapsed_t/xypix_interp_elapsed_t
-        xy_frac=xy_elapsed_t/xypix_interp_elapsed_t
-        offset_frac=offset_elapsed_t/xypix_interp_elapsed_t
-        zeros_frac=zeros_elapsed_t/xypix_interp_elapsed_t
-        resample_frac=resample_elapsed_t/xypix_interp_elapsed_t
-        ccd_rebin_frac=ccd_rebin_elapsed_t/xypix_interp_elapsed_t
-        ccd_slice_frac=ccd_slice_elapsed_t/xypix_interp_elapsed_t
-        #for a sanity check, check total fraction tracked
-        xypix_interp_frac=fiberpos_frac + fspot_frac + xy_frac + offset_frac + zeros_frac + resample_frac + ccd_rebin_frac + ccd_slice_frac
-        
-        #print("xypix_interp fiberpos fraction used is %s" %(fiberpos_frac))
-        #print("xypix_interp fspot fraction used is %s" %(fspot_frac))
-        #print("xypix_interp xy fraction used is %s" %(xy_frac))
-        #print("xypix_interp offset fraction used is %s" %(offset_frac))
-        #print("xypix_interp zeros fraction used is %s" %(zeros_frac))
-        #print("xypix_interp resample fraction used is %s" %(resample_frac))
-        #print("xypix_interp ccd_rebin fraction used is %s" %(ccd_rebin_frac))
-        #print("xypix_interp ccd_slice fraction used is %s" %(ccd_slice_frac))
-        #print("total xypix_interp tracked is %s"%(xypix_interp_frac))
-        
-        #print("runtime for xypix_interp is %s s" %(xypix_interp_elapsed_t))
         
         #return the elapsed time in the function so we can continue aggregating statistics
         return xx,yy,ccd_pix_spot_values
