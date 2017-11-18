@@ -116,7 +116,7 @@ class SpotGridPSF(PSF):
         #try loops
         for i in range (dy,ny_spot + dy):
             for j in range (dx,nx_spot + dx):
-                resampled_pix_spot_values[i][j]=pix_spot_list[i,j]
+                resampled_pix_spot_values[i][j]=10
         #this isn't the right answer, just see if it worked        
         
         # rebinning
