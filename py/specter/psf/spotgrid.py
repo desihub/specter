@@ -118,8 +118,8 @@ class SpotGridPSF(PSF):
         print(len(resampled_pix_spot_values),len(resampled_pix_spot_values[0]))
         print(len(pix_prod_bl),len(pix_prod_bl[0]))
         #try loops
-        for i in range (dy,ny_spot + dy+1): #range does not include last element
-            for j in range (dx,nx_spot + dx+1):
+        for i in range (dy,ny_spot + dy): #range does not include last element
+            for j in range (dx,nx_spot + dx):
                 resampled_pix_spot_values[i][j]=pix_prod_bl[i][j]
         #this isn't the right answer, just see if it worked 
 
