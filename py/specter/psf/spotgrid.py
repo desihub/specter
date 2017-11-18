@@ -116,9 +116,10 @@ class SpotGridPSF(PSF):
         #try loops
         for i in range (dy,ny_spot + dy):
             for j in range (dx,nx_spot + dx):
-                resampled_pix_spot_values[i][j]=10
+                resampled_pix_spot_values[i][j]=pix_spot_list[i][j]
         #this isn't the right answer, just see if it worked 
-        print(len(resampled_pix_spot_values))       
+        
+    
         
         # rebinning
         ccd_pix_spot_values=resampled_pix_spot_values.reshape(ny_spot+rebin,nx_ccd,rebin).sum(2).reshape(ny_ccd,rebin,nx_ccd).sum(1)
