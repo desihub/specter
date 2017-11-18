@@ -118,7 +118,7 @@ class SpotGridPSF(PSF):
             for j in range (dx,nx_spot + dx):
                 resampled_pix_spot_values[i][j]=10
         #this isn't the right answer, just see if it worked 
-        print(resampled_pix_spot_values)       
+        print(len(resampled_pix_spot_values))       
         
         # rebinning
         ccd_pix_spot_values=resampled_pix_spot_values.reshape(ny_spot+rebin,nx_ccd,rebin).sum(2).reshape(ny_ccd,rebin,nx_ccd).sum(1)
