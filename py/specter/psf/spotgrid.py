@@ -113,14 +113,11 @@ class SpotGridPSF(PSF):
         pix_prod_br= w10*pix_spot_values #bottom right
         pix_prod_tl= w01*pix_spot_values #top left
         pix_prod_tr= w11*pix_spot_values #top right
-        #consider padding these arrays with zeros so they can just be added when we are done
-        #then insert these values into the right part of the resampled_pix_spot_values array
-        #insert at beginning, append at end
-        #see if this list insertion thing even works
-        resampled_pix_spot_values[dy:ny_spot+dy,dx:nx_spot+dx]+=pix_prod_bl
-        resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx:nx_spot+dx]+=pix_prod_br
-        resampled_pix_spot_values[dy:ny_spot+dy,dx+1:nx_spot+dx+1]+=pix_prod_tl      
-        resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx+1:nx_spot+dx+1]+=pix_prod_tr
+        #try loops
+        for i in range (dy,ny_spot + dy):
+            for j in range (dx,nx_spot + dx):
+                resampled_pix_spot_values[i][j]=pix_spot_values(i,j)
+        #this isn't the right answer, just see if it worked        
         
         # rebinning
         ccd_pix_spot_values=resampled_pix_spot_values.reshape(ny_spot+rebin,nx_ccd,rebin).sum(2).reshape(ny_ccd,rebin,nx_ccd).sum(1)
