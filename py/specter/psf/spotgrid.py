@@ -107,7 +107,7 @@ class SpotGridPSF(PSF):
         #consider subbing for map function
         #initialize as 2d list instead of 2d numpy array
         #pix spot values is also a numpy array, change back to list
-        print(pix_spot_values.size)
+        print(pix_spot_values.shape)
         pix_spot_list=pix_spot_values.tolist()
         print(len(pix_spot_list))
         resampled_pix_spot_values=[[0 for x in range (ny_spot + rebin)] for y in range(nx_spot+rebin)]
