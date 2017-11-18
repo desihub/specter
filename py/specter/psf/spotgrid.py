@@ -104,17 +104,16 @@ class SpotGridPSF(PSF):
 
         #try removing numpy since the the overhead might be costly since the arrays are small
         #first just multiply by the weights
-        #consider subbing for map function
         #initialize as 2d list instead of 2d numpy array
         #pix spot values is also a numpy array, change back to list
         print(pix_spot_values.shape)
         pix_spot_list=pix_spot_values.tolist()
         print(len(pix_spot_list),len(pix_spot_list[0]))
         resampled_pix_spot_values=[[0 for x in range (ny_spot + rebin)] for y in range(nx_spot+rebin)]
-        pix_prod_bl = map(lambda x: x * w00,pix_spot_list) #bottom left
-        pix_prod_br = map(lambda x: x * w10,pix_spot_list) #bottom right
-        pix_prod_tl = map(lambda x: x * w01,pix_spot_list) #top left
-        pix_prod_tr = map(lambda x: x * w11,pix_spot_list) #top right
+        pix_prod_bl = [x * w00 for x in pix_spot_list] #bottom left
+        pix_prod_br = [x * w10 for x in pix_spot_list] #bottom right
+        pix_prod_tl = [x * w01 for x in pix_spot_list] #top left
+        pix_prod_tr = [x * w11 for x in pix_spot_list] #top right
         
         print(len(resampled_pix_spot_values),len(resampled_pix_spot_values[0]))
         print(len(pix_prod_bl),len(pix_prod_bl[0]))
