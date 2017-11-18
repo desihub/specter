@@ -108,7 +108,7 @@ class SpotGridPSF(PSF):
         #initialize as 2d list instead of 2d numpy array
         #pix spot values is also a numpy array, change back to list
         pix_spot_values.tolist()
-        resampled_pix_spot_values=[[0 for x in range (nyspot_rebin)] for y in range(nx_spot+rebin)]
+        resampled_pix_spot_values=[[0 for x in range (ny_spot + rebin)] for y in range(nx_spot+rebin)]
         pix_prod_bl= w00*pix_spot_values #bottom left
         pix_prod_br= w10*pix_spot_values #bottom right
         pix_prod_tl= w01*pix_spot_values #top left
