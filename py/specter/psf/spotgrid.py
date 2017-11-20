@@ -109,21 +109,25 @@ class SpotGridPSF(PSF):
         print(pix_spot_values.shape)
         pix_spot_list=pix_spot_values.tolist()
         print(len(pix_spot_list),len(pix_spot_list[0]))
-        resampled_pix_spot_values=[[0 for x in range (ny_spot + rebin)] for y in range(nx_spot+rebin)]
+        resampled_pix_spot_list=[[0 for x in range (ny_spot + rebin)] for y in range(nx_spot+rebin)]
         pix_prod_bl = [[x * w00 for x in pix_spot_list] for y in pix_spot_list[0]] #bottom left
         pix_prod_br = [[x * w10 for x in pix_spot_list] for y in pix_spot_list[0]] #bottom right
         pix_prod_tl = [[x * w01 for x in pix_spot_list] for y in pix_spot_list[0]] #top left
         pix_prod_tr = [[x * w11 for x in pix_spot_list] for y in pix_spot_list[0]] #top right
         
-        print(len(resampled_pix_spot_values),len(resampled_pix_spot_values[0]))
+        print(len(resampled_pix_spot_list),len(resampled_pix_spot_list[0]))
         print(len(pix_prod_bl),len(pix_prod_bl[0]))
         #try loops
         for i in range (dy,ny_spot + dy): #range does not include last element
             for j in range (dx,nx_spot + dx):
-                resampled_pix_spot_values[i][j]=pix_prod_bl[i][j]
+                print("i is %s" %(i))
+                print("j is %s" %(j))
+                resampled_pix_spot_list[i][j]=pix_prod_bl[i][j]
         #this isn't the right answer, just see if it worked 
 
-        
+
+        #for now change resampled_pix_spot_values back into a numpy array, consider doing more list stuff?
+        resampled_pix_spot_values = np.asarray(resampled_pix_spot_list, dtype=np.float32)
     
         
         # rebinning
