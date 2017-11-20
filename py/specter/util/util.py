@@ -43,7 +43,7 @@ class LinearInterp2D(object):
         self.x = np.array(x)
         self.y = np.array(y)
         self.data = np.array(data)
-        
+
     @jit
     def __call__(self, x, y):
         """
@@ -52,19 +52,15 @@ class LinearInterp2D(object):
         #- TODO: compare speed to solution at
         #- http://stackoverflow.com/questions/12729228/simple-efficient-bilinear-interpolation-of-images-in-numpy-and-python
         
-        #print(self.data.shape) size is 11, 11, 225, 225, maybe more if we are using all cameras?
-        
         #- Find where we are in grid
         #- clip to 1 because we will use i and i-1
         #- clip to len(x)-1 to allow extrapolation beyond grid boundary
         ix = np.searchsorted(self.x, x).clip(1, len(self.x)-1)
         iy = np.searchsorted(self.y, y).clip(1, len(self.y)-1)
-
         
         #- Interpolation distances from points
-        dx = (x - self.x[ix-1]) / (self.x[ix] - self.x[ix-1]) #float, single value
-        dy = (y - self.y[iy-1]) / (self.y[iy] - self.y[iy-1]) #float, single value
-
+        dx = (x - self.x[ix-1]) / (self.x[ix] - self.x[ix-1])
+        dy = (y - self.y[iy-1]) / (self.y[iy] - self.y[iy-1])
 
         #- Interpolate, allowing x and/or y to be multi-dimensional
         #- NOTE: these are the slow steps, about equal time each
@@ -74,23 +70,10 @@ class LinearInterp2D(object):
         # data2 = (self.data[ix-1,iy].T*(1-dx) + self.data[ix,iy].T*dx).T
         # dataxy = (data1.T*(1-dy) + data2.T*dy).T
 
-        #- Updated without transposes (orig version, commented for testing)
-#         data1 = (self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx) #size 225 by 225
-#         data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx) #size 225 by 225
-#         dataxy = (data1*(1-dy) + data2*dy)
-        
-        
-        #- Updated without transposes (orig version, commented for testing)
-        #see if the extract step or the multiply step is the slow part
-        data1_0_ex = self.data[ix-1,iy-1] #size 225 by 225
-        data1_1_ex = self.data[ix,iy-1]
-        #for fun try in place operation
-        data1_0_ex *= (1-dx)
-        data1_1_ex *= (dx)
-        data1 = data1_0_ex + data1_1_ex
-        data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx) #size 225 by 225
+        #- Updated without transposes
+        data1 = (self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx)
+        data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx)
         dataxy = (data1*(1-dy) + data2*dy)
-
 
         return dataxy
         
