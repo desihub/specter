@@ -81,7 +81,8 @@ class LinearInterp2D(object):
             dataxy = (data1*(1-dy) + data2*dy)
             
             return(dataxy)
-
+            
+        print(dataxy)
         return dataxy
         
 def psfbias(p1, p2, wave, phot, ispec=0, readnoise=3.0):
