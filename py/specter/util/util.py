@@ -80,7 +80,7 @@ class LinearInterp2D(object):
             data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx)
             dataxy = (data1*(1-dy) + data2*dy)
             
-            return dataxy
+            return(dataxy)
 
         return dataxy
         
