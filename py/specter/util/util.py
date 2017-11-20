@@ -44,6 +44,7 @@ class LinearInterp2D(object):
         self.y = np.array(y)
         self.data = np.array(data)
 
+    @profile
     @jit
     def __call__(self, x, y):
         """
