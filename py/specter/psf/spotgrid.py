@@ -59,7 +59,7 @@ class SpotGridPSF(PSF):
         """
         return self._xypix_interp(ispec, wavelength)
     
-    @jit(nopython=True)
+
     def _xypix_interp(self, ispec, wavelength):
         """
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
@@ -88,12 +88,16 @@ class SpotGridPSF(PSF):
         dx=int(np.floor(xc*rebin))-int(np.floor(xc))*rebin # positive integer between 0 and 14
         dy=int(np.floor(yc*rebin))-int(np.floor(yc))*rebin # positive integer between 0 and 14
         
-        # resampled spot grid
-        resampled_pix_spot_values=np.zeros((ny_spot+rebin,nx_spot+rebin))            
-        resampled_pix_spot_values[dy:ny_spot+dy,dx:nx_spot+dx]         += w00*pix_spot_values
-        resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx:nx_spot+dx]     += w10*pix_spot_values
-        resampled_pix_spot_values[dy:ny_spot+dy,dx+1:nx_spot+dx+1]     += w01*pix_spot_values
-        resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx+1:nx_spot+dx+1] += w11*pix_spot_values
+        @jit
+        def _resample(ny_spot,nx_spot,rebin,dy,dx,w00,w10,w01,w11,pix_spot_values)
+            # resampled spot grid
+            resampled_pix_spot_values=np.zeros((ny_spot+rebin,nx_spot+rebin))            
+            resampled_pix_spot_values[dy:ny_spot+dy,dx:nx_spot+dx]         += w00*pix_spot_values
+            resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx:nx_spot+dx]     += w10*pix_spot_values
+            resampled_pix_spot_values[dy:ny_spot+dy,dx+1:nx_spot+dx+1]     += w01*pix_spot_values
+            resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx+1:nx_spot+dx+1] += w11*pix_spot_values
+            
+            return(resampled_pix_spot_values)
             
         # rebinning
         ccd_pix_spot_values=resampled_pix_spot_values.reshape(ny_spot+rebin,nx_ccd,rebin).sum(2).reshape(ny_ccd,rebin,nx_ccd).sum(1)
