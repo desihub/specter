@@ -44,7 +44,7 @@ class LinearInterp2D(object):
         self.y = np.array(y)
         self.data = np.array(data)
 
-    @jit(nopython=True)
+
     def __call__(self, x, y):
         """
         Evaluate data at (x,y)
@@ -70,10 +70,17 @@ class LinearInterp2D(object):
         # data2 = (self.data[ix-1,iy].T*(1-dx) + self.data[ix,iy].T*dx).T
         # dataxy = (data1.T*(1-dy) + data2.T*dy).T
 
-        #- Updated without transposes
-        data1 = (self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx)
-        data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx)
-        dataxy = (data1*(1-dy) + data2*dy)
+        @jit
+        def _interp(data,dx,dy,ix,iy)
+            """
+            Interpolates data using data, dx, dy, ix, iy. Returns dataxy.
+            """
+            #- Updated without transposes
+            data1 = (self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx)
+            data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx)
+            dataxy = (data1*(1-dy) + data2*dy)
+            
+            return dataxy
 
         return dataxy
         
