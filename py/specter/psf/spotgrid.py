@@ -128,6 +128,7 @@ class SpotGridPSF(PSF):
                 resampled_pix_spot_list[k][m]=pix_prod_bl[i][j]
         #this isn't the right answer, just see if it worked 
         print(len(resampled_pix_spot_list),len(resampled_pix_spot_list[0]))
+        print(resampled_pix_spot_list)
 
 
         #for now change resampled_pix_spot_values back into a numpy array, consider doing more list stuff?
