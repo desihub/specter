@@ -120,8 +120,8 @@ class SpotGridPSF(PSF):
         #try loops
         for i in range (len(pix_spot_list)): #range does not include last element
             for j in range (len(pix_spot_list)):
-                print("i is %s" %(i))
-                print("j is %s" %(j))
+                #print("i is %s" %(i))
+                #print("j is %s" %(j))
                 #need to handle offset from dx and dy
                 k=dy + i
                 m=dx + j
@@ -130,7 +130,7 @@ class SpotGridPSF(PSF):
 
 
         #for now change resampled_pix_spot_values back into a numpy array, consider doing more list stuff?
-        resampled_pix_spot_values = np.asarray(resampled_pix_spot_list, dtype=np.float32)
+        resampled_pix_spot_values = np.array(resampled_pix_spot_list)
     
         
         # rebinning
