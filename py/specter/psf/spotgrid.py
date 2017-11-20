@@ -106,9 +106,9 @@ class SpotGridPSF(PSF):
         #first just multiply by the weights
         #initialize as 2d list instead of 2d numpy array
         #pix spot values is also a numpy array, change back to list
-        print(pix_spot_values.shape)
+        #print(pix_spot_values.shape)
         pix_spot_list=pix_spot_values.tolist()
-        print(len(pix_spot_list),len(pix_spot_list[0]))
+        #print(len(pix_spot_list),len(pix_spot_list[0]))
         resampled_pix_spot_list=[[0 for x in range (ny_spot + rebin)] for y in range(nx_spot+rebin)]
         pix_prod_bl = [[x * w00 for a in pix_spot_list] for x in pix_spot_list[0]] #bottom left
         pix_prod_br = [[x * w10 for x in pix_spot_list] for x in pix_spot_list[0]] #bottom right
@@ -117,10 +117,10 @@ class SpotGridPSF(PSF):
         
         #print(pix_spot_list), this is okay, has values
         #pix_prod_bl does not have values, is empty
-        print(pix_prod_bl)
+        #print(pix_prod_bl)
         
-        print(len(resampled_pix_spot_list),len(resampled_pix_spot_list[0]))
-        print(len(pix_prod_bl),len(pix_prod_bl[0]))
+        #print(len(resampled_pix_spot_list),len(resampled_pix_spot_list[0]))
+        #print(len(pix_prod_bl),len(pix_prod_bl[0]))
         #try loops
         for i in range (len(pix_spot_list)): #range does not include last element
             for j in range (len(pix_spot_list)):
@@ -129,11 +129,16 @@ class SpotGridPSF(PSF):
                 #need to handle offset from dx and dy
                 k=dy + i
                 m=dx + j
-                resampled_pix_spot_list[k][m]=pix_prod_bl[i][j]
-        #this isn't the right answer, just see if it worked 
-        print(len(resampled_pix_spot_list),len(resampled_pix_spot_list[0]))
-        #print(resampled_pix_spot_list)
+                n=dy + 1 + i
+                p=dx + 1 + i
+                resampled_pix_spot_list[k][m] = pix_prod_bl[i][j] + resampled_pix_spot_list #bottom left
+                resampled_pix_spot_list[n][m] = pix_prod_br[i][j] + resampled_pix_spot_list #bottom right
+                resampled_pix_spot_list[k][p] = pix_prod_tl[i][j] + resampled_pix_spot_list #top left
+                resampled_pix_spot_list[n][p] = pix_prod_tr[i][j] + resampled_pix_spot_list #top right
+                #i think this is equivalent to what was above, we'll see
+                
 
+        #print(len(resampled_pix_spot_list),len(resampled_pix_spot_list[0]))
 
         #for now change resampled_pix_spot_values back into a numpy array, consider doing more list stuff?
         resampled_pix_spot_values = np.array(resampled_pix_spot_list)
