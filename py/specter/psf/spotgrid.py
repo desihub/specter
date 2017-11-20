@@ -117,7 +117,7 @@ class SpotGridPSF(PSF):
         
         #print(pix_spot_list), this is okay, has values
         #pix_prod_bl does not have values, is empty
-        #print(pix_prod_bl)
+        print(pix_prod_bl)
         
         #print(len(resampled_pix_spot_list),len(resampled_pix_spot_list[0]))
         #print(len(pix_prod_bl),len(pix_prod_bl[0]))
