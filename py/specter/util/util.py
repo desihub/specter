@@ -71,7 +71,7 @@ class LinearInterp2D(object):
         # dataxy = (data1.T*(1-dy) + data2.T*dy).T
 
         @jit
-        def _interp(data,dx,dy,ix,iy)
+        def _interp(data,dx,dy,ix,iy):
             """
             Interpolates data using data, dx, dy, ix, iy. Returns dataxy.
             """
