@@ -15,6 +15,7 @@ from scipy.sparse import spdiags
 from scipy.signal import convolve, convolve2d
 from specter.util import pixspline
 from time import time
+from numba import jit
 
 from specter.extract.ex2d import resolution_from_icov
 
@@ -43,7 +44,7 @@ class LinearInterp2D(object):
         self.y = np.array(y)
         self.data = np.array(data)
         
-    @profile
+    @jit
     def __call__(self, x, y):
         """
         Evaluate data at (x,y)
