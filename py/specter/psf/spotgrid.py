@@ -69,6 +69,7 @@ class SpotGridPSF(PSF):
         
         p, w = self._fiberpos[ispec], wavelength
         pix_spot_values=self._fspot(p, w)
+        print(pix_spot_values)
         nx_spot=pix_spot_values.shape[1]
         ny_spot=pix_spot_values.shape[0]
         nx_ccd=nx_spot//rebin+1 # add one bin because of resampling
