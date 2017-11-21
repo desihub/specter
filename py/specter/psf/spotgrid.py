@@ -88,8 +88,11 @@ class SpotGridPSF(PSF):
         dx=int(np.floor(xc*rebin))-int(np.floor(xc))*rebin # positive integer between 0 and 14
         dy=int(np.floor(yc*rebin))-int(np.floor(yc))*rebin # positive integer between 0 and 14
         
+        #have to actually call our subfunction!
+        _resample()
+        
         #@jit
-        def _resample(self,ny_spot,nx_spot,rebin,dy,dx,w00,w10,w01,w11,pix_spot_values):
+        def _resample(ny_spot,nx_spot,rebin,dy,dx,w00,w10,w01,w11,pix_spot_values):
             """
             Return resampled_pix_spot_values for ny_spot, nx_spot, rebin, dy, dx, 
             pix spot values, and all w weights
