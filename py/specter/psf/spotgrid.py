@@ -92,7 +92,7 @@ class SpotGridPSF(PSF):
         #do this outside the numba section, doesn't like array creation
         resampled_pix_spot_values_temp=np.zeros((ny_spot+rebin,nx_spot+rebin)) 
  
-        @jit(nopython=True) 
+        #@jit(nopython=True) 
  
         def _resample(resampled_pix_values_temp,ny_spot,nx_spot,rebin,dy,dx,w00,w10,w01,w11,pix_spot_values):
             """
@@ -100,13 +100,13 @@ class SpotGridPSF(PSF):
             pix spot values, and all w weights
             """
             # resampled spot grid
-                       
-            resampled_pix_spot_values_temp[dy:ny_spot+dy,dx:nx_spot+dx]         += w00*pix_spot_values
-            resampled_pix_spot_values_temp[dy+1:ny_spot+dy+1,dx:nx_spot+dx]     += w10*pix_spot_values
-            resampled_pix_spot_values_temp[dy:ny_spot+dy,dx+1:nx_spot+dx+1]     += w01*pix_spot_values
-            resampled_pix_spot_values_temp[dy+1:ny_spot+dy+1,dx+1:nx_spot+dx+1] += w11*pix_spot_values
+            r_temp=resampled_pix_spot_values_temp           
+            r_temp[dy:ny_spot+dy,dx:nx_spot+dx]         += w00*pix_spot_values
+            r_temp[dy+1:ny_spot+dy+1,dx:nx_spot+dx]     += w10*pix_spot_values
+            r_temp[dy:ny_spot+dy,dx+1:nx_spot+dx+1]     += w01*pix_spot_values
+            r_temp[dy+1:ny_spot+dy+1,dx+1:nx_spot+dx+1] += w11*pix_spot_values
             
-            return resampled_pix_spot_values_temp
+            return r_temp
 
             
         #have to actually call our subfunction!
