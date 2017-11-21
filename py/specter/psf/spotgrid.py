@@ -96,13 +96,13 @@ class SpotGridPSF(PSF):
             pix spot values, and all w weights
             """
             # resampled spot grid
-            resampled_pix_spot_values=np.zeros((ny_spot+rebin,nx_spot+rebin))            
-            resampled_pix_spot_values[dy:ny_spot+dy,dx:nx_spot+dx]         += w00*pix_spot_values
-            resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx:nx_spot+dx]     += w10*pix_spot_values
-            resampled_pix_spot_values[dy:ny_spot+dy,dx+1:nx_spot+dx+1]     += w01*pix_spot_values
-            resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx+1:nx_spot+dx+1] += w11*pix_spot_values
+            resampled_pix_spot_values_temp=np.zeros((ny_spot+rebin,nx_spot+rebin))            
+            resampled_pix_spot_values_temp[dy:ny_spot+dy,dx:nx_spot+dx]         += w00*pix_spot_values
+            resampled_pix_spot_values_temp[dy+1:ny_spot+dy+1,dx:nx_spot+dx]     += w10*pix_spot_values
+            resampled_pix_spot_values_temp[dy:ny_spot+dy,dx+1:nx_spot+dx+1]     += w01*pix_spot_values
+            resampled_pix_spot_values_temp[dy+1:ny_spot+dy+1,dx+1:nx_spot+dx+1] += w11*pix_spot_values
 
-            return resampled_pix_spot_values
+            return resampled_pix_spot_values_temp
             
         #have to actually call our subfunction!
         resampled_pix_spot_values=_resample(ny_spot,nx_spot,rebin,dy,dx,w00,w10,w01,w11,pix_spot_values)  
