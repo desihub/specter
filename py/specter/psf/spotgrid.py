@@ -105,7 +105,8 @@ class SpotGridPSF(PSF):
             return resampled_pix_spot_values
             
         #have to actually call our subfunction!
-        resampled_pix_spot_values=_resample(ny_spot,nx_spot,rebin,dy,dx,w00,w10,w01,w11,pix_spot_values)    
+        resampled_pix_spot_values=_resample(ny_spot,nx_spot,rebin,dy,dx,w00,w10,w01,w11,pix_spot_values)  
+        print(resampled_pix_spot_values)  
             
         # rebinning
         ccd_pix_spot_values=resampled_pix_spot_values.reshape(ny_spot+rebin,nx_ccd,rebin).sum(2).reshape(ny_ccd,rebin,nx_ccd).sum(1)
