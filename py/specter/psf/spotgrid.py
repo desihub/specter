@@ -92,7 +92,7 @@ class SpotGridPSF(PSF):
         #do this outside the numba section, doesn't like array creation
         resampled_pix_spot_values_temp=np.zeros((ny_spot+rebin,nx_spot+rebin)) 
  
-        @jit(nopython=True) 
+        #@jit(nopython=True) 
  
         def _resample(resampled_pix_values_temp,ny_spot,nx_spot,rebin,dy,dx,w00,w10,w01,w11,pix_spot_values):
             """
