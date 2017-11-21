@@ -15,7 +15,7 @@ from astropy.io import fits
 from specter.psf import PSF
 from specter.util import LinearInterp2D, rebin_image, sincshift
 import scipy.interpolate
-from numba import jit
+from numba import vectorize
 
 class SpotGridPSF(PSF):
     """
@@ -87,9 +87,12 @@ class SpotGridPSF(PSF):
         # now the rest of the offset is an integer shift
         dx=int(np.floor(xc*rebin))-int(np.floor(xc))*rebin # positive integer between 0 and 14
         dy=int(np.floor(yc*rebin))-int(np.floor(yc))*rebin # positive integer between 0 and 14
-        
-        
-        @jit(nopython=True)
+ 
+        @vectorize([int32(int32, int32),
+            int64(int64, int64),
+            float32(float32, float32),
+            float64(float64, float64)])       
+ 
         def _resample(ny_spot,nx_spot,rebin,dy,dx,w00,w10,w01,w11,pix_spot_values):
             """
             Return resampled_pix_spot_values for ny_spot, nx_spot, rebin, dy, dx, 
