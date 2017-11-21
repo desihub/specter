@@ -69,21 +69,24 @@ class LinearInterp2D(object):
         # data1 = (self.data[ix-1,iy-1].T*(1-dx) + self.data[ix,iy-1].T*dx).T
         # data2 = (self.data[ix-1,iy].T*(1-dx) + self.data[ix,iy].T*dx).T
         # dataxy = (data1.T*(1-dy) + data2.T*dy).T
+        
+        #jit doesn't like passing in the self argument
+        data_temp=self.data
 
         @jit(nopython=True)
-        def _interp(self,dx,dy,ix,iy):
+        def _interp(data_temp,dx,dy,ix,iy):
             """
             Interpolates data using data, dx, dy, ix, iy. Returns dataxy.
             """
             #- Updated without transposes
-            data1 = (self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx)
-            data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx)
+            data1 = (data_temp[ix-1,iy-1]*(1-dx) + data_temp[ix,iy-1]*dx)
+            data2 = (data_temp[ix-1,iy]*(1-dx) + data_temp[ix,iy]*dx)
             dataxy = (data1*(1-dy) + data2*dy)
             
             return dataxy
         
         #now let's call our function
-        dataxy=_interp(self,dx,dy,ix,iy)
+        dataxy=_interp(data_temp,dx,dy,ix,iy)
             
         #    return(dataxy)
         return dataxy
