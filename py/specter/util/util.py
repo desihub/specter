@@ -74,7 +74,7 @@ class LinearInterp2D(object):
         #jit doesn't like passing in the self argument
         data_temp=self.data
 
-        #@jit(nopython=True)            
+        @jit(nopython=True)            
         
         def _interp(data_temp,dx,dy,ix,iy):
             """
