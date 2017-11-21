@@ -15,8 +15,8 @@ from scipy.sparse import spdiags
 from scipy.signal import convolve, convolve2d
 from specter.util import pixspline
 from time import time
-from numba import vectorize
-from numba import int32, int64, float64
+from numba import jit
+
 
 from specter.extract.ex2d import resolution_from_icov
 
@@ -74,7 +74,7 @@ class LinearInterp2D(object):
         #jit doesn't like passing in the self argument
         data_temp=self.data
 
-        @vectorize(["float64(float64)", "float64(float64)", "float64(float64)", "float64(float64)", "float64(float64)"])            
+        #@jit(nopython=True)            
         
         def _interp(data_temp,dx,dy,ix,iy):
             """
