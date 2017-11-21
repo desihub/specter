@@ -88,9 +88,7 @@ class SpotGridPSF(PSF):
         dx=int(np.floor(xc*rebin))-int(np.floor(xc))*rebin # positive integer between 0 and 14
         dy=int(np.floor(yc*rebin))-int(np.floor(yc))*rebin # positive integer between 0 and 14
  
-        @vectorize([int32(int32, int32),
-            int64(int64, int64),
-            float32(float32, float32),
+        @vectorize([int64(int64, int64),
             float64(float64, float64)])       
  
         def _resample(ny_spot,nx_spot,rebin,dy,dx,w00,w10,w01,w11,pix_spot_values):
