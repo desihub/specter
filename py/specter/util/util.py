@@ -79,6 +79,8 @@ class LinearInterp2D(object):
             data1 = (self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx)
             data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx)
             dataxy = (data1*(1-dy) + data2*dy)
+            
+            return dataxy
         
         #now let's call our function
         dataxy=_interp(self,dx,dy,ix,iy)
