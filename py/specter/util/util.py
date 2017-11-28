@@ -15,8 +15,6 @@ from scipy.sparse import spdiags
 from scipy.signal import convolve, convolve2d
 from specter.util import pixspline
 from time import time
-from numba import jit
-
 
 from specter.extract.ex2d import resolution_from_icov
 
@@ -45,7 +43,6 @@ class LinearInterp2D(object):
         self.y = np.array(y)
         self.data = np.array(data)
 
-
     def __call__(self, x, y):
         """
         Evaluate data at (x,y)
@@ -70,27 +67,12 @@ class LinearInterp2D(object):
         # data1 = (self.data[ix-1,iy-1].T*(1-dx) + self.data[ix,iy-1].T*dx).T
         # data2 = (self.data[ix-1,iy].T*(1-dx) + self.data[ix,iy].T*dx).T
         # dataxy = (data1.T*(1-dy) + data2.T*dy).T
-        
-        #jit doesn't like passing in the self argument
-        data_temp=self.data
 
-        @jit(nopython=True)            
-        
-        def _interp(data_temp,dx,dy,ix,iy):
-            """
-            Interpolates data using data, dx, dy, ix, iy. Returns dataxy.
-            """
-            #- Updated without transposes
-            data1 = (data_temp[ix-1,iy-1]*(1-dx) + data_temp[ix,iy-1]*dx)
-            data2 = (data_temp[ix-1,iy]*(1-dx) + data_temp[ix,iy]*dx)
-            dataxy = (data1*(1-dy) + data2*dy)
-            
-            return dataxy
-        
-        #now let's call our function
-        dataxy=_interp(data_temp,dx,dy,ix,iy)
-            
-        #    return(dataxy)
+        #- Updated without transposes
+        data1 = (self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx)
+        data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx)
+        dataxy = (data1*(1-dy) + data2*dy)
+
         return dataxy
         
 def psfbias(p1, p2, wave, phot, ispec=0, readnoise=3.0):
