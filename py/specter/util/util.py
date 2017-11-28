@@ -15,6 +15,7 @@ from scipy.sparse import spdiags
 from scipy.signal import convolve, convolve2d
 from specter.util import pixspline
 from time import time
+import itt
 
 from specter.extract.ex2d import resolution_from_icov
 
@@ -69,9 +70,11 @@ class LinearInterp2D(object):
         # dataxy = (data1.T*(1-dy) + data2.T*dy).T
 
         #- Updated without transposes
+        #itt.resume()
         data1 = (self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx)
         data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx)
         dataxy = (data1*(1-dy) + data2*dy)
+        #itt.detach()
 
         return dataxy
         
