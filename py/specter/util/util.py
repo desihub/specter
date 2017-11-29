@@ -15,7 +15,7 @@ from scipy.sparse import spdiags
 from scipy.signal import convolve, convolve2d
 from specter.util import pixspline
 from time import time
-import itt
+#import itt
 
 from specter.extract.ex2d import resolution_from_icov
 

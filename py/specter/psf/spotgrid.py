@@ -63,6 +63,10 @@ class SpotGridPSF(PSF):
         """
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
         """
+        
+        # add itt tag
+        itt.resume()
+        
         #- Ratio of CCD to Spot pixel sizes
         rebin = int(self.CcdPixelSize / self.SpotPixelSize)
         
@@ -89,13 +93,12 @@ class SpotGridPSF(PSF):
         
         # resampled spot grid
         resampled_pix_spot_values=np.zeros((ny_spot+rebin,nx_spot+rebin))            
-        # add itt tag
-        itt.resume()
+
         resampled_pix_spot_values[dy:ny_spot+dy,dx:nx_spot+dx]         += w00*pix_spot_values
         resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx:nx_spot+dx]     += w10*pix_spot_values
         resampled_pix_spot_values[dy:ny_spot+dy,dx+1:nx_spot+dx+1]     += w01*pix_spot_values
         resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx+1:nx_spot+dx+1] += w11*pix_spot_values
-        itt.detach()
+        
             
         # rebinning
         ccd_pix_spot_values=resampled_pix_spot_values.reshape(ny_spot+rebin,nx_ccd,rebin).sum(2).reshape(ny_ccd,rebin,nx_ccd).sum(1)
@@ -110,6 +113,9 @@ class SpotGridPSF(PSF):
         y_ccd_begin = int(np.floor(yc))-ny_ccd//2+1  # begin of CCD coordinate stamp
         xx = slice(x_ccd_begin, (x_ccd_begin+nx_ccd))
         yy = slice(y_ccd_begin, (y_ccd_begin+ny_ccd))
+        
+        itt.detach()
+        
         return xx,yy,ccd_pix_spot_values
 
         
