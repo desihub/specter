@@ -71,7 +71,7 @@ class SpotGridPSF(PSF):
         rebin = int(self.CcdPixelSize / self.SpotPixelSize)
         
         p, w = self._fiberpos[ispec], wavelength
-        pix_spot_values=self._fspot(p, w)
+        pix_spot_values=self._fspot(p, w).astype(np.float64)
         nx_spot=pix_spot_values.shape[1]
         ny_spot=pix_spot_values.shape[0]
         nx_ccd=nx_spot//rebin+1 # add one bin because of resampling
@@ -97,8 +97,6 @@ class SpotGridPSF(PSF):
        
 
         resampled_pix_spot_values[dy:ny_spot+dy,dx:nx_spot+dx]         += w00*pix_spot_values
-        
-        
         resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx:nx_spot+dx]     += w10*pix_spot_values
         resampled_pix_spot_values[dy:ny_spot+dy,dx+1:nx_spot+dx+1]     += w01*pix_spot_values
         resampled_pix_spot_values[dy+1:ny_spot+dy+1,dx+1:nx_spot+dx+1] += w11*pix_spot_values
