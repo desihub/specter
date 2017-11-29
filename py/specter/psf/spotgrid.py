@@ -59,13 +59,14 @@ class SpotGridPSF(PSF):
         """
         return self._xypix_interp(ispec, wavelength)
     
+    @profile
     def _xypix_interp(self, ispec, wavelength):
         """
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
         """
         
-        # add itt tag
-        itt.resume()  
+       # # add itt tag
+       # itt.resume()  
         
         #- Ratio of CCD to Spot pixel sizes
         rebin = int(self.CcdPixelSize / self.SpotPixelSize)
@@ -117,7 +118,7 @@ class SpotGridPSF(PSF):
         yy = slice(y_ccd_begin, (y_ccd_begin+ny_ccd))
         
 
-        itt.detach()
+       # itt.detach()
         
         return xx,yy,ccd_pix_spot_values
 
