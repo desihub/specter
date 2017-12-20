@@ -28,6 +28,7 @@ setup_keywords['license'] = 'BSD'
 setup_keywords['url'] = 'https://github.com/desihub/specter'
 #
 # END OF SETTINGS THAT NEED TO BE CHANGED.
+
 #
 # setup_keywords['version'] = get_version(setup_keywords['name'])
 with open(os.path.join('py', setup_keywords['name'], '_version.py')) as v:
@@ -62,6 +63,14 @@ setup_keywords['packages'] = find_packages('py')
 setup_keywords['package_dir'] = {'':'py'}
 setup_keywords['cmdclass'] = {'sdist': DistutilsSdist}
 setup_keywords['test_suite'] = '{name}.test.{name}_test_suite.{name}_test_suite'.format(**setup_keywords)
+
+# Use desiutil if available to enable "python setup.py version"
+try:
+    from desiutil.setup import DesiVersion
+    setup_keywords['cmdclass'].update({'version': DesiVersion})
+except ImportError:
+    pass
+
 #
 # Autogenerate command-line scripts.
 #

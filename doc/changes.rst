@@ -1,11 +1,16 @@
-=====================
-specter Release Notes
-=====================
+==================
+specter change log
+==================
 
-0.8.2 (unreleased)
+0.8.3 (unreleased)
 ------------------
 
 * No changes yet.
+
+0.8.2 (2017-12-20)
+------------------
+
+* Don't require 2to3 during installations; fix license (PR #55)
 
 0.8.1 (2017-10-25)
 ------------------
