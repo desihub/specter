@@ -109,7 +109,7 @@ class SpotGridPSF(PSF):
         dy=int(np.floor(yc*rebin))-int(np.floor(yc))*rebin # positive integer between 0 and 14
         
         # resampled spot grid
-        resampled_pix_spot_values=new_pixshift(dx,dy,w00,w10,w01,w11,pix_spot_values,rebin)       
+        resampled_pix_spot_values=SpotGridPSF.new_pixshift(dx,dy,w00,w10,w01,w11,pix_spot_values,rebin)       
             
         # rebinning
         ccd_pix_spot_values=resampled_pix_spot_values.reshape(ny_spot+rebin,nx_ccd,rebin).sum(2).reshape(ny_ccd,rebin,nx_ccd).sum(1)
