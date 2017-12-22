@@ -42,7 +42,6 @@ class LinearInterp2D(object):
 
         return dataxy
 
-    @profile
     def __call__(self, x, y):
         """
         Evaluate data at (x,y)
