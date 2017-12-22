@@ -38,6 +38,9 @@ class LinearInterp2D(object):
     #new method
     @jit(nopython=True)
     def new_interp(dx,dy,ix,iy,datacopy):
+        """
+        returns dataxy from bilinear interpolation
+        """
         dataxy = (datacopy[ix-1,iy-1]*(1-dx) + (datacopy[ix,iy-1]*dx))*(1-dy) + ((datacopy[ix-1,iy]*(1-dx) + datacopy[ix,iy]*dx))*dy
 
         return dataxy
