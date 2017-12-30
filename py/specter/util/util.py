@@ -70,14 +70,8 @@ class LinearInterp2D(object):
         # data2 = (self.data[ix-1,iy].T*(1-dx) + self.data[ix,iy].T*dx).T
         # dataxy = (data1.T*(1-dy) + data2.T*dy).T
 
-        #old version
-        #- Updated without transposes
-        data1 = (self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx)
-        data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx)
-        dataxy_old = (data1*(1-dy) + data2*dy)
-
+        #new version
         datacopy=self.data        
-
         dataxy=LinearInterp2D.new_interp(dx,dy,ix,iy,datacopy)
 
         return dataxy
