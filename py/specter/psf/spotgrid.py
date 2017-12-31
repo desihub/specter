@@ -15,7 +15,7 @@ from astropy.io import fits
 from specter.psf import PSF
 from specter.util import LinearInterp2D, rebin_image, sincshift
 import scipy.interpolate
-from numba import jit
+import numba
 
 class SpotGridPSF(PSF):
     """
@@ -59,7 +59,7 @@ class SpotGridPSF(PSF):
         """
         return self._xypix_interp(ispec, wavelength)
         
-    @jit(nopython=True,cache=True)
+    @numba.jit(nopython=True,cache=True)
     def new_pixshift(dx,dy,w00,w10,w01,w11,pix_spot_values,rebin):
         """
         Return resampled_pix_spot_values 
