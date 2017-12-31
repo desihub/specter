@@ -58,23 +58,6 @@ class SpotGridPSF(PSF):
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
         """
         return self._xypix_interp(ispec, wavelength)
-        
-    @numba.jit(nopython=True,cache=True)
-    def new_pixshift(dx,dy,w00,w10,w01,w11,pix_spot_values,rebin):
-        """
-        Return resampled_pix_spot_values 
-        """
-        ny_spot, nx_spot = pix_spot_values.shape
-        #preallocate 
-        resampled_pix_spot_values=np.zeros((ny_spot+rebin,nx_spot+rebin))
-        for i in range(0,ny_spot):
-            for j in range(0,nx_spot):  
-                resampled_pix_spot_values[dy+i,dx+j]       += w00*pix_spot_values[i,j] 
-                resampled_pix_spot_values[dy+1+i,dx+j]     += w10*pix_spot_values[i,j]
-                resampled_pix_spot_values[dy+i,dx+1+j]     += w01*pix_spot_values[i,j]
-                resampled_pix_spot_values[dy+1+i,dx+1+j]   += w11*pix_spot_values[i,j] 
-                    
-        return resampled_pix_spot_values
     
     def _xypix_interp(self, ispec, wavelength):
         """
@@ -109,7 +92,7 @@ class SpotGridPSF(PSF):
         dy=int(np.floor(yc*rebin))-int(np.floor(yc))*rebin # positive integer between 0 and 14
         
         # resampled spot grid
-        resampled_pix_spot_values=SpotGridPSF.new_pixshift(dx,dy,w00,w10,w01,w11,pix_spot_values,rebin)       
+        resampled_pix_spot_values=new_pixshift(dx,dy,w00,w10,w01,w11,pix_spot_values,rebin)       
             
         # rebinning
         ccd_pix_spot_values=resampled_pix_spot_values.reshape(ny_spot+rebin,nx_ccd,rebin).sum(2).reshape(ny_ccd,rebin,nx_ccd).sum(1)
@@ -168,6 +151,20 @@ class SpotGridPSF(PSF):
         return img.reshape(x.shape)
 
 
-        
-        
+@numba.jit(nopython=True,cache=True)
+def new_pixshift(dx,dy,w00,w10,w01,w11,pix_spot_values,rebin):
+    """
+    Return resampled_pix_spot_values 
+    """
+    ny_spot, nx_spot = pix_spot_values.shape
+    #preallocate 
+    resampled_pix_spot_values=np.zeros((ny_spot+rebin,nx_spot+rebin))
+    for i in range(0,ny_spot):
+        for j in range(0,nx_spot):  
+            resampled_pix_spot_values[dy+i,dx+j]       += w00*pix_spot_values[i,j] 
+            resampled_pix_spot_values[dy+1+i,dx+j]     += w10*pix_spot_values[i,j]
+            resampled_pix_spot_values[dy+i,dx+1+j]     += w01*pix_spot_values[i,j]
+            resampled_pix_spot_values[dy+1+i,dx+1+j]   += w11*pix_spot_values[i,j] 
+
+    return resampled_pix_spot_values        
         
