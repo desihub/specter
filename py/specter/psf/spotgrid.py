@@ -64,9 +64,6 @@ class SpotGridPSF(PSF):
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
         """
         
-       # # add itt tag
-       # itt.resume()  
-        
         #- Ratio of CCD to Spot pixel sizes
         rebin = int(self.CcdPixelSize / self.SpotPixelSize)
         
@@ -78,21 +75,9 @@ class SpotGridPSF(PSF):
         ny_ccd=ny_spot//rebin+1 # add one bin because of resampling
         
         xc, yc = self.xy(ispec, wavelength) # center of PSF in CCD coordinates
-                
-        # fraction pixel offset requiring interpolation
-        dx=xc*rebin-int(np.floor(xc*rebin)) # positive value between 0 and 1
-        dy=yc*rebin-int(np.floor(yc*rebin)) # positive value between 0 and 1
-        # weights for interpolation
-        w00=(1-dy)*(1-dx)
-        w10=dy*(1-dx)
-        w01=(1-dy)*dx
-        w11=dy*dx        
-        # now the rest of the offset is an integer shift
-        dx=int(np.floor(xc*rebin))-int(np.floor(xc))*rebin # positive integer between 0 and 14
-        dy=int(np.floor(yc*rebin))-int(np.floor(yc))*rebin # positive integer between 0 and 14
         
         # resampled spot grid
-        resampled_pix_spot_values=new_pixshift(dx,dy,w00,w10,w01,w11,pix_spot_values,rebin)       
+        resampled_pix_spot_values=new_pixshift(xc,yc,pix_spot_values,rebin)       
             
         # rebinning
         ccd_pix_spot_values=resampled_pix_spot_values.reshape(ny_spot+rebin,nx_ccd,rebin).sum(2).reshape(ny_ccd,rebin,nx_ccd).sum(1)
@@ -107,9 +92,6 @@ class SpotGridPSF(PSF):
         y_ccd_begin = int(np.floor(yc))-ny_ccd//2+1  # begin of CCD coordinate stamp
         xx = slice(x_ccd_begin, (x_ccd_begin+nx_ccd))
         yy = slice(y_ccd_begin, (y_ccd_begin+ny_ccd))
-        
-
-       # itt.detach()
         
         return xx,yy,ccd_pix_spot_values
 
@@ -152,10 +134,24 @@ class SpotGridPSF(PSF):
 
 
 @numba.jit(nopython=True,cache=True)
-def new_pixshift(dx,dy,w00,w10,w01,w11,pix_spot_values,rebin):
+def new_pixshift(xc,yc,pix_spot_values,rebin):
     """
-    Return resampled_pix_spot_values 
+    Inputs: xc, yc are center of the PSF in ccd coordinates
+            pix_spot_values is a 2D array of interpolated values
+            rebin is the ratio of spot to ccd pixel size
+    Outputs: resampled_pix_spot_values, the resampled and scaled 2D array of pix_spot_values
     """
+    # fraction pixel offset requiring interpolation
+    shiftx=xc*rebin-int(np.floor(xc*rebin)) # positive value between 0 and 1
+    shifty=yc*rebin-int(np.floor(yc*rebin)) # positive value between 0 and 1
+    # weights for interpolation
+    w00=(1-shifty)*(1-shiftx)
+    w10=shifty*(1-shiftx)
+    w01=(1-shifty)*shiftx
+    w11=shifty*shiftx        
+    # now the rest of the offset is an integer shift
+    dx=int(np.floor(xc*rebin))-int(np.floor(xc))*rebin # positive integer between 0 and 14
+    dy=int(np.floor(yc*rebin))-int(np.floor(yc))*rebin # positive integer between 0 and 14
     ny_spot, nx_spot = pix_spot_values.shape
     #preallocate 
     resampled_pix_spot_values=np.zeros((ny_spot+rebin,nx_spot+rebin))
