@@ -14,9 +14,17 @@ from scipy.special import legendre
 from scipy.sparse import spdiags
 from scipy.signal import convolve, convolve2d
 from specter.util import pixspline
-from numba import jit
+from time import time
 
 from specter.extract.ex2d import resolution_from_icov
+
+_t0 = 0.0
+def _timeit():
+    global _t0
+    tx = time()
+    dt = tx - _t0
+    _t0 = tx
+    return dt
     
 #- 2D Linear interpolator
 class LinearInterp2D(object):
@@ -31,19 +39,9 @@ class LinearInterp2D(object):
         data[ix, iy, ...] : 3 or more dimensional array of data to interpolate
             first two coordinates are x and y
         """
-        self.x = np.array(x).astype(np.float64)
-        self.y = np.array(y).astype(np.float64)
-        self.data = np.array(data).astype(np.float64)
-
-    #new method
-    @jit(nopython=True)
-    def new_interp(dx,dy,ix,iy,datacopy):
-        """
-        returns dataxy from bilinear interpolation
-        """
-        dataxy = (datacopy[ix-1,iy-1]*(1-dx) + (datacopy[ix,iy-1]*dx))*(1-dy) + ((datacopy[ix-1,iy]*(1-dx) + datacopy[ix,iy]*dx))*dy
-
-        return dataxy
+        self.x = np.array(x)
+        self.y = np.array(y)
+        self.data = np.array(data)
 
     def __call__(self, x, y):
         """
@@ -70,12 +68,12 @@ class LinearInterp2D(object):
         # data2 = (self.data[ix-1,iy].T*(1-dx) + self.data[ix,iy].T*dx).T
         # dataxy = (data1.T*(1-dy) + data2.T*dy).T
 
-        #new version
-        datacopy=self.data        
-        dataxy=LinearInterp2D.new_interp(dx,dy,ix,iy,datacopy)
+        #- Updated without transposes
+        data1 = (self.data[ix-1,iy-1]*(1-dx) + self.data[ix,iy-1]*dx)
+        data2 = (self.data[ix-1,iy]*(1-dx) + self.data[ix,iy]*dx)
+        dataxy = (data1*(1-dy) + data2*dy)
 
         return dataxy
-
         
 def psfbias(p1, p2, wave, phot, ispec=0, readnoise=3.0):
     """
