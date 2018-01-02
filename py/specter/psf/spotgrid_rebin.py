@@ -1,4 +1,7 @@
-potGridPSF - Linear interpolate hi-res sampled spots to model PSF
+#!/usr/bin/env python
+"""
+SpotGridPSF - Linear interpolate hi-res sampled spots to model PSF
+
 Stephen Bailey
 Fall 2012
 """
@@ -12,7 +15,7 @@ from astropy.io import fits
 from specter.psf import PSF
 from specter.util import LinearInterp2D, rebin_image, sincshift
 import scipy.interpolate
-from numba import jit
+import numba
 
 class SpotGridPSF(PSF):
     """
@@ -55,31 +58,12 @@ class SpotGridPSF(PSF):
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
         """
         return self._xypix_interp(ispec, wavelength)
-        
-    @jit(nopython=True,cache=True)
-    def new_pixshift(dx,dy,w00,w10,w01,w11,pix_spot_values,rebin):
-        """
-        Return resampled_pix_spot_values 
-        """
-        ny_spot, nx_spot = pix_spot_values.shape
-        #preallocate 
-        resampled_pix_spot_values=np.zeros((ny_spot+rebin,nx_spot+rebin))
-        for i in range(0,ny_spot):
-            for j in range(0,nx_spot):  
-                resampled_pix_spot_values[dy+i,dx+j]       += w00*pix_spot_values[i,j] 
-                resampled_pix_spot_values[dy+1+i,dx+j]     += w10*pix_spot_values[i,j]
-                resampled_pix_spot_values[dy+i,dx+1+j]     += w01*pix_spot_values[i,j]
-                resampled_pix_spot_values[dy+1+i,dx+1+j]   += w11*pix_spot_values[i,j] 
-                    
-        return resampled_pix_spot_values
-    
+
+    @profile    
     def _xypix_interp(self, ispec, wavelength):
         """
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
         """
-        
-       # # add itt tag
-       # itt.resume()  
         
         #- Ratio of CCD to Spot pixel sizes
         rebin = int(self.CcdPixelSize / self.SpotPixelSize)
@@ -92,25 +76,8 @@ class SpotGridPSF(PSF):
         ny_ccd=ny_spot//rebin+1 # add one bin because of resampling
         
         xc, yc = self.xy(ispec, wavelength) # center of PSF in CCD coordinates
-                
-        # fraction pixel offset requiring interpolation
-        dx=xc*rebin-int(np.floor(xc*rebin)) # positive value between 0 and 1
-        dy=yc*rebin-int(np.floor(yc*rebin)) # positive value between 0 and 1
-        # weights for interpolation
-        w00=(1-dy)*(1-dx)
-        w10=dy*(1-dx)
-        w01=(1-dy)*dx
-        w11=dy*dx        
-        # now the rest of the offset is an integer shift
-        dx=int(np.floor(xc*rebin))-int(np.floor(xc))*rebin # positive integer between 0 and 14
-        dy=int(np.floor(yc*rebin))-int(np.floor(yc))*rebin # positive integer between 0 and 14
-        
-        # resampled spot grid
-        resampled_pix_spot_values=SpotGridPSF.new_pixshift(dx,dy,w00,w10,w01,w11,pix_spot_values,rebin)       
-            
-        # rebinning
-        ccd_pix_spot_values=resampled_pix_spot_values.reshape(ny_spot+rebin,nx_ccd,rebin).sum(2).reshape(ny_ccd,rebin,nx_ccd).sum(1)
-        # make sure it's positive
+        ccd_pix_spot_values=new_pixshift(xc,yc,pix_spot_values,rebin)       
+             
         ccd_pix_spot_values[ccd_pix_spot_values<0]=0.
         # normalize
         norm = np.sum(ccd_pix_spot_values)
@@ -122,9 +89,6 @@ class SpotGridPSF(PSF):
         xx = slice(x_ccd_begin, (x_ccd_begin+nx_ccd))
         yy = slice(y_ccd_begin, (y_ccd_begin+ny_ccd))
         
-
-       # itt.detach()
-        
         return xx,yy,ccd_pix_spot_values
 
         
@@ -134,6 +98,7 @@ class SpotGridPSF(PSF):
 
         """
         return PSF value (same shape as x and y), NOT integrated, for display of PSF.
+
         Arguments:
           x: x-coordinates baseline array
           y: y-coordinates baseline array (same shape as x)
@@ -163,7 +128,36 @@ class SpotGridPSF(PSF):
             img[i]=spline((xr[i]-xc)*ratio,(yr[i]-yc)*ratio)
         return img.reshape(x.shape)
 
+@numba.jit(nopython=True,cache=True)
+def new_pixshift_rebin(xc,yc,pix_spot_values,rebin):
+    """
+    Inputs: xc, yc are center of the PSF in ccd coordinates
+            pix_spot_values is a 2D array of interpolated values
+            rebin is the ratio of spot to ccd pixel size
+    Outputs: resampled_pix_spot_values, the resampled and scaled 2D array of pix_spot_values
+    """
+    # fraction pixel offset requiring interpolation
+    shiftx=xc*rebin-int(np.floor(xc*rebin)) # positive value between 0 and 1
+    shifty=yc*rebin-int(np.floor(yc*rebin)) # positive value between 0 and 1
+    # weights for interpolation
+    w00=(1-shifty)*(1-shiftx)
+    w10=shifty*(1-shiftx)
+    w01=(1-shifty)*shiftx
+    w11=shifty*shiftx        
+    # now the rest of the offset is an integer shift
+    dx=int(np.floor(xc*rebin))-int(np.floor(xc))*rebin # positive integer between 0 and 14
+    dy=int(np.floor(yc*rebin))-int(np.floor(yc))*rebin # positive integer between 0 and 14
+    ny_spot, nx_spot = pix_spot_values.shape
+    #preallocate 
+    nx_binned = (nx_spot+rebin) // rebin
+    ny_binned = (ny_spot+rebin) // rebin
+    rebinned_pix_spot_values=np.zeros((ny_binned, nx_binned))
+    for i in range(ny_spot):
+        for j in range(nx_spot):  
+            rebinned_pix_spot_values[(dy+i)//rebin,  (dx+j)//rebin]   += w00*pix_spot_values[i,j] 
+            rebinned_pix_spot_values[(dy+1+i)//rebin,(dx+j)//rebin]   += w10*pix_spot_values[i,j]
+            rebinned_pix_spot_values[(dy+i)//rebin,  (dx+1+j)//rebin] += w01*pix_spot_values[i,j]
+            rebinned_pix_spot_values[(dy+1+i)//rebin,(dx+1+j)//rebin] += w11*pix_spot_values[i,j] 
 
-        
-        
+    return rebinned_pix_spot_values        
         

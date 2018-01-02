@@ -12,7 +12,7 @@ from astropy.io import fits
 from specter.psf import PSF
 from specter.util import LinearInterp2D, rebin_image, sincshift
 import scipy.interpolate
-from numba import jit
+import numba
 
 class SpotGridPSF(PSF):
     """
@@ -55,31 +55,11 @@ class SpotGridPSF(PSF):
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
         """
         return self._xypix_interp(ispec, wavelength)
-        
-    @jit(nopython=True,cache=True)
-    def new_pixshift(dx,dy,w00,w10,w01,w11,pix_spot_values,rebin):
-        """
-        Return resampled_pix_spot_values 
-        """
-        ny_spot, nx_spot = pix_spot_values.shape
-        #preallocate 
-        resampled_pix_spot_values=np.zeros((ny_spot+rebin,nx_spot+rebin))
-        for i in range(0,ny_spot):
-            for j in range(0,nx_spot):  
-                resampled_pix_spot_values[dy+i,dx+j]       += w00*pix_spot_values[i,j] 
-                resampled_pix_spot_values[dy+1+i,dx+j]     += w10*pix_spot_values[i,j]
-                resampled_pix_spot_values[dy+i,dx+1+j]     += w01*pix_spot_values[i,j]
-                resampled_pix_spot_values[dy+1+i,dx+1+j]   += w11*pix_spot_values[i,j] 
-                    
-        return resampled_pix_spot_values
     
     def _xypix_interp(self, ispec, wavelength):
         """
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
-        """
-        
-       # # add itt tag
-       # itt.resume()  
+        """  
         
         #- Ratio of CCD to Spot pixel sizes
         rebin = int(self.CcdPixelSize / self.SpotPixelSize)
@@ -106,7 +86,7 @@ class SpotGridPSF(PSF):
         dy=int(np.floor(yc*rebin))-int(np.floor(yc))*rebin # positive integer between 0 and 14
         
         # resampled spot grid
-        resampled_pix_spot_values=SpotGridPSF.new_pixshift(dx,dy,w00,w10,w01,w11,pix_spot_values,rebin)       
+        resampled_pix_spot_values=new_pixshift(dx,dy,w00,w10,w01,w11,pix_spot_values,rebin)       
             
         # rebinning
         ccd_pix_spot_values=resampled_pix_spot_values.reshape(ny_spot+rebin,nx_ccd,rebin).sum(2).reshape(ny_ccd,rebin,nx_ccd).sum(1)
@@ -121,9 +101,7 @@ class SpotGridPSF(PSF):
         y_ccd_begin = int(np.floor(yc))-ny_ccd//2+1  # begin of CCD coordinate stamp
         xx = slice(x_ccd_begin, (x_ccd_begin+nx_ccd))
         yy = slice(y_ccd_begin, (y_ccd_begin+ny_ccd))
-        
-
-       # itt.detach()
+       
         
         return xx,yy,ccd_pix_spot_values
 
@@ -164,6 +142,20 @@ class SpotGridPSF(PSF):
         return img.reshape(x.shape)
 
 
-        
-        
+@numba.jit(nopython=True,cache=True)
+def new_pixshift(dx,dy,w00,w10,w01,w11,pix_spot_values,rebin):
+    """
+    Return resampled_pix_spot_values 
+    """
+    ny_spot, nx_spot = pix_spot_values.shape
+    #preallocate 
+    resampled_pix_spot_values=np.zeros((ny_spot+rebin,nx_spot+rebin))
+    for i in range(0,ny_spot):
+        for j in range(0,nx_spot):  
+            resampled_pix_spot_values[dy+i,dx+j]       += w00*pix_spot_values[i,j] 
+            resampled_pix_spot_values[dy+1+i,dx+j]     += w10*pix_spot_values[i,j]
+            resampled_pix_spot_values[dy+i,dx+1+j]     += w01*pix_spot_values[i,j]
+            resampled_pix_spot_values[dy+1+i,dx+1+j]   += w11*pix_spot_values[i,j] 
+
+    return resampled_pix_spot_values        
         
