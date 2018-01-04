@@ -2,10 +2,10 @@
 specter change log
 ==================
 
-0.8.3 (unreleased)
+0.9.0 (unreleased)
 ------------------
 
-* No changes yet.
+* SpotGrid speedup (used by DESI pixsim); adds numba dependency (PR #56)
 
 0.8.2 (2017-12-20)
 ------------------
