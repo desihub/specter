@@ -1,5 +1,8 @@
 # Compiled files
 *.py[co]
+__pycache__/
+*.nbi
+*.nbo
 
 # Other generated files
 htmlcov
