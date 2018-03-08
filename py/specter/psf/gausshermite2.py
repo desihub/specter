@@ -19,7 +19,7 @@ from scipy import special as sp
 
 from astropy.io import fits
 from specter.psf import PSF
-from specter.util import TraceSet
+from specter.util import TraceSet, outer
 
 class GaussHermite2PSF(PSF):
     """
@@ -173,10 +173,11 @@ class GaussHermite2PSF(PSF):
         
         #- Create core PSF image
         core1 = np.zeros((ny, nx))
+        spot1 = np.empty_like(core1)
         for i in range(degx1+1):
             for j in range(degy1+1):
                 c1 = self.coeff['GH-{}-{}'.format(i,j)].eval(ispec, wavelength)
-                spot1 = np.outer(yfunc1[j], xfunc1[i])
+                outer(yfunc1[j], xfunc1[i], out=spot1)
                 core1 += c1 * spot1
         
         #- Zero out elements in the core beyond 3 sigma
@@ -190,9 +191,10 @@ class GaussHermite2PSF(PSF):
         xfunc2 = [self._pgh(xccd, i, x, sigma=sigx2) for i in range(degx2+1)]
         yfunc2 = [self._pgh(yccd, i, y, sigma=sigy2) for i in range(degy2+1)]
         core2 = np.zeros((ny, nx))
+        spot2 = np.empty_like(core2)
         for i in range(degx2+1):
             for j in range(degy2+1):
-                spot2 = np.outer(yfunc2[j], xfunc2[i])
+                outer(yfunc2[j], xfunc2[i], out=spot2)
                 c2 = self.coeff['GH2-{}-{}'.format(i,j)].eval(ispec, wavelength)
                 core2 += c2 * spot2
 

@@ -63,15 +63,6 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(a.shape, util.sincshift2d(a, 0.0, 0.1).shape)
         self.assertEqual(a.shape, util.sincshift2d(a, 0.1, 0.1).shape)
 
-    def test_psfbias(self):
-        psf = load_psf(resource_filename('specter.test', "t/psf-pix.fits"))
-        wmid = 0.5*(psf.wmin+psf.wmax)
-        ww = np.linspace(wmid-10, wmid+10)
-        phot = np.ones(len(ww))
-        phot[10] = 20
-        bias = util.psfbias(psf, psf, ww, phot)
-        absbias, R = util.psfabsbias(psf, psf, ww, phot)
-
     def test_resample(self):
         '''test resample; coverage only (not actual functionality)'''
         x = np.linspace(0, 2*np.pi, 20)
@@ -86,6 +77,15 @@ class TestUtil(unittest.TestCase):
         dt = util.util._timeit()
         self.assertGreater(dt, 0.1)
         self.assertLess(dt, 0.11)
+
+    def test_outer(self):
+        x = np.linspace(0, 2*np.pi, 20)
+        y = np.sin(x) + 1
+        out1 = np.empty((len(x), len(x)), dtype=float)
+        out2 = np.empty_like(out1)
+        np.outer(x, y, out=out1)
+        util.outer(x, y, out=out2)
+        self.assertTrue(np.all(out1==out2))
 
     # def test_rebin(self):
     #     x = np.arange(25)
