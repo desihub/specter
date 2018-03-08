@@ -5,7 +5,7 @@ specter change log
 0.8.4 (unreleased)
 ------------------
 
-* No changes yet.
+* np.outer replacement for 6% faster runtime (PR #58)
 
 0.8.3 (2018-02-23)
 ------------------
