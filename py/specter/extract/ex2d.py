@@ -70,7 +70,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
     #- Keep resolution matrix terms equivalent to 9-sigma of largest spot
     #- ndiag is in units of number of wavelength steps of size dw
     ndiag = 0
-    for ispec in [0, psf.nspec//2, psf.nspec-1]:
+    for ispec in [specmin, specmin+nspec//2, specmin+nspec-1]:
         for w in [psf.wmin, 0.5*(psf.wmin+psf.wmax), psf.wmax]:
             ndiag = max(ndiag, int(round(9.0*psf.wdisp(ispec, w) / dw )))
 
