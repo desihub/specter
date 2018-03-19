@@ -13,7 +13,7 @@ import scipy.linalg
 import unittest
 from pkg_resources import resource_filename
 from specter.psf import load_psf
-from specter.extract.ex2d import ex2d, ex2d_patch, eigen_compose, split_bundle
+from specter.extract.ex2d import ex2d, ex2d_patch, eigen_compose, split_bundle, psfbias, psfabsbias
 from specter.extract.ex1d import ex1d
 
 class TestExtract(unittest.TestCase):
@@ -302,6 +302,16 @@ class TestExtract(unittest.TestCase):
         #- n>bundlesize isn't allowed
         with self.assertRaises(ValueError):
             iisub, iiextract = split_bundle(3, 7)
+
+    def test_psfbias(self):
+        psf = load_psf(resource_filename('specter.test', "t/psf-pix.fits"))
+        wmid = 0.5*(psf.wmin+psf.wmax)
+        ww = np.linspace(wmid-10, wmid+10)
+        phot = np.ones(len(ww))
+        phot[10] = 20
+        bias = psfbias(psf, psf, ww, phot)
+        absbias, R = psfabsbias(psf, psf, ww, phot)
+
 
 if __name__ == '__main__':
     unittest.main()
