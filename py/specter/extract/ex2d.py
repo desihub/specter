@@ -14,7 +14,7 @@ from specter.util import outer
 
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
          regularize=0.0, ndecorr=False, bundlesize=25, nsubbundles=1,
-         wavesize=50, full_output=False, verbose=False, debug=False):
+         wavesize=50, full_output=False, verbose=False, debug=False, psferr=None):
     '''
     2D PSF extraction of flux from image patch given pixel inverse variance.
     
@@ -40,6 +40,10 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
             projected into pixels
         verbose: print more stuff
         debug: if True, enter interactive ipython session before returning
+        psferr:  fractional error on the psf model. if not None, use this
+            fractional error on the psf model instead of the value saved
+            in the psf fits file. This is used only to compute the chi2,
+            not to weight pixels in fit
 
     Returns (flux, ivar, Rdata):
         flux[nspec, nwave] = extracted resolution convolved flux
@@ -83,6 +87,10 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
     #- Orig was ndiag = 10, which fails when dw gets too large compared to PSF size
     Rd = np.zeros( (nspec, 2*ndiag+1, nwave) )
+
+
+    if psferr is None :
+        psferr = psf.psferr
 
     #- Let's do some extractions
     for bundlelo in range(specmin, specmin+nspec, bundlesize):
@@ -171,7 +179,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                     # chi2x = (A.T.dot(chi.ravel()**2) / A.sum(axis=0)).reshape(subnspec, subnwave)
 
                     #- pixel variance including input noise and PSF model errors
-                    modelivar = (submodel*psf.psferr + 1e-32)**-2
+                    modelivar = (submodel*psferr + 1e-32)**-2
                     ii = (modelivar > 0) & (subivar > 0)
                     totpix_ivar = np.zeros(submodel.shape)
                     totpix_ivar[ii] = 1.0 / (1.0/modelivar[ii] + 1.0/subivar[ii])
@@ -244,7 +252,7 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
             intermediate outputs such as the projection matrix.
         ndecorr : if True, decorrelate the noise between fibers, at the
             cost of residual signal correlations between fibers.
-        
+
     Returns (flux, ivar, R):
         flux[nspec, nwave] = extracted resolution convolved flux
         ivar[nspec, nwave] = inverse variance of flux
