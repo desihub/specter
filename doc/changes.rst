@@ -5,7 +5,7 @@ specter change log
 0.8.5 (unreleased)
 ------------------
 
-* No changes yet.
+* Allow user to override psferr in ex2d (PR #60)
 
 0.8.4 (2018-03-29)
 ------------------
