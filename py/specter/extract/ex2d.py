@@ -14,7 +14,7 @@ from specter.util import outer
 
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
          regularize=0.0, ndecorr=False, bundlesize=25, nsubbundles=1,
-         wavesize=50, full_output=False, verbose=False, debug=False, psferr=0.1):
+         wavesize=50, full_output=False, verbose=False, debug=False, psferr=None):
     '''
     2D PSF extraction of flux from image patch given pixel inverse variance.
     
@@ -40,8 +40,10 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
             projected into pixels
         verbose: print more stuff
         debug: if True, enter interactive ipython session before returning
-        psferr: fractional error on the psf model used only to compute the chi2
-            (not used to weight pixels in fit)
+        psferr:  fractional error on the psf model. if not None, use this
+            fractional error on the psf model instead of the value saved
+            in the psf fits file. This is used only to compute the chi2,
+            not to weight pixels in fit
 
     Returns (flux, ivar, Rdata):
         flux[nspec, nwave] = extracted resolution convolved flux
@@ -85,6 +87,10 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
     #- Orig was ndiag = 10, which fails when dw gets too large compared to PSF size
     Rd = np.zeros( (nspec, 2*ndiag+1, nwave) )
+
+
+    if psferr is None :
+        psferr = psf.psferr
 
     #- Let's do some extractions
     for bundlelo in range(specmin, specmin+nspec, bundlesize):
