@@ -7,8 +7,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import sys
 import os
 import numpy as np
-from numpy.polynomial.legendre import legfit, legval
+from numpy.polynomial.legendre import legfit
 import numbers
+from specter.util import legval_numba
 
 class TraceSet(object):
     def __init__(self, coeff, domain=[-1,1]):
@@ -30,15 +31,23 @@ class TraceSet(object):
         return 2.0 * (x - self._xmin) / (self._xmax - self._xmin) - 1.0
         
     def eval(self, ispec, x):
-        xx = self._xnorm(x)
-        
+        xx = np.array(self._xnorm(x))
+   
+        #numba requires f8 or smaller
+        cc_numba = self._coeff[ispec].astype(np.float64, copy=False)
+
+        #use numba version of legval if possible
         if isinstance(ispec, numbers.Integral):
-            return legval(xx, self._coeff[ispec])
+            return legval_numba(xx, cc_numba)
         else:
             if ispec is None:
                 ispec = list(range(self._coeff.shape[0]))
 
-            y = [legval(xx, self._coeff[i]) for i in ispec]
+            #use numba version of legval if possible
+            y=[]
+            for i in ispec:
+                cc_i = self._coeff[i].astype(np.float64, copy=False)
+                y.append(legval_numba(xx, cc_i))
             return np.array(y)
             
     # def __call__(self, ispec, x):
@@ -87,8 +96,5 @@ def fit_traces(x, yy, deg=5, domain=None):
         c[i] = legfit(xx, yy[i], deg)
 
     return TraceSet(c, [xmin, xmax])
-    
-    
-    
-        
+
     
