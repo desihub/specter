@@ -226,6 +226,55 @@ except ImportError:
         return np.multiply(x[:, None], y[None, :], out)
     
 
+#have faster numba version of legval if numba is available
+try:
+    #this is the faster, flexible, most readable version
+    if 'NUMBA_DISABLE_JIT' in os.environ:
+        raise ImportError
+    import numba
+    @numba.jit(nopython=True,cache=True)
+    def legval_numba(x, c):
+        nd=len(c)
+        ndd=nd
+        xlen = x.size
+        c0=c[-2]*np.ones(xlen)
+        c1=c[-1]*np.ones(xlen)
+        for i in range(3, ndd + 1):
+            tmp = c0
+            nd = nd - 1
+            nd_inv = 1/nd
+            c0 = c[-i] - (c1*(nd - 1))*nd_inv
+            c1 = tmp + (c1*x*(2*nd - 1))*nd_inv
+        return c0 + c1*x
+
+except ImportError:
+    #in the event there is no numba, revert to the orig legval
+    #this is an exact copy of numpy's legval
+    def legval_numba(x, c, tensor=True):
+        c = np.array(c, ndmin=1, copy=0)
+        if c.dtype.char in '?bBhHiIlLqQpP':
+            c = c.astype(np.double)
+        if isinstance(x, (tuple, list)):
+            x = np.asarray(x)
+        if isinstance(x, np.ndarray) and tensor:
+            c = c.reshape(c.shape + (1,)*x.ndim)
+
+        if len(c) == 1:
+            c0 = c[0]
+            c1 = 0
+        elif len(c) == 2:
+            c0 = c[0]
+            c1 = c[1]
+        else:
+            nd = len(c)
+            c0 = c[-2]
+            c1 = c[-1]
+            for i in range(3, len(c) + 1):
+                tmp = c0
+                nd = nd - 1
+                c0 = c[-i] - (c1*(nd - 1))/nd
+                c1 = tmp + (c1*x*(2*nd - 1))/nd
+        return c0 + c1*x
     
     
     
