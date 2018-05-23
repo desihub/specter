@@ -226,11 +226,30 @@ except ImportError:
         return np.multiply(x[:, None], y[None, :], out)
     
 
-    
-    
-    
-    
-    
+# have faster numba version of legval if numba is available
+try:
+    if 'NUMBA_DISABLE_JIT' in os.environ:
+        raise ImportError
+    import numba
+    @numba.jit(nopython=True,cache=True)
+    def legval_numba(x, c):
+        nd=len(c)
+        ndd=nd
+        xlen = x.size
+        c0=c[-2]*np.ones(xlen)
+        c1=c[-1]*np.ones(xlen)
+        for i in range(3, ndd + 1):
+            tmp = c0
+            nd = nd - 1
+            nd_inv = 1/nd
+            c0 = c[-i] - (c1*(nd - 1))*nd_inv
+            c1 = tmp + (c1*x*(2*nd - 1))*nd_inv
+        return c0 + c1*x
+
+except ImportError:
+    # in the event there is no numba, revert to the orig legval while
+    # still calling it legval_numba so that they can be used interchangeably
+    from numpy.polynomial.legendre import legval as legval_numba
     
     
     

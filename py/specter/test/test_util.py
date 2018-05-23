@@ -11,6 +11,7 @@ import os
 import numpy as np
 from numpy.polynomial import legendre
 from specter import util
+from specter.util import legval_numba
 import unittest
 from pkg_resources import resource_filename
 from specter.psf import load_psf
@@ -86,6 +87,33 @@ class TestUtil(unittest.TestCase):
         np.outer(x, y, out=out1)
         util.outer(x, y, out=out2)
         self.assertTrue(np.all(out1==out2))
+
+    def test_legval_numba(self):
+        #test both x scalars and x arrays of various sizes
+        #c will always be an array with len(c) > 2
+        x_scalar_1=np.random.rand(1)
+        x_scalar_2=np.random.rand(1)
+        x_array_1=np.random.rand(1000)
+        x_array_2=np.random.rand(500)
+        c_array_1=np.random.rand(8)
+        c_array_2=np.random.rand(11)
+       
+        #make sure legval_numba gets the same answer as numpy legval
+        #first test x scalars
+        numba_return_scalar_1 = legval_numba(x_scalar_1, c_array_1)
+        legval_return_scalar_1 = np.polynomial.legendre.legval(x_scalar_1, c_array_1)
+        numba_return_scalar_2 = legval_numba(x_scalar_2, c_array_2)
+        legval_return_scalar_2 = np.polynomial.legendre.legval(x_scalar_2, c_array_2)
+        self.assertTrue(np.allclose(numba_return_scalar_1, legval_return_scalar_1))
+        self.assertTrue(np.allclose(numba_return_scalar_2, legval_return_scalar_2))
+
+        #then test x arrays
+        numba_return_array_1 = legval_numba(x_array_1, c_array_1)
+        legval_return_array_1 = np.polynomial.legendre.legval(x_array_1, c_array_1)
+        numba_return_array_2 = legval_numba(x_array_2, c_array_2)
+        legval_return_array_2 = np.polynomial.legendre.legval(x_array_2, c_array_2)
+        self.assertTrue(np.allclose(numba_return_array_1, legval_return_array_1))
+        self.assertTrue(np.allclose(numba_return_array_2, legval_return_array_2))
 
     # def test_rebin(self):
     #     x = np.arange(25)
