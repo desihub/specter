@@ -72,15 +72,15 @@ matrix:
           # -w is an astropy extension
 
         # Try 2.7 and 3.5 python versions with the latest numpy
-        - os: linux
-          env: PYTHON_VERSION=2.7 MAIN_CMD='coverage'
-               SETUP_CMD="run py/specter/test/specter_test_suite.py"
-               CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
-               PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
+        # - os: linux
+        #   env: PYTHON_VERSION=2.7 MAIN_CMD='coverage'
+        #        SETUP_CMD="run py/specter/test/specter_test_suite.py"
+        #        CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
+        #        PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
         - os: linux
           env: PYTHON_VERSION=3.5 MAIN_CMD='python'
-               SETUP_CMD="py/specter/test/specter_test_suite.py"
+               SETUP_CMD="test"
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
