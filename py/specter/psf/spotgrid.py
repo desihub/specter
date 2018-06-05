@@ -15,7 +15,6 @@ from astropy.io import fits
 from specter.psf import PSF
 from specter.util import LinearInterp2D, rebin_image, sincshift
 import scipy.interpolate
-import numba
 
 class SpotGridPSF(PSF):
     """
@@ -133,7 +132,9 @@ class SpotGridPSF(PSF):
         return img.reshape(x.shape)
 
 
-@numba.jit(nopython=True,cache=True)
+import numba
+# @numba.jit(nopython=True,cache=True)
+@numba.jit
 def new_pixshift(xc,yc,pix_spot_values,rebin):
     """
     Inputs: xc, yc are center of the PSF in ccd coordinates

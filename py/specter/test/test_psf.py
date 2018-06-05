@@ -126,8 +126,8 @@ class GenericPSFTests(object):
     #- Test that PSF spots are positive
     def test_pix_norm(self):
         psf = self.psf
-        yy = np.arange(50, psf.npix_y-50, 50)  #- keep away from the edges
-        for i in range(0, psf.nspec, 1+psf.nspec//10):
+        yy = np.arange(50, psf.npix_y-50, 500)  #- keep away from the edges
+        for i in range(0, psf.nspec, 1+psf.nspec//50):
             ww = psf.wavelength(i, yy)
             for w in ww:
                 self.assertTrue(np.all(psf.pix(i, w) >= 0), \
@@ -282,7 +282,7 @@ class GenericPSFTests(object):
     #- Test projection with an xyrange that is smaller than wavelength range
     def test_project_small_xyrange(self):
         #- Find the xyrange for a small range of wavelengths
-        nspec = 5
+        nspec = 3
         nw = 5
         ww = self.psf.wavelength(0)[1000:1000+nw]
         spec_range = (0, nspec)
@@ -298,8 +298,8 @@ class GenericPSFTests(object):
 
     #- Test the projection matrix gives same answer as psf.project()
     def test_projection_matrix(self):
-        nspec = 5
-        nw = 20
+        nspec = 3
+        nw = 5
         w_edge = 10  #- avoid edge effects; test that separately
         phot = np.random.uniform(100,1000, size=(nspec, nw))
         for specmin in (0, self.psf.nspec//2, self.psf.nspec-nspec-1):
@@ -551,10 +551,6 @@ class TestGaussHermite2PSF(GenericPSFTests,unittest.TestCase):
         cls.psf = load_psf(resource_filename("specter.test", "t/psf-gausshermite2.fits"))
 
 if __name__ == '__main__':
-
-    import warnings
-    warnings.simplefilter('error')
-
     # unittest.main()
     s1 = unittest.defaultTestLoader.loadTestsFromTestCase(TestPixPSF)
     s2 = unittest.defaultTestLoader.loadTestsFromTestCase(TestSpotPSF)
