@@ -79,7 +79,7 @@ matrix:
         #        PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
         - os: linux
-          env: PYTHON_VERSION=3.5 MAIN_CMD='python'
+          env: PYTHON_VERSION=3.5
                SETUP_CMD="test"
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
