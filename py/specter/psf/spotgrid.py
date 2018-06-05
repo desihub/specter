@@ -10,6 +10,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import sys
 import os
+import math
 import numpy as np
 from astropy.io import fits
 from specter.psf import PSF
@@ -133,8 +134,8 @@ class SpotGridPSF(PSF):
 
 
 import numba
-# @numba.jit(nopython=True,cache=True)
-@numba.jit
+# @numba.jit
+@numba.jit(nopython=True,cache=False)
 def new_pixshift(xc,yc,pix_spot_values,rebin):
     """
     Inputs: xc, yc are center of the PSF in ccd coordinates
@@ -143,16 +144,16 @@ def new_pixshift(xc,yc,pix_spot_values,rebin):
     Outputs: resampled_pix_spot_values, the resampled and scaled 2D array of pix_spot_values
     """
     # fraction pixel offset requiring interpolation
-    shiftx=xc*rebin-int(np.floor(xc*rebin)) # positive value between 0 and 1
-    shifty=yc*rebin-int(np.floor(yc*rebin)) # positive value between 0 and 1
+    shiftx=xc*rebin-int(math.floor(xc*rebin)) # positive value between 0 and 1
+    shifty=yc*rebin-int(math.floor(yc*rebin)) # positive value between 0 and 1
     # weights for interpolation
     w00=(1-shifty)*(1-shiftx)
     w10=shifty*(1-shiftx)
     w01=(1-shifty)*shiftx
     w11=shifty*shiftx        
     # now the rest of the offset is an integer shift
-    dx=int(np.floor(xc*rebin))-int(np.floor(xc))*rebin # positive integer between 0 and 14
-    dy=int(np.floor(yc*rebin))-int(np.floor(yc))*rebin # positive integer between 0 and 14
+    dx=int(np.floor(xc*rebin))-int(math.floor(xc))*rebin # positive integer between 0 and 14
+    dy=int(np.floor(yc*rebin))-int(math.floor(yc))*rebin # positive integer between 0 and 14
     ny_spot, nx_spot = pix_spot_values.shape
     #preallocate 
     resampled_pix_spot_values=np.zeros((ny_spot+rebin,nx_spot+rebin))

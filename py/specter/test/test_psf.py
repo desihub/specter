@@ -551,12 +551,12 @@ class TestGaussHermite2PSF(GenericPSFTests,unittest.TestCase):
         cls.psf = load_psf(resource_filename("specter.test", "t/psf-gausshermite2.fits"))
 
 if __name__ == '__main__':
-    # unittest.main()
-    s1 = unittest.defaultTestLoader.loadTestsFromTestCase(TestPixPSF)
-    s2 = unittest.defaultTestLoader.loadTestsFromTestCase(TestSpotPSF)
-    s3 = unittest.defaultTestLoader.loadTestsFromTestCase(TestMonoSpotPSF)
-    s4 = unittest.defaultTestLoader.loadTestsFromTestCase(TestGaussHermitePSF)
-    s5 = unittest.defaultTestLoader.loadTestsFromTestCase(TestGaussHermite2PSF)
+    testLoader = unittest.defaultTestLoader.loadTestsFromTestCase  #- shorthand
+    psftests = list()
+    # psftests.append( testLoader(TestPixPSF) )
+    psftests.append( testLoader(TestSpotPSF) )
+    # psftests.append( testLoader(TestMonoSpotPSF) )
+    # psftests.append( testLoader(TestGaussHermitePSF) )
+    # psftests.append( testLoader(TestGaussHermite2PSF) )
 
-    unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite([s1, s2, s3, s4, s5]))
-    # unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite([s2,]))
+    unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite(psftests))
