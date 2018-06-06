@@ -454,7 +454,7 @@ class GenericPSFTests(object):
         self.assertLess(psf.wmin, psf.wmax)
 
     #- Test getting x and y and wavelength at the same time
-    ### REMOVED
+    ### REMOVED; (why?)
     # def test_xyw(self):
     #     x = self.psf.x(0)
     #     y = self.psf.y(0)
@@ -553,10 +553,10 @@ class TestGaussHermite2PSF(GenericPSFTests,unittest.TestCase):
 if __name__ == '__main__':
     testLoader = unittest.defaultTestLoader.loadTestsFromTestCase  #- shorthand
     psftests = list()
-    # psftests.append( testLoader(TestPixPSF) )
+    psftests.append( testLoader(TestPixPSF) )
     psftests.append( testLoader(TestSpotPSF) )
-    # psftests.append( testLoader(TestMonoSpotPSF) )
-    # psftests.append( testLoader(TestGaussHermitePSF) )
-    # psftests.append( testLoader(TestGaussHermite2PSF) )
+    psftests.append( testLoader(TestMonoSpotPSF) )
+    psftests.append( testLoader(TestGaussHermitePSF) )
+    psftests.append( testLoader(TestGaussHermite2PSF) )
 
     unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite(psftests))

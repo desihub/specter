@@ -134,7 +134,6 @@ class SpotGridPSF(PSF):
 
 
 import numba
-# @numba.jit
 @numba.jit(nopython=True,cache=False)
 def new_pixshift(xc,yc,pix_spot_values,rebin):
     """
