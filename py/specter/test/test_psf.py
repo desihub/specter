@@ -126,8 +126,8 @@ class GenericPSFTests(object):
     #- Test that PSF spots are positive
     def test_pix_norm(self):
         psf = self.psf
-        yy = np.arange(50, psf.npix_y-50, 50)  #- keep away from the edges
-        for i in range(0, psf.nspec, 1+psf.nspec//10):
+        yy = np.arange(50, psf.npix_y-50, 500)  #- keep away from the edges
+        for i in range(0, psf.nspec, 1+psf.nspec//50):
             ww = psf.wavelength(i, yy)
             for w in ww:
                 self.assertTrue(np.all(psf.pix(i, w) >= 0), \
@@ -282,7 +282,7 @@ class GenericPSFTests(object):
     #- Test projection with an xyrange that is smaller than wavelength range
     def test_project_small_xyrange(self):
         #- Find the xyrange for a small range of wavelengths
-        nspec = 5
+        nspec = 3
         nw = 5
         ww = self.psf.wavelength(0)[1000:1000+nw]
         spec_range = (0, nspec)
@@ -298,8 +298,8 @@ class GenericPSFTests(object):
 
     #- Test the projection matrix gives same answer as psf.project()
     def test_projection_matrix(self):
-        nspec = 5
-        nw = 20
+        nspec = 3
+        nw = 5
         w_edge = 10  #- avoid edge effects; test that separately
         phot = np.random.uniform(100,1000, size=(nspec, nw))
         for specmin in (0, self.psf.nspec//2, self.psf.nspec-nspec-1):
@@ -454,7 +454,7 @@ class GenericPSFTests(object):
         self.assertLess(psf.wmin, psf.wmax)
 
     #- Test getting x and y and wavelength at the same time
-    ### REMOVED
+    ### REMOVED; (why?)
     # def test_xyw(self):
     #     x = self.psf.x(0)
     #     y = self.psf.y(0)
@@ -551,16 +551,12 @@ class TestGaussHermite2PSF(GenericPSFTests,unittest.TestCase):
         cls.psf = load_psf(resource_filename("specter.test", "t/psf-gausshermite2.fits"))
 
 if __name__ == '__main__':
+    testLoader = unittest.defaultTestLoader.loadTestsFromTestCase  #- shorthand
+    psftests = list()
+    psftests.append( testLoader(TestPixPSF) )
+    psftests.append( testLoader(TestSpotPSF) )
+    psftests.append( testLoader(TestMonoSpotPSF) )
+    psftests.append( testLoader(TestGaussHermitePSF) )
+    psftests.append( testLoader(TestGaussHermite2PSF) )
 
-    import warnings
-    warnings.simplefilter('error')
-
-    # unittest.main()
-    s1 = unittest.defaultTestLoader.loadTestsFromTestCase(TestPixPSF)
-    s2 = unittest.defaultTestLoader.loadTestsFromTestCase(TestSpotPSF)
-    s3 = unittest.defaultTestLoader.loadTestsFromTestCase(TestMonoSpotPSF)
-    s4 = unittest.defaultTestLoader.loadTestsFromTestCase(TestGaussHermitePSF)
-    s5 = unittest.defaultTestLoader.loadTestsFromTestCase(TestGaussHermite2PSF)
-
-    unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite([s1, s2, s3, s4, s5]))
-    # unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite([s2,]))
+    unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite(psftests))

@@ -40,12 +40,12 @@ env:
         # to repeat them for all configurations.
         # - NUMPY_VERSION=1.10
         # - SCIPY_VERSION=0.17
-        - ASTROPY_VERSION=1.1.1
+        - ASTROPY_VERSION=2
         - MAIN_CMD='python setup.py'
         # These packages will always be installed.
         - CONDA_DEPENDENCIES=''
         # These packages will only be installed if we really need them.
-        - CONDA_ALL_DEPENDENCIES='scipy coverage==3.7.1 requests'
+        - CONDA_ALL_DEPENDENCIES='scipy coverage==3.7.1 requests numba'
         # These packages will always be installed.
         - PIP_DEPENDENCIES=''
         # These packages will only be installed if we really need them.
@@ -72,15 +72,15 @@ matrix:
           # -w is an astropy extension
 
         # Try 2.7 and 3.5 python versions with the latest numpy
-        - os: linux
-          env: PYTHON_VERSION=2.7 MAIN_CMD='coverage'
-               SETUP_CMD="run py/specter/test/specter_test_suite.py"
-               CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
-               PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
+        # - os: linux
+        #   env: PYTHON_VERSION=2.7 MAIN_CMD='coverage'
+        #        SETUP_CMD="run py/specter/test/specter_test_suite.py"
+        #        CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
+        #        PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
         - os: linux
-          env: PYTHON_VERSION=3.5 MAIN_CMD='python'
-               SETUP_CMD="py/specter/test/specter_test_suite.py"
+          env: PYTHON_VERSION=3.5
+               SETUP_CMD="test"
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 

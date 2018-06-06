@@ -32,13 +32,18 @@ class TraceSet(object):
         
     def eval(self, ispec, x):
         xx = np.array(self._xnorm(x))
+        scalar_input = np.isscalar(x)
    
         #numba requires f8 or smaller
         cc_numba = self._coeff[ispec].astype(np.float64, copy=False)
 
         #use numba version of legval if possible
         if isinstance(ispec, numbers.Integral):
-            return legval_numba(xx, cc_numba)
+            results = legval_numba(xx, cc_numba)
+            if scalar_input:
+                return results[0]
+            else:
+                return results
         else:
             if ispec is None:
                 ispec = list(range(self._coeff.shape[0]))
@@ -47,7 +52,11 @@ class TraceSet(object):
             y=[]
             for i in ispec:
                 cc_i = self._coeff[i].astype(np.float64, copy=False)
-                y.append(legval_numba(xx, cc_i))
+                if scalar_input:
+                    y.append(legval_numba(xx, cc_i)[0])
+                else:
+                    y.append(legval_numba(xx, cc_i))
+
             return np.array(y)
             
     # def __call__(self, ispec, x):

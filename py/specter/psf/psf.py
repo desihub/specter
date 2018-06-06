@@ -60,12 +60,15 @@ class PSF(object):
             self.psferr = hdr['PSFERR']
         else:
             self.psferr = 0.01
-        
+
         #- Load x, y legendre coefficient tracesets
-        xc, hdr = fits.getdata(filename, 'XCOEFF', header=True)
-        self._x = TraceSet(xc, domain=(hdr['WAVEMIN'], hdr['WAVEMAX']))
-        yc, hdr = fits.getdata(filename, 'YCOEFF', header=True)
-        self._y = TraceSet(yc, domain=(hdr['WAVEMIN'], hdr['WAVEMAX']))
+        with fits.open(filename) as fx:
+            xc = fx['XCOEFF'].data
+            hdr = fx['XCOEFF'].header
+            self._x = TraceSet(xc, domain=(hdr['WAVEMIN'], hdr['WAVEMAX']))
+            yc = fx['YCOEFF'].data
+            hdr = fx['YCOEFF'].header
+            self._y = TraceSet(yc, domain=(hdr['WAVEMIN'], hdr['WAVEMAX']))
         
         #- Create inverse y -> wavelength mapping
         self._w = self._y.invert()

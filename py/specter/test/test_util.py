@@ -115,6 +115,31 @@ class TestUtil(unittest.TestCase):
         self.assertTrue(np.allclose(numba_return_array_1, legval_return_array_1))
         self.assertTrue(np.allclose(numba_return_array_2, legval_return_array_2))
 
+    def test_traceset(self):
+        nspec = 3
+        nx = 10
+        iispec = np.arange(nspec)
+        x = 100 + 0.2*np.arange(nx)
+        yy = np.random.normal(size=(nspec, nx))
+
+        tx = util.traceset.fit_traces(x, yy)
+        tinv = tx.invert()
+
+        y = tx.eval(0, x[0])
+        self.assertTrue(isinstance(y, float))
+
+        y = tx.eval(0, x)
+        self.assertTrue(isinstance(y, np.ndarray))
+        self.assertEqual(y.shape, (nx,))
+
+        y = tx.eval(iispec, x[0])
+        self.assertTrue(isinstance(y, np.ndarray))
+        self.assertEqual(y.shape, (nspec,))
+
+        y = tx.eval(iispec, x)
+        self.assertTrue(isinstance(y, np.ndarray))
+        self.assertEqual(y.shape, (nspec, nx))
+
     # def test_rebin(self):
     #     x = np.arange(25)
     #     y = np.random.uniform(0.0, 5.0, size=len(x))
