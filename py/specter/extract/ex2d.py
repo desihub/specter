@@ -295,7 +295,17 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
     
     #- Identify fluxes with very low weights of pixels contributing            
     fluxweight = W.dot(A).sum(axis=0).A[0]
-    minweight = 0.01*np.max(fluxweight)
+
+    # The following minweight is a regularization term needed to avoid ringing due to 
+    # a flux bias on the edge flux bins in the
+    # divide and conquer approach when the PSF is not perfect
+    # (the edge flux bins are constrained only by a few CCD pixels and the wings of the PSF).
+    # The drawback is that this is biasing at the high flux limit because bright pixels
+    # have a relatively low weight due to the Poisson noise.
+    # we set this weight to a value of 1-e4 = ratio of readnoise**2 to Poisson variance for 1e5 electrons 
+    # 1e5 electrons/pixel is the CCD full well, and 10 is about the read noise variance.
+    # This was verified on the DESI first spectrograph data.
+    minweight = 1.e-4*np.max(fluxweight) 
     ibad = fluxweight < minweight
     
     #- Original version; doesn't work on older versions of scipy
