@@ -11,10 +11,12 @@ from scipy.sparse import spdiags, issparse
 from scipy.sparse.linalg import spsolve
 
 from specter.util import outer
+from specter.util import legval_numba
 
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
          regularize=0.0, ndecorr=False, bundlesize=25, nsubbundles=1,
-         wavesize=50, full_output=False, verbose=False, debug=False, psferr=None):
+         wavesize=50, full_output=False, verbose=False, debug=False,
+         psferr=None, legval_dict=None):
     '''
     2D PSF extraction of flux from image patch given pixel inverse variance.
     
@@ -58,6 +60,9 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
     amount of overlap is auto-calculated based on PSF extent.
     '''
     #- TODO: check input dimensionality etc.
+
+    #print("legval_dict in ex2d")
+    #print(legval_dict)
 
     dw = wavelengths[1] - wavelengths[0]
     if not np.allclose(dw, np.diff(wavelengths)):
@@ -143,12 +148,15 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                         specrange=specrange, wmin=wmin, wmax=wmax, wlo=wlo, whi=whi))
                     sys.stdout.flush()
 
+                #print("legval_dict in ex2d")
+                #print(legval_dict)
+
                 #- Do the extraction
                 results = \
                     ex2d_patch(subimg, subivar, psf,
                         specmin=speclo, nspec=spechi-speclo, wavelengths=ww,
                         xyrange=[xlo,xhi,ylo,yhi], regularize=regularize, ndecorr=ndecorr,
-                        full_output=True)
+                        full_output=True, legval_dict=legval_dict)
 
                 specflux = results['flux']
                 specivar = results['ivar']
@@ -233,7 +241,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
 
 def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
-         full_output=False, regularize=0.0, ndecorr=False):
+         full_output=False, regularize=0.0, ndecorr=False, legval_dict=None):
     """
     2D PSF extraction of flux from image patch given pixel inverse variance.
     
@@ -259,6 +267,9 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
         R : 2D resolution matrix to convert
     """
 
+    #print("legval_dict in ex2d_patch")
+    #print(legval_dict)
+
     #- Range of image to consider
     waverange = (wavelengths[0], wavelengths[-1])
     specrange = (specmin, specmin+nspec)
@@ -279,7 +290,7 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
     #- Solve AT W pix = (AT W A) flux
     
     #- Projection matrix and inverse covariance
-    A = psf.projection_matrix(specrange, wavelengths, xyrange)
+    A = psf.projection_matrix(specrange, wavelengths, xyrange, legval_dict=legval_dict)
 
     #- Pixel weights matrix
     w = ivar.ravel()
@@ -378,6 +389,63 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
         return results
     else:
         return rflux, fluxivar, R
+
+def cache_params(psf, spec_range, wavelengths):
+    #store in a dict
+    legval_dict = dict()
+    legval_dict['x_cache'] = legval_cache(psf, psf._x, spec_range, wavelengths)
+    legval_dict['y_cache'] = legval_cache(psf, psf._y, spec_range, wavelengths)
+    legval_dict['sigx1_cache'] = legval_cache(psf, psf.coeff['GHSIGX'], spec_range, wavelengths)
+    legval_dict['sigy1_cache'] = legval_cache(psf, psf.coeff['GHSIGY'], spec_range, wavelengths)
+    legval_dict['tailxsca_cache'] = legval_cache(psf, psf.coeff['TAILXSCA'], spec_range, wavelengths)
+    legval_dict['tailysca_cache'] = legval_cache(psf, psf.coeff['TAILYSCA'], spec_range, wavelengths)
+    legval_dict['tailamp_cache'] = legval_cache(psf, psf.coeff['TAILAMP'], spec_range, wavelengths)
+    legval_dict['tailcore_cache'] = legval_cache(psf, psf.coeff['TAILCORE'], spec_range, wavelengths)
+    legval_dict['tailinde_cache'] = legval_cache(psf, psf.coeff['TAILINDE'], spec_range, wavelengths)
+    return legval_dict
+
+#modified version of eval in specter/traceset that can handle 
+#multiple spectra hopefully?
+def legval_cache(psf, traceset, spec_range, wavelengths):
+    #the first argument we pass in will always be traceset_coeff
+    #replacing self._coeff with traceset_coeff, hopefully that works
+
+    #given spec_range, we need to find ispec
+    spec_min=spec_range[0]
+    spec_max=spec_range[-1]
+    nspec = psf.nspec
+    nwave = len(wavelengths)
+    #print("nwave")
+    #print(nwave)
+    #print("wavelengths")
+    #print(wavelengths)
+    ispec = np.arange(nspec)
+    #print("ispec")
+    #print(ispec)
+    xx_list=[]
+    for w in range(nwave):
+        xx_list.append(traceset._xnorm(wavelengths[w]))
+
+    xx=np.asarray(xx_list)
+    #numba requires f8 or smaller
+    cc_numba = traceset._coeff[ispec].astype(np.float64, copy=False)
+    #print("type of xx")
+    #print(type(xx))
+    #print("type of cc_numba")
+    #print(cc_numba.dtype)
+
+    #varies depending on ispec
+    #have to append (ie can't preallocate) bc size of wavelengths changes
+    y_list=[]
+    for i in ispec:
+        y_list.append(legval_numba(xx, cc_numba[i]))
+
+    #this is a list, convert it back to a np array
+    y = np.asarray(y_list)  
+    #print("y.shape")
+    #print(y.shape)
+    return y
+
 
 
 def eigen_compose(w, v, invert=False, sqr=False):
