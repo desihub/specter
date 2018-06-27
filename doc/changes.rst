@@ -2,7 +2,7 @@
 specter change log
 ==================
 
-0.8.6 (unreleased)
+0.8.6 (2018-06-27)
 ------------------
 
 * Added numba-ized legval for ~20% overall ex2d speedup (PR #61).
