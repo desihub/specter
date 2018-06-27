@@ -219,7 +219,7 @@ class PSF(object):
         """
         raise NotImplementedError
         
-    def xypix(self, ispec, wavelength, xmin=0, xmax=None, ymin=0, ymax=None):
+    def xypix(self, ispec, wavelength, xmin=0, xmax=None, ymin=0, ymax=None, legval_dict=None):
         """
         Evaluate PSF for spectrum[ispec] at given wavelength
         
@@ -245,11 +245,11 @@ class PSF(object):
             if key in self._cache:
                 xx, yy, ccdpix = self._cache[key]
             else:
-                xx, yy, ccdpix = self._xypix(ispec, wavelength)
+                xx, yy, ccdpix = self._xypix(ispec, wavelength, legval_dict=legval_dict)
                 self._cache[key] = (xx, yy, ccdpix)
         except AttributeError:
             self._cache = CacheDict(2500)
-            xx, yy, ccdpix = self._xypix(ispec, wavelength)
+            xx, yy, ccdpix = self._xypix(ispec, wavelength, legval_dict=legval_dict)
             
         xlo, xhi = xx.start, xx.stop
         ylo, yhi = yy.start, yy.stop
@@ -615,7 +615,7 @@ class PSF(object):
         """Maximum wavelength seen by all spectra"""
         return self._wmax_all
     
-    def projection_matrix(self, spec_range, wavelengths, xyrange):
+    def projection_matrix(self, spec_range, wavelengths, xyrange, legval_dict=None):
         """
         Returns sparse projection matrix from flux to pixels
     
@@ -631,6 +631,8 @@ class PSF(object):
             ny = ymax-ymin
             img = A.dot(phot.ravel()).reshape((ny,nx))
         """
+        #print("legval_dict in projection_matrix")
+        #print(legval_dict)
     
         #- Matrix dimensions
         if isinstance(spec_range, numbers.Integral):
@@ -650,7 +652,7 @@ class PSF(object):
         for ispec in range(specmin, specmax):
             for iflux, w in enumerate(wavelengths):
                 #- Get subimage and index slices
-                xslice, yslice, pix = self.xypix(ispec, w, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
+                xslice, yslice, pix = self.xypix(ispec, w, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, legval_dict=legval_dict)
                 
                 #- If there is overlap with pix_range, put into sub-region of A
                 if pix.shape[0]>0 and pix.shape[1]>0:
