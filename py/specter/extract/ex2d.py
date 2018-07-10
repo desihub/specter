@@ -15,8 +15,7 @@ from specter.util import legval_numba
 
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
          regularize=0.0, ndecorr=False, bundlesize=25, nsubbundles=1,
-         wavesize=50, full_output=False, verbose=False, debug=False,
-         psferr=None, legval_dict=None):
+         wavesize=50, full_output=False, verbose=False, debug=False, psferr=None, comm=None):
     '''
     2D PSF extraction of flux from image patch given pixel inverse variance.
     
@@ -60,9 +59,6 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
     amount of overlap is auto-calculated based on PSF extent.
     '''
     #- TODO: check input dimensionality etc.
-
-    #print("legval_dict in ex2d")
-    #print(legval_dict)
 
     dw = wavelengths[1] - wavelengths[0]
     if not np.allclose(dw, np.diff(wavelengths)):
@@ -112,7 +108,26 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
             specrange = (speclo, spechi)
 
+            #keep this part of the loop just to store things as a function of [iwave]
+            #then feed these stored arrays into ex2d_patch --> projection_matrix
+            #this will avoid calling ex_2d patch over and over again...
+            
+            #preallocate all the things we need to feed to ex2d_patch!
+            iwave_size = len(wavelengths)
+            print("iwave_size is %s" %(iwave_size))
+            xlo = np.zeros(iwave_size, dtype=int)
+            xhi = np.zeros(iwave_size, dtype=int)
+            ylo = np.zeros(iwave_size, dtype=int)
+            yhi = np.zeros(iwave_size, dtype=int)
+
+            #for now append other things since we don't know the right dimension
+            subimg = []
+            subivar = []
+            ww = []
+
+            #this loop used to be including ex2d_path, now it's only for getting the parameters ready
             for iwave in range(0, len(wavelengths), wavesize):
+                print("iwave is %s" %(iwave))
                 #- Low and High wavelengths for the core region
                 wlo = wavelengths[iwave]
                 if iwave+wavesize < len(wavelengths):
@@ -121,100 +136,121 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                     whi = wavelengths[-1]
         
                 #- Identify subimage that covers the core wavelengths
-                subxyrange = xlo,xhi,ylo,yhi = psf.xyrange(specrange, (wlo, whi))
+                subxyrange = xlo[iwave],xhi[iwave],ylo[iwave],yhi[iwave] = psf.xyrange(specrange, (wlo, whi))
+
+                print("subxyrange is")
+                print(subxyrange)
 
                 if xyrange is None:
-                    subxy = np.s_[ylo:yhi, xlo:xhi]
+                    subxy = np.s_[ylo[iwave]:yhi[iwave], xlo[iwave]:xhi[iwave]]
                 else:
-                    subxy = np.s_[ylo-xyrange[2]:yhi-xyrange[2], xlo-xyrange[0]:xhi-xyrange[0]]
+                    subxy = np.s_[ylo[iwave]-xyrange[2]:yhi[iwave]-xyrange[2], xlo[iwave]-xyrange[0]:xhi[iwave]-xyrange[0]]
 
-                subimg = image[subxy]
-                subivar = imageivar[subxy]
+                subimg.append(image[subxy]) #append for now since we dont know the dimensions to preallocate
+                subivar.append(imageivar[subxy]) #same deal
     
                 #- Determine extra border wavelength extent: nlo,nhi extra wavelength bins
                 ny, nx = psf.pix(speclo, wlo).shape
-                ymin = ylo-ny+2
-                ymax = yhi+ny-2
+                ymin = ylo[iwave]-ny+2
+                ymax = yhi[iwave]+ny-2
+          
+                print("wlo is %s" %(wlo))
+                print("whi is %s" %(whi))
+                print("ymin is %s" %(ymin))
+                print("ymax is %s" %(ymax))
+                print("ndiag is %s" %(ndiag))
+                print("dw is %s" %(dw))
+                print("psf.wavelength(speclo, ymin) is %s" %(psf.wavelength(speclo, ymin)))        
+
+                nlo = np.max([int((wlo - psf.wavelength(speclo, ymin))/dw)-1, ndiag])
+                nhi = np.max([int((psf.wavelength(speclo, ymax) - whi)/dw)-1, ndiag])
+                ww.append(np.arange(wlo-nlo*dw, whi+(nhi+0.5)*dw, dw))
+                #wmin, wmax = ww[0], ww[-1]
+                #now that we are appending, we want the min and max from the whole thing, this won't work ^
+
+            #also we need to do this after we've completed the loop
+            wmin = np.min(ww)
+            wmax = np.max(ww)
+            nw = len(ww)
+
+            #okay! if we asked for --used_cached_values, we need to compute them first
+            legval_dict = None
+            if args.use_cached_values is not None:
+                cache_params(psf, spec_range, wavelengths)
+
+
+            #- include \r carriage return to prevent scrolling
+            if verbose:
+                sys.stdout.write("\rSpectra {specrange} wavelengths ({wmin:.2f}, {wmax:.2f}) -> ({wlo:.2f}, {whi:.2f})".format(\
+                    specrange=specrange, wmin=wmin, wmax=wmax, wlo=wlo, whi=whi))
+                sys.stdout.flush()
+
+            #- Do the extraction
+            #usually full_output = True but in this case we'll set it to False for gradual debugging
+            print("starting ex2d_patch")
+            results = \
+                ex2d_patch(subimg, subivar, psf,
+                    specmin=speclo, nspec=spechi-speclo, wavelengths=ww,
+                    xyrange=[xlo,xhi,ylo,yhi], regularize=regularize, ndecorr=ndecorr,
+                    full_output=False, legval_dict=legval_dict)
+            print("finsihed ex2d_patch")
+            specflux = results['flux']
+            specivar = results['ivar']
+            R = results['R']
+
+            #- Fill in the final output arrays
+            ## iispec = slice(speclo-specmin, spechi-specmin)
+            iispec = np.arange(speclo-specmin, spechi-specmin)
+            flux[iispec[keep], iwave:iwave+wavesize+1] = specflux[keep, nlo:-nhi]
+            ivar[iispec[keep], iwave:iwave+wavesize+1] = specivar[keep, nlo:-nhi]
+
+            if full_output:
+                A = results['A'].copy()
+                xflux = results['xflux']
+            
+                #- number of spectra and wavelengths for this sub-extraction
+                subnspec = spechi-speclo
+                subnwave = len(ww)
         
-                nlo = max(int((wlo - psf.wavelength(speclo, ymin))/dw)-1, ndiag)
-                nhi = max(int((psf.wavelength(speclo, ymax) - whi)/dw)-1, ndiag)
-                ww = np.arange(wlo-nlo*dw, whi+(nhi+0.5)*dw, dw)
-                wmin, wmax = ww[0], ww[-1]
-                nw = len(ww)
-
-                #- include \r carriage return to prevent scrolling
-                if verbose:
-                    sys.stdout.write("\rSpectra {specrange} wavelengths ({wmin:.2f}, {wmax:.2f}) -> ({wlo:.2f}, {whi:.2f})".format(\
-                        specrange=specrange, wmin=wmin, wmax=wmax, wlo=wlo, whi=whi))
-                    sys.stdout.flush()
-
-                #print("legval_dict in ex2d")
-                #print(legval_dict)
-
-                #- Do the extraction
-                results = \
-                    ex2d_patch(subimg, subivar, psf,
-                        specmin=speclo, nspec=spechi-speclo, wavelengths=ww,
-                        xyrange=[xlo,xhi,ylo,yhi], regularize=regularize, ndecorr=ndecorr,
-                        full_output=True, legval_dict=legval_dict)
-
-                specflux = results['flux']
-                specivar = results['ivar']
-                R = results['R']
-
-                #- Fill in the final output arrays
-                ## iispec = slice(speclo-specmin, spechi-specmin)
-                iispec = np.arange(speclo-specmin, spechi-specmin)
-                flux[iispec[keep], iwave:iwave+wavesize+1] = specflux[keep, nlo:-nhi]
-                ivar[iispec[keep], iwave:iwave+wavesize+1] = specivar[keep, nlo:-nhi]
-
-                if full_output:
-                    A = results['A'].copy()
-                    xflux = results['xflux']
+                #- Model image
+                submodel = A.dot(xflux.ravel()).reshape(subimg.shape)
             
-                    #- number of spectra and wavelengths for this sub-extraction
-                    subnspec = spechi-speclo
-                    subnwave = len(ww)
-            
-                    #- Model image
-                    submodel = A.dot(xflux.ravel()).reshape(subimg.shape)
-            
-                    #- Fraction of input pixels that are unmasked for each flux bin
-                    subpixmask_fraction = 1.0-(A.T.dot(subivar.ravel()>0)).reshape(subnspec, subnwave)
+                #- Fraction of input pixels that are unmasked for each flux bin
+                subpixmask_fraction = 1.0-(A.T.dot(subivar.ravel()>0)).reshape(subnspec, subnwave)
 
-                    #- original weighted chi2 of pixels that contribute to each flux bin
-                    # chi = (subimg - submodel) * np.sqrt(subivar)
-                    # chi2x = (A.T.dot(chi.ravel()**2) / A.sum(axis=0)).reshape(subnspec, subnwave)
+                #- original weighted chi2 of pixels that contribute to each flux bin
+                # chi = (subimg - submodel) * np.sqrt(subivar)
+                # chi2x = (A.T.dot(chi.ravel()**2) / A.sum(axis=0)).reshape(subnspec, subnwave)
 
-                    #- pixel variance including input noise and PSF model errors
-                    modelivar = (submodel*psferr + 1e-32)**-2
-                    ii = (modelivar > 0) & (subivar > 0)
-                    totpix_ivar = np.zeros(submodel.shape)
-                    totpix_ivar[ii] = 1.0 / (1.0/modelivar[ii] + 1.0/subivar[ii])
+                #- pixel variance including input noise and PSF model errors
+                modelivar = (submodel*psferr + 1e-32)**-2
+                ii = (modelivar > 0) & (subivar > 0)
+                totpix_ivar = np.zeros(submodel.shape)
+                totpix_ivar[ii] = 1.0 / (1.0/modelivar[ii] + 1.0/subivar[ii])
 
-                    #- Weighted chi2 of pixels that contribute to each flux bin;
-                    #- only use unmasked pixels and avoid dividing by 0
-                    chi = (subimg - submodel) * np.sqrt(totpix_ivar)
-                    psfweight = A.T.dot(totpix_ivar.ravel()>0)
-                    bad = (psfweight == 0.0)
-                    chi2x = (A.T.dot(chi.ravel()**2) * ~bad) / (psfweight + bad)
-                    chi2x = chi2x.reshape(subnspec, subnwave)
+                #- Weighted chi2 of pixels that contribute to each flux bin;
+                #- only use unmasked pixels and avoid dividing by 0
+                chi = (subimg - submodel) * np.sqrt(totpix_ivar)
+                psfweight = A.T.dot(totpix_ivar.ravel()>0)
+                bad = (psfweight == 0.0)
+                chi2x = (A.T.dot(chi.ravel()**2) * ~bad) / (psfweight + bad)
+                chi2x = chi2x.reshape(subnspec, subnwave)
 
-                    #- outputs
-                    #- TODO: watch out for edge effects on overlapping regions of submodels
-                    modelimage[subxy] = submodel
-                    pixmask_fraction[iispec[keep], iwave:iwave+wavesize+1] = subpixmask_fraction[keep, nlo:-nhi]
-                    chi2pix[iispec[keep], iwave:iwave+wavesize+1] = chi2x[keep, nlo:-nhi]
+                #- outputs
+                #- TODO: watch out for edge effects on overlapping regions of submodels
+                modelimage[subxy] = submodel
+                pixmask_fraction[iispec[keep], iwave:iwave+wavesize+1] = subpixmask_fraction[keep, nlo:-nhi]
+                chi2pix[iispec[keep], iwave:iwave+wavesize+1] = chi2x[keep, nlo:-nhi]
     
-                #- Fill diagonals of resolution matrix
-                for ispec in np.arange(speclo, spechi)[keep]:
-                    #- subregion of R for this spectrum
-                    ii = slice(nw*(ispec-speclo), nw*(ispec-speclo+1))
-                    Rx = R[ii, ii]
+            #- Fill diagonals of resolution matrix
+            for ispec in np.arange(speclo, spechi)[keep]:
+                #- subregion of R for this spectrum
+                ii = slice(nw*(ispec-speclo), nw*(ispec-speclo+1))
+                Rx = R[ii, ii]
 
-                    for j in range(nlo,nw-nhi):
-                        # Rd dimensions [nspec, 2*ndiag+1, nwave]
-                        Rd[ispec-specmin, :, iwave+j-nlo] = Rx[j-ndiag:j+ndiag+1, j]
+                for j in range(nlo,nw-nhi):
+                    # Rd dimensions [nspec, 2*ndiag+1, nwave]
+                    Rd[ispec-specmin, :, iwave+j-nlo] = Rx[j-ndiag:j+ndiag+1, j]
 
     #- Add extra print because of carriage return \r progress trickery
     if verbose:
@@ -266,9 +302,6 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
         ivar[nspec, nwave] = inverse variance of flux
         R : 2D resolution matrix to convert
     """
-
-    #print("legval_dict in ex2d_patch")
-    #print(legval_dict)
 
     #- Range of image to consider
     waverange = (wavelengths[0], wavelengths[-1])
@@ -445,7 +478,6 @@ def legval_cache(psf, traceset, spec_range, wavelengths):
     #print("y.shape")
     #print(y.shape)
     return y
-
 
 
 def eigen_compose(w, v, invert=False, sqr=False):
