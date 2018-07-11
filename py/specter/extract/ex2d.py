@@ -95,6 +95,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
         psferr = psf.psferr
 
     #- Let's do some extractions
+    #this needs to be fixed if n is not 32...
     for bundlelo in range(specmin, specmin+nspec, bundlesize):
         #- index of last spectrum, non-inclusive, i.e. python-style indexing
         bundlehi = min(bundlelo+bundlesize, specmin+nspec)
@@ -108,6 +109,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
             keep = np.in1d(iiextract[subbundle_index], iibundle[subbundle_index])
 
             specrange = (speclo, spechi)
+            print("specrange is %s on comm.rank %s" %(specrange, comm.rank))
 
             #instead of doing 50 wavelengths at a time, just do them all
             wlo=wavelengths[0]
@@ -119,16 +121,16 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
             #- Identify subimage that covers the core wavelengths
             subxyrange = xlo,xhi,ylo,yhi = psf.xyrange(specrange, (wlo, whi))
 
-            print("subxyrange is")
-            print(subxyrange)
+            #print("subxyrange is")
+            #print(subxyrange)
 
             if xyrange is None:
                 subxy = np.s_[ylo:yhi, xlo:xhi]
             else:
                 subxy = np.s_[ylo-xyrange[2]:yhi-xyrange[2], xlo-xyrange[0]:xhi-xyrange[0]]
 
-            print("subxy is")
-            print(subxy)
+            #print("subxy is")
+            #print(subxy)
 
             subimg = image[subxy] 
             subivar  = imageivar[subxy] 
@@ -143,13 +145,13 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
             ymin = ylo-ny+2
             ymax = yhi+ny-2
           
-            print("wlo is %s" %(wlo))
-            print("whi is %s" %(whi))
-            print("ymin is %s" %(ymin))
-            print("ymax is %s" %(ymax))
-            print("ndiag is %s" %(ndiag))
-            print("dw is %s" %(dw))
-            print("psf.wavelength(speclo, ymin) is %s" %(psf.wavelength(speclo, ymin)))        
+            #print("wlo is %s" %(wlo))
+            #print("whi is %s" %(whi))
+            #print("ymin is %s" %(ymin))
+            #print("ymax is %s" %(ymax))
+            #print("ndiag is %s" %(ndiag))
+            #print("dw is %s" %(dw))
+            #print("psf.wavelength(speclo, ymin) is %s" %(psf.wavelength(speclo, ymin)))        
 
             nlo = np.max([int((wlo - psf.wavelength(speclo, ymin))/dw)-1, ndiag])
             nhi = np.max([int((psf.wavelength(speclo, ymax) - whi)/dw)-1, ndiag])
@@ -161,6 +163,8 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
             legval_dict = None
             if use_cache is not None:
                 cache_params(psf, spec_range, wavelengths)
+                if comm.rank == 0:
+                    print("using cached parameters for legval")
 
 
             #- include \r carriage return to prevent scrolling
@@ -171,13 +175,13 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
             #- Do the extraction
             #usually full_output = True but in this case we'll set it to False for gradual debugging
-            print("starting ex2d_patch")
+            print("starting ex2d_patch on comm.rank %s" %(comm.rank))
             results = \
                 ex2d_patch(subimg, subivar, psf,
                     specmin=speclo, nspec=spechi-speclo, wavelengths=ww,
                     xyrange=[xlo,xhi,ylo,yhi], regularize=regularize, ndecorr=ndecorr,
                     full_output=False, legval_dict=legval_dict)
-            print("finsihed ex2d_patch")
+            print("finsihed ex2d_patch on comm.rank %s" %(comm.rank))
             specflux = results['flux']
             specivar = results['ivar']
             R = results['R']
