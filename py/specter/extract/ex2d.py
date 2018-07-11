@@ -15,7 +15,8 @@ from specter.util import legval_numba
 
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
          regularize=0.0, ndecorr=False, bundlesize=25, nsubbundles=1,
-         wavesize=50, full_output=False, verbose=False, debug=False, psferr=None, comm=None):
+         wavesize=50, use_cache=None, full_output=False, verbose=False, debug=False,
+         psferr=None, comm=None):
     '''
     2D PSF extraction of flux from image patch given pixel inverse variance.
     
@@ -108,74 +109,57 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
             specrange = (speclo, spechi)
 
-            #keep this part of the loop just to store things as a function of [iwave]
-            #then feed these stored arrays into ex2d_patch --> projection_matrix
-            #this will avoid calling ex_2d patch over and over again...
-            
-            #preallocate all the things we need to feed to ex2d_patch!
-            iwave_size = len(wavelengths)
-            print("iwave_size is %s" %(iwave_size))
-            xlo = np.zeros(iwave_size, dtype=int)
-            xhi = np.zeros(iwave_size, dtype=int)
-            ylo = np.zeros(iwave_size, dtype=int)
-            yhi = np.zeros(iwave_size, dtype=int)
+            #instead of doing 50 wavelengths at a time, just do them all
+            wlo=wavelengths[0]
+            whi=wavelengths[-1]
 
-            #for now append other things since we don't know the right dimension
-            subimg = []
-            subivar = []
-            ww = []
-
-            #this loop used to be including ex2d_path, now it's only for getting the parameters ready
-            for iwave in range(0, len(wavelengths), wavesize):
-                print("iwave is %s" %(iwave))
-                #- Low and High wavelengths for the core region
-                wlo = wavelengths[iwave]
-                if iwave+wavesize < len(wavelengths):
-                    whi = wavelengths[iwave+wavesize]
-                else:
-                    whi = wavelengths[-1]
+            #print("wlo is %s" %(wlo))
+            #print("whi is %s" %(whi))
         
-                #- Identify subimage that covers the core wavelengths
-                subxyrange = xlo[iwave],xhi[iwave],ylo[iwave],yhi[iwave] = psf.xyrange(specrange, (wlo, whi))
+            #- Identify subimage that covers the core wavelengths
+            subxyrange = xlo,xhi,ylo,yhi = psf.xyrange(specrange, (wlo, whi))
 
-                print("subxyrange is")
-                print(subxyrange)
+            print("subxyrange is")
+            print(subxyrange)
 
-                if xyrange is None:
-                    subxy = np.s_[ylo[iwave]:yhi[iwave], xlo[iwave]:xhi[iwave]]
-                else:
-                    subxy = np.s_[ylo[iwave]-xyrange[2]:yhi[iwave]-xyrange[2], xlo[iwave]-xyrange[0]:xhi[iwave]-xyrange[0]]
+            if xyrange is None:
+                subxy = np.s_[ylo:yhi, xlo:xhi]
+            else:
+                subxy = np.s_[ylo-xyrange[2]:yhi-xyrange[2], xlo-xyrange[0]:xhi-xyrange[0]]
 
-                subimg.append(image[subxy]) #append for now since we dont know the dimensions to preallocate
-                subivar.append(imageivar[subxy]) #same deal
+            print("subxy is")
+            print(subxy)
+
+            subimg = image[subxy] 
+            subivar  = imageivar[subxy] 
+
+            #print("subimg.size is")
+            #print(subimg.size)
+            #print("subivar.size is")
+            #print(subivar.size)
     
-                #- Determine extra border wavelength extent: nlo,nhi extra wavelength bins
-                ny, nx = psf.pix(speclo, wlo).shape
-                ymin = ylo[iwave]-ny+2
-                ymax = yhi[iwave]+ny-2
+            #- Determine extra border wavelength extent: nlo,nhi extra wavelength bins
+            ny, nx = psf.pix(speclo, wlo).shape
+            ymin = ylo-ny+2
+            ymax = yhi+ny-2
           
-                print("wlo is %s" %(wlo))
-                print("whi is %s" %(whi))
-                print("ymin is %s" %(ymin))
-                print("ymax is %s" %(ymax))
-                print("ndiag is %s" %(ndiag))
-                print("dw is %s" %(dw))
-                print("psf.wavelength(speclo, ymin) is %s" %(psf.wavelength(speclo, ymin)))        
+            print("wlo is %s" %(wlo))
+            print("whi is %s" %(whi))
+            print("ymin is %s" %(ymin))
+            print("ymax is %s" %(ymax))
+            print("ndiag is %s" %(ndiag))
+            print("dw is %s" %(dw))
+            print("psf.wavelength(speclo, ymin) is %s" %(psf.wavelength(speclo, ymin)))        
 
-                nlo = np.max([int((wlo - psf.wavelength(speclo, ymin))/dw)-1, ndiag])
-                nhi = np.max([int((psf.wavelength(speclo, ymax) - whi)/dw)-1, ndiag])
-                ww.append(np.arange(wlo-nlo*dw, whi+(nhi+0.5)*dw, dw))
-                #wmin, wmax = ww[0], ww[-1]
-                #now that we are appending, we want the min and max from the whole thing, this won't work ^
-
-            #also we need to do this after we've completed the loop
-            wmin = np.min(ww)
-            wmax = np.max(ww)
+            nlo = np.max([int((wlo - psf.wavelength(speclo, ymin))/dw)-1, ndiag])
+            nhi = np.max([int((psf.wavelength(speclo, ymax) - whi)/dw)-1, ndiag])
+            ww = (np.arange(wlo-nlo*dw, whi+(nhi+0.5)*dw, dw))
+            wmin, wmax = ww[0], ww[-1]
             nw = len(ww)
 
             #okay! if we asked for --used_cached_values, we need to compute them first
             legval_dict = None
-            if args.use_cached_values is not None:
+            if use_cache is not None:
                 cache_params(psf, spec_range, wavelengths)
 
 
