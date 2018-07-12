@@ -219,7 +219,7 @@ class PSF(object):
         """
         raise NotImplementedError
         
-    def xypix(self, ispec, wavelength, xmin=0, xmax=None, ymin=0, ymax=None, legval_dict=None):
+    def xypix(self, ispec, wavelength, xmin=0, xmax=None, ymin=0, ymax=None, iwave=None, legval_dict=None):
         """
         Evaluate PSF for spectrum[ispec] at given wavelength
         
@@ -245,11 +245,11 @@ class PSF(object):
             if key in self._cache:
                 xx, yy, ccdpix = self._cache[key]
             else:
-                xx, yy, ccdpix = self._xypix(ispec, wavelength, legval_dict=legval_dict)
+                xx, yy, ccdpix = self._xypix(ispec, wavelength, iwave, legval_dict=legval_dict)
                 self._cache[key] = (xx, yy, ccdpix)
         except AttributeError:
             self._cache = CacheDict(2500)
-            xx, yy, ccdpix = self._xypix(ispec, wavelength, legval_dict=legval_dict)
+            xx, yy, ccdpix = self._xypix(ispec, wavelength, iwave, legval_dict=legval_dict)
             
         xlo, xhi = xx.start, xx.stop
         ylo, yhi = yy.start, yy.stop
@@ -615,7 +615,7 @@ class PSF(object):
         """Maximum wavelength seen by all spectra"""
         return self._wmax_all
     
-    def projection_matrix(self, spec_range, wavelengths, xyrange, legval_dict=None):
+    def projection_matrix(self, spec_range, wavelengths, xyrange, legval_dict=None, comm=None):
         """
         Returns sparse projection matrix from flux to pixels
     
@@ -631,8 +631,6 @@ class PSF(object):
             ny = ymax-ymin
             img = A.dot(phot.ravel()).reshape((ny,nx))
         """
-        #print("legval_dict in projection_matrix")
-        #print(legval_dict)
     
         #- Matrix dimensions
         if isinstance(spec_range, numbers.Integral):
@@ -650,16 +648,30 @@ class PSF(object):
         A = np.zeros( (ny*nx, nspec*nflux) )
         tmp = np.zeros((ny, nx))
         for ispec in range(specmin, specmax):
-            for iflux, w in enumerate(wavelengths):
+            #need to leave out the 500th index
+            #print("range(len(wavelenths[:-2]))")
+            #print(range(len(wavelengths[:-2])))
+            for iw in range(len(wavelengths)):                
+                #print("iw is")
+                #print(iw)
+                #- Are use using a pre-cached wavelength?
+                if legval_dict is not None:
+                    iwave = iw
+                else:
+                    iwave = None
+
                 #- Get subimage and index slices
-                xslice, yslice, pix = self.xypix(ispec, w, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, legval_dict=legval_dict)
+                print("xypix starting for ispec %s on rank %s" %(ispec, comm.rank))                
+                xslice, yslice, pix = self.xypix(ispec, wavelengths[iw],
+                    xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
+                    iwave = iwave, legval_dict=legval_dict)
+                print("xypix finished for ispec %s on rank %s" %(ispec, comm.rank))
                 
                 #- If there is overlap with pix_range, put into sub-region of A
                 if pix.shape[0]>0 and pix.shape[1]>0:
                     tmp[yslice, xslice] = pix
-                    ij = (ispec-specmin)*nflux + iflux
+                    ij = (ispec-specmin)*nflux + iw
                     A[:, ij] = tmp.ravel()
                     tmp[yslice, xslice] = 0.0
         
         return scipy.sparse.csr_matrix(A)    
-

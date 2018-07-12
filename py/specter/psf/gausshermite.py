@@ -149,12 +149,12 @@ class GaussHermitePSF(PSF):
 
         
 
-    def _xypix(self, ispec, wavelength, legval_dict=None):
+    def _xypix(self, ispec, wavelength, iwave, legval_dict=None):
         #print("legval_dict in _xypix")
         #print(legval_dict)
         #if we are not passing in legval_dict of precomputed values, revert to the orig version
         if legval_dict is None:
-            print("not using cached legval_dict")
+            #print("not using cached legval_dict")
             # x, y = self.xy(ispec, wavelength)
             x = self._x.eval(ispec, wavelength)
             y = self._y.eval(ispec, wavelength)
@@ -241,8 +241,8 @@ class GaussHermitePSF(PSF):
        
         #if we have passed in precomputed values in legval_dict, just look up the values
         else:
-            print("we are using cached legval_dict")
-            iwave = int(wavelength)
+            #print("we are using cached legval_dict")
+            #we have already passed in iwave from proction_matrix in psf
             # x, y = self.xy(ispec, wavelength)
             x = legval_dict['x_cache'][ispec, iwave]
             y = legval_dict['y_cache'][ispec, iwave]
