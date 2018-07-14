@@ -14,7 +14,7 @@ from specter.util import outer
 from specter.util import legval_numba
 
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
-         regularize=0.0, ndecorr=False, bundlesize=25, nsubbundles=1,
+         regularize=0.0, ndecorr=False, bundlesize=25,
          wavesize=50, use_cache=None, full_output=False, verbose=False, 
          debug=False, psferr=None, comm=None):
     '''
@@ -90,38 +90,33 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
     #- Orig was ndiag = 10, which fails when dw gets too large compared to PSF size
     Rd = np.zeros( (nspec, 2*ndiag+1, nwave) )
 
-
     if psferr is None :
         psferr = psf.psferr
 
     #- Let's do some extractions
-    #this needs to be fixed now that we're not looping over wavelength bins
-    for bundlelo in range(specmin, specmin+nspec, bundlesize):
+    for speclo in range(specmin, specmin+nspec, bundlesize):
         #- index of last spectrum, non-inclusive, i.e. python-style indexing
-        bundlehi = min(bundlelo+bundlesize, specmin+nspec)
+        spechi = min(speclo+bundlesize, specmin+nspec)
+        specrange = (speclo, spechi)
 
-        print("bundlelo %s, bundlehi %s on rank %s" %(bundlelo, bundlehi, comm.rank))
-        print("nsubbundles is %s" %(nsubbundles))
+        nspec_subbundle = spechi - speclo
+        print("specrange is %s on comm.rank %s" %(specrange, comm.rank))
 
-        nsub = min(bundlehi-bundlelo, nsubbundles)
-        iibundle, iiextract = split_bundle(bundlehi-bundlelo, nsub)
+        #instead of doing 50 wavelengths at a time, just do them all
+        #welp, just kidding, that overflows the node memory
+        #gonna have to break it back into some groups of wavelengths
 
-        print("nsub is %s" %(nsub))
-        print("iibundle is %s" %(iibundle))
-        print("iiextract is %s" %(iiextract))
+        nwavelengthgroups = 10 #this will vary on haswell and knl since haswell has more memory
 
-        for subbundle_index in range(len(iiextract)):
-            speclo = bundlelo + iiextract[subbundle_index][0]
-            spechi = bundlelo + iiextract[subbundle_index][-1]+1
-            keep = np.in1d(iiextract[subbundle_index], iibundle[subbundle_index])
+        for i in range(nwavelengthgroups):
+            groupsize = len(wavelengths) // nwavelengthgroups
+            groupstart = groupsize*i
+            groupstop = groupsize*(i+1)
+            wlo=wavelengths[groupstart]
+            whi=wavelengths[groupstop]
 
-            specrange = (speclo, spechi)
-            nspec_subbundle = spechi - speclo
-            print("specrange is %s on comm.rank %s" %(specrange, comm.rank))
-
-            #instead of doing 50 wavelengths at a time, just do them all
-            wlo=wavelengths[0]
-            whi=wavelengths[-1]
+            #wlo=wavelengths[0]
+            #whi=wavelengths[-1]
 
             #print("wlo is %s" %(wlo))
             #print("whi is %s" %(whi))
@@ -426,6 +421,7 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
 def cache_params(psf, specrange, wavelengths):
     #store in a dict
     legval_dict = dict()
+    #add sanity check print statement at end
     legval_dict['x_cache'] = legval_cache(psf, psf._x, specrange, wavelengths)
     legval_dict['y_cache'] = legval_cache(psf, psf._y, specrange, wavelengths)
     legval_dict['sigx1_cache'] = legval_cache(psf, psf.coeff['GHSIGX'], specrange, wavelengths)
@@ -435,6 +431,12 @@ def cache_params(psf, specrange, wavelengths):
     legval_dict['tailamp_cache'] = legval_cache(psf, psf.coeff['TAILAMP'], specrange, wavelengths)
     legval_dict['tailcore_cache'] = legval_cache(psf, psf.coeff['TAILCORE'], specrange, wavelengths)
     legval_dict['tailinde_cache'] = legval_cache(psf, psf.coeff['TAILINDE'], specrange, wavelengths)
+    print("len(legval_dict)")
+    print(len(legval_dict))
+    print("len(legval_dict['x_cache'])")
+    print(len(legval_dict['x_cache']))
+    #print("legval_dict")
+    #print(legval_dict)
     return legval_dict
 
 #modified version of eval in specter/traceset that can handle 
@@ -446,10 +448,10 @@ def legval_cache(psf, traceset, specrange, wavelengths):
     #given spec_range, we need to find ispec
     spec_min=specrange[0]
     spec_max=specrange[-1]
-    nspec = psf.nspec
+    nspec = spec_max - spec_min
     nwave = len(wavelengths)
-    #print("nwave")
-    #print(nwave)
+    #print("nspec")
+    #print(nspec)
     #print("wavelengths")
     #print(wavelengths)
     ispec = np.arange(nspec)
@@ -461,7 +463,7 @@ def legval_cache(psf, traceset, specrange, wavelengths):
 
     xx=np.asarray(xx_list)
     #numba requires f8 or smaller
-    cc_numba = traceset._coeff[ispec].astype(np.float64, copy=False)
+    cc_numba = traceset._coeff[spec_min:spec_max].astype(np.float64, copy=False)
     #print("type of xx")
     #print(type(xx))
     #print("type of cc_numba")
@@ -470,7 +472,7 @@ def legval_cache(psf, traceset, specrange, wavelengths):
     #varies depending on ispec
     #have to append (ie can't preallocate) bc size of wavelengths changes
     y_list=[]
-    for i in ispec:
+    for i in range(nspec):
         y_list.append(legval_numba(xx, cc_numba[i]))
 
     #this is a list, convert it back to a np array
