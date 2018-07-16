@@ -640,54 +640,34 @@ class PSF(object):
             specmin, specmax = spec_range, spec_range+1
         else:
             specmin, specmax = spec_range
-           
-        #print("projection_matrix spec_range")
-        #print(spec_range)
- 
-        all_spec = range(specmin, specmax)
-
-        xmin, xmax, ymin, ymax = xyrange   
-        #print("projection_matrix xyrange")   
-        #print(xyrange)  
+            
+        xmin, xmax, ymin, ymax = xyrange        
         nspec = specmax - specmin
         nflux = len(wavelengths)
-        #print("projection_matrix nspecc")
-        #print(nspec)
-        #print("projection_matrix nflux")
-        #print(nflux)
         nx = xmax - xmin
         ny = ymax - ymin
-        #print("nx is %s" %(nx))
-        #print("ny is %s" %(ny))   
- 
-        #this is way too big
+    
+        #- Generate A
         A = np.zeros( (ny*nx, nspec*nflux) )
         tmp = np.zeros((ny, nx))
-        for ispec in range(nspec):
-            #print("ispec in projection_matrix")
-            #print(ispec)
-            for iw in range(len(wavelengths)):                
-                #print("iw is")
-                #print(iw)
-                #- Are use using a pre-cached wavelength?
-                if legval_dict is not None:
-                    iwave = iw
-                else:
-                    iwave = None
-
+        for ispec in range(specmin, specmax):
+            for iflux, w in enumerate(wavelengths):
+                iwave = iflux #who cares, pass this anyway
                 #- Get subimage and index slices
-                #print("xypix starting for ispec %s on rank %s" %(ispec, comm.rank))                
-                xslice, yslice, pix = self.xypix(ispec, wavelengths[iw],
+                #xslice, yslice, pix = self.xypix(ispec, w, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
+                xslice, yslice, pix = self.xypix(ispec, wavelengths[iwave],
                     xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
-                    iwave = iwave, legval_dict=legval_dict)
-                #print("xypix finished for ispec %s on rank %s" %(ispec, comm.rank))
-                
+                    iwave = iwave, legval_dict=legval_dict)                
+
                 #- If there is overlap with pix_range, put into sub-region of A
-                #there has got to be a better, less-memory intenstive way to do this
                 if pix.shape[0]>0 and pix.shape[1]>0:
                     tmp[yslice, xslice] = pix
-                    ij = (all_spec[ispec]-specmin)*nflux + iw
+                    ij = (ispec-specmin)*nflux + iflux
                     A[:, ij] = tmp.ravel()
                     tmp[yslice, xslice] = 0.0
         
-        return scipy.sparse.csr_matrix(A)    
+        return scipy.sparse.csr_matrix(A)  
+
+
+
+
