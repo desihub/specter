@@ -219,7 +219,8 @@ class PSF(object):
         """
         raise NotImplementedError
         
-    def xypix(self, ispec, wavelength, xmin=0, xmax=None, ymin=0, ymax=None, iwave=None, legval_dict=None):
+    def xypix(self, ispec, wavelength, xmin=0, xmax=None, ymin=0, ymax=None, 
+        ispec_cache=None, iwave=None, legval_dict=None):
         """
         Evaluate PSF for spectrum[ispec] at given wavelength
         
@@ -248,11 +249,11 @@ class PSF(object):
             if key in self._cache:
                 xx, yy, ccdpix = self._cache[key]
             else:
-                xx, yy, ccdpix = self._xypix(ispec, wavelength, iwave, legval_dict=legval_dict)
+                xx, yy, ccdpix = self._xypix(ispec, ispec_cache,  wavelength, iwave, legval_dict=legval_dict)
                 self._cache[key] = (xx, yy, ccdpix)
         except AttributeError:
             self._cache = CacheDict(2500)
-            xx, yy, ccdpix = self._xypix(ispec, wavelength, iwave, legval_dict=legval_dict)
+            xx, yy, ccdpix = self._xypix(ispec, ispec_cache,  wavelength, iwave, legval_dict=legval_dict)
             
         xlo, xhi = xx.start, xx.stop
         ylo, yhi = yy.start, yy.stop
@@ -650,6 +651,9 @@ class PSF(object):
         #- Generate A
         A = np.zeros( (ny*nx, nspec*nflux) )
         tmp = np.zeros((ny, nx))
+        ispec_cache = int(0)
+        #so the old _xypix and new _xypix require different indexing...
+        #this is because caching the values results in different size cache 
         for ispec in range(specmin, specmax):
             for iflux, w in enumerate(wavelengths):
                 iwave = iflux #who cares, pass this anyway
@@ -657,15 +661,17 @@ class PSF(object):
                 #xslice, yslice, pix = self.xypix(ispec, w, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
                 xslice, yslice, pix = self.xypix(ispec, wavelengths[iwave],
                     xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
-                    iwave = iwave, legval_dict=legval_dict)                
-
+                    ispec_cache = ispec_cache, iwave = iwave, legval_dict=legval_dict)   
+             
                 #- If there is overlap with pix_range, put into sub-region of A
                 if pix.shape[0]>0 and pix.shape[1]>0:
                     tmp[yslice, xslice] = pix
                     ij = (ispec-specmin)*nflux + iflux
                     A[:, ij] = tmp.ravel()
                     tmp[yslice, xslice] = 0.0
-        
+
+            #increment the value of ispec_cache
+            ispec_cache += 1            
         return scipy.sparse.csr_matrix(A)  
 
 

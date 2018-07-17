@@ -149,7 +149,7 @@ class GaussHermitePSF(PSF):
 
         
 
-    def _xypix(self, ispec, wavelength, iwave, legval_dict=None):
+    def _xypix(self, ispec, ispec_cache, wavelength, iwave, legval_dict=None):
         #print("legval_dict in _xypix")
         #print(legval_dict)
         #if we are not passing in legval_dict of precomputed values, revert to the orig version
@@ -241,11 +241,8 @@ class GaussHermitePSF(PSF):
        
         #if we have passed in precomputed values in legval_dict, just look up the values
         else:
-            #print("we are using cached legval_dict")
-            #we have already passed in iwave from proction_matrix in psf
-            # x, y = self.xy(ispec, wavelength)
-            x = legval_dict['x_cache'][ispec, iwave]
-            y = legval_dict['y_cache'][ispec, iwave]
+            x = legval_dict['x_cache'][ispec_cache, iwave]
+            y = legval_dict['y_cache'][ispec_cache, iwave]
 
             #- CCD pixel ranges
             hsizex = self._polyparams['HSIZEX']
@@ -260,15 +257,15 @@ class GaussHermitePSF(PSF):
             #- Extract GH degree and sigma coefficients for convenience
             degx1 = self._polyparams['GHDEGX']
             degy1 = self._polyparams['GHDEGY']
-            sigx1 = legval_dict['sigx1_cache'][ispec, iwave]
-            sigy1 = legval_dict['sigy1_cache'][ispec, iwave]
+            sigx1 = legval_dict['sigx1_cache'][ispec_cache, iwave]
+            sigy1 = legval_dict['sigy1_cache'][ispec_cache, iwave]
 
             #- Background tail image
-            tailxsca = legval_dict['tailxsca_cache'][ispec, iwave]
-            tailysca = legval_dict['tailysca_cache'][ispec, iwave]
-            tailamp = legval_dict['tailamp_cache'][ispec, iwave]
-            tailcore = legval_dict['tailcore_cache'][ispec, iwave]
-            tailinde = legval_dict['tailinde_cache'][ispec, iwave]
+            tailxsca = legval_dict['tailxsca_cache'][ispec_cache, iwave]
+            tailysca = legval_dict['tailysca_cache'][ispec_cache, iwave]
+            tailamp = legval_dict['tailamp_cache'][ispec_cache, iwave]
+            tailcore = legval_dict['tailcore_cache'][ispec_cache, iwave]
+            tailinde = legval_dict['tailinde_cache'][ispec_cache, iwave]
 
             #- Make tail image (faster, less readable version)
             #- r2 = normalized distance from center of each pixel to PSF center
