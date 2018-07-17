@@ -619,7 +619,7 @@ class PSF(object):
         """Maximum wavelength seen by all spectra"""
         return self._wmax_all
     
-    def projection_matrix(self, spec_range, wavelengths, xyrange, legval_dict=None, comm=None):
+    def projection_matrix(self, spec_range, wavelengths, xyrange, legval_dict=None):
         """
         Returns sparse projection matrix from flux to pixels
     

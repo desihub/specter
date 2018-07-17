@@ -16,7 +16,7 @@ from specter.util import legval_numba
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
          regularize=0.0, ndecorr=False, bundlesize=25, nsubbundles=1,
          wavesize=None, use_cache=None, full_output=False, verbose=False, 
-         debug=False, psferr=None, comm=None):
+         debug=False, psferr=None):
     '''
     2D PSF extraction of flux from image patch given pixel inverse variance.
     
@@ -144,12 +144,6 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                 if use_cache is not None:
                     #use ww instead of wavelengths here so we get the remapped values
                     legval_dict = cache_params(psf, specrange, ww)
-                    if comm.rank == 0:
-                        print("using cached parameters for legval")
-                else:
-                    if comm.rank == 0:
-                        print("not using cached parameters for legval")    
-
 
                 #- include \r carriage return to prevent scrolling
                 if verbose:
@@ -163,7 +157,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                     ex2d_patch(subimg, subivar, psf,
                         specmin=speclo, nspec=spechi-speclo, wavelengths=ww,
                         xyrange=[xlo,xhi,ylo,yhi], regularize=regularize, ndecorr=ndecorr,
-                        full_output=True, legval_dict=legval_dict, comm=comm)
+                        full_output=True, legval_dict=legval_dict)
                 #print("finsihed ex2d_patch on comm.rank %s" %(comm.rank))
                 specflux = results['flux']
                 specivar = results['ivar']
@@ -248,7 +242,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
 
 def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
-         full_output=False, regularize=0.0, ndecorr=False, legval_dict=None, comm=None):
+         full_output=False, regularize=0.0, ndecorr=False, legval_dict=None):
     """
     2D PSF extraction of flux from image patch given pixel inverse variance.
     
@@ -295,7 +289,7 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
     
     #- Projection matrix and inverse covariance
     A = psf.projection_matrix(specrange, wavelengths, xyrange, 
-        legval_dict=legval_dict, comm=comm)
+        legval_dict=legval_dict)
 
     #- Pixel weights matrix
     w = ivar.ravel()
@@ -407,14 +401,6 @@ def cache_params(psf, specrange, wavelengths):
     legval_dict['tailamp_cache'] = legval_cache(psf, psf.coeff['TAILAMP'], specrange, wavelengths)
     legval_dict['tailcore_cache'] = legval_cache(psf, psf.coeff['TAILCORE'], specrange, wavelengths)
     legval_dict['tailinde_cache'] = legval_cache(psf, psf.coeff['TAILINDE'], specrange, wavelengths)
-    #print("len(legval_dict)")
-    #print(len(legval_dict))
-    #print("len(legval_dict['x_cache'])")
-    #print(len(legval_dict['x_cache']))
-    #print("legval_dict")
-    #print(legval_dict)
-    #print("legval_dict['sigx1_cache']")
-    #print(legval_dict['sigx1_cache'])
     return legval_dict
 
 #modified version of eval in specter/traceset that can handle 
