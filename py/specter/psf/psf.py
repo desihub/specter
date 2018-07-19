@@ -220,7 +220,7 @@ class PSF(object):
         raise NotImplementedError
         
     def xypix(self, ispec, wavelength, xmin=0, xmax=None, ymin=0, ymax=None, 
-        ispec_cache=None, iwave=None, legval_dict=None):
+        iwave_cache=None, legval_dict=None):
         """
         Evaluate PSF for spectrum[ispec] at given wavelength
         
@@ -249,11 +249,11 @@ class PSF(object):
             if key in self._cache:
                 xx, yy, ccdpix = self._cache[key]
             else:
-                xx, yy, ccdpix = self._xypix(ispec, ispec_cache,  wavelength, iwave, legval_dict=legval_dict)
+                xx, yy, ccdpix = self._xypix(ispec, wavelength, iwave_cache=iwave_cache, legval_dict=legval_dict)
                 self._cache[key] = (xx, yy, ccdpix)
         except AttributeError:
             self._cache = CacheDict(2500)
-            xx, yy, ccdpix = self._xypix(ispec, ispec_cache,  wavelength, iwave, legval_dict=legval_dict)
+            xx, yy, ccdpix = self._xypix(ispec, wavelength, iwave_cache=iwave_cache, legval_dict=legval_dict)
             
         xlo, xhi = xx.start, xx.stop
         ylo, yhi = yy.start, yy.stop
@@ -619,14 +619,17 @@ class PSF(object):
         """Maximum wavelength seen by all spectra"""
         return self._wmax_all
     
-    def projection_matrix(self, spec_range, wavelengths, xyrange, legval_dict=None):
+    def projection_matrix(self, spec_range, wavelengths, xyrange, iwave_cache=None, legval_dict=None):
         """
         Returns sparse projection matrix from flux to pixels
     
-        Inputs:
+        Args:
             spec_range = (ispecmin, ispecmax) or scalar ispec
             wavelengths = array_like wavelengths
             xyrange  = (xmin, xmax, ymin, ymax)
+        Options:
+            iwave_cache: index of wavelengths[0] in the possibly larger
+                wavelengths array previously passed to self.cache_xypix()
             
         Usage:
             xyrange = xmin, xmax, ymin, ymax
@@ -651,28 +654,29 @@ class PSF(object):
         #- Generate A
         A = np.zeros( (ny*nx, nspec*nflux) )
         tmp = np.zeros((ny, nx))
-        ispec_cache = int(0)
-        #so the old _xypix and new _xypix require different indexing...
-        #this is because caching the values results in different size cache 
         for ispec in range(specmin, specmax):
-            for iflux, w in enumerate(wavelengths):
-                iwave = iflux #who cares, pass this anyway
+            for iw, w in enumerate(wavelengths):
+                #- Are use using a pre-cached wavelength?
+                if iwave_cache is not None:
+                    iwave = iwave_cache + iw
+                else:
+                    iwave = None
+
                 #- Get subimage and index slices
-                #xslice, yslice, pix = self.xypix(ispec, w, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
-                xslice, yslice, pix = self.xypix(ispec, wavelengths[iwave],
+                xslice, yslice, pix = self.xypix(ispec, w,
                     xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
-                    ispec_cache = ispec_cache, iwave = iwave, legval_dict=legval_dict)   
-             
+                    iwave_cache = iwave
+                    )
+                
                 #- If there is overlap with pix_range, put into sub-region of A
                 if pix.shape[0]>0 and pix.shape[1]>0:
                     tmp[yslice, xslice] = pix
-                    ij = (ispec-specmin)*nflux + iflux
+                    ij = (ispec-specmin)*nflux + iw
                     A[:, ij] = tmp.ravel()
                     tmp[yslice, xslice] = 0.0
+        
+        return scipy.sparse.csr_matrix(A)    
 
-            #increment the value of ispec_cache
-            ispec_cache += 1            
-        return scipy.sparse.csr_matrix(A)  
 
 
 

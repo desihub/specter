@@ -15,7 +15,7 @@ from specter.util import legval_numba
 
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
          regularize=0.0, ndecorr=False, bundlesize=25, nsubbundles=1,
-         wavesize=None, use_cache=None, full_output=False, verbose=False, 
+         wavesize=50, use_cache=None, full_output=False, verbose=False, 
          debug=False, psferr=None):
     '''
     2D PSF extraction of flux from image patch given pixel inverse variance.
@@ -108,6 +108,14 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
             specrange = (speclo, spechi)
 
+            #okay! if we asked for --used_cached_values, we need to compute them first
+            #this will compute the cached legval values for the rectangle between speclo and spechi 
+            #and all wavelengths 
+            legval_dict = None
+            if use_cache is not None:
+                #use ww instead of wavelengths here so we get the remapped values
+                legval_dict = cache_params(psf, specrange, wavelengths)
+
             for iwave in range(0, len(wavelengths), wavesize):
                 #- Low and High wavelengths for the core region
                 wlo = wavelengths[iwave]
@@ -134,16 +142,12 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
         
                 nlo = max(int((wlo - psf.wavelength(speclo, ymin))/dw)-1, ndiag)
                 nhi = max(int((psf.wavelength(speclo, ymax) - whi)/dw)-1, ndiag)
-                #these are the remapped wavelength values!
+                #these are the padded wavelength patches
                 ww = np.arange(wlo-nlo*dw, whi+(nhi+0.5)*dw, dw)
                 wmin, wmax = ww[0], ww[-1]
                 nw = len(ww)
-
-                #okay! if we asked for --used_cached_values, we need to compute them first
-                legval_dict = None
-                if use_cache is not None:
-                    #use ww instead of wavelengths here so we get the remapped values
-                    legval_dict = cache_params(psf, specrange, ww)
+                #also need ot keep track of the wavelength index so we can look it up later
+                iwave_cache = int(round(wmax - wmin)/dw)
 
                 #- include \r carriage return to prevent scrolling
                 if verbose:
@@ -152,13 +156,12 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                     sys.stdout.flush()
 
                 #- Do the extraction
-                #print("starting ex2d_patch on comm.rank %s" %(comm.rank))
                 results = \
                     ex2d_patch(subimg, subivar, psf,
                         specmin=speclo, nspec=spechi-speclo, wavelengths=ww,
                         xyrange=[xlo,xhi,ylo,yhi], regularize=regularize, ndecorr=ndecorr,
-                        full_output=True, legval_dict=legval_dict)
-                #print("finsihed ex2d_patch on comm.rank %s" %(comm.rank))
+                        full_output=True, iwave_cache=iwave_cache, legval_dict=legval_dict)
+
                 specflux = results['flux']
                 specivar = results['ivar']
                 R = results['R']
@@ -242,7 +245,8 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
 
 def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
-         full_output=False, regularize=0.0, ndecorr=False, legval_dict=None):
+         full_output=False, regularize=0.0, ndecorr=False, iwave_cache=None, 
+         legval_dict=None):
     """
     2D PSF extraction of flux from image patch given pixel inverse variance.
     
@@ -289,7 +293,7 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
     
     #- Projection matrix and inverse covariance
     A = psf.projection_matrix(specrange, wavelengths, xyrange, 
-        legval_dict=legval_dict)
+        iwave_cache=iwave_cache, legval_dict=legval_dict)
 
     #- Pixel weights matrix
     w = ivar.ravel()
@@ -499,7 +503,6 @@ def eigen_compose(w, v, invert=False, sqr=False):
     # multiply to get result
     wdiag = spdiags(wscaled, 0, dim, dim)
     return v.dot( wdiag.dot(v.T) )
-
 
 def resolution_from_icov(icov, decorr=None):
     """
