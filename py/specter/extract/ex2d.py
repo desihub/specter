@@ -405,6 +405,14 @@ def cache_params(psf, specrange, wavelengths):
     legval_dict['tailamp_cache'] = legval_cache(psf, psf.coeff['TAILAMP'], specrange, wavelengths)
     legval_dict['tailcore_cache'] = legval_cache(psf, psf.coeff['TAILCORE'], specrange, wavelengths)
     legval_dict['tailinde_cache'] = legval_cache(psf, psf.coeff['TAILINDE'], specrange, wavelengths)
+    #some extra steps to cache what we need for the core PSF image
+    degx1 = psf._polyparams['GHDEGX']
+    degy1 = psf._polyparams['GHDEGY']
+    for i in range(degx1+1):
+        for j in range(degy1+1):
+            core_string = 'GH-{}-{}'.format(i,j)
+            legval_dict[core_string]=legval_cache(psf, psf.coeff[core_string], specrange, wavelengths)
+
     return legval_dict
 
 #modified version of eval in specter/traceset that can handle 

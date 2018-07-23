@@ -196,7 +196,7 @@ class GaussHermitePSF(PSF):
             #- Create 1D GaussHermite functions in x and y
             xfunc1 = [self._pgh(xccd, i, x, sigma=sigx1) for i in range(degx1+1)]
             yfunc1 = [self._pgh(yccd, i, y, sigma=sigy1) for i in range(degy1+1)]        
-        
+       
             #- Create core PSF image
             core1 = np.zeros((ny, nx))
             spot1 = np.empty_like(core1)
@@ -205,7 +205,7 @@ class GaussHermitePSF(PSF):
                     c1 = self.coeff['GH-{}-{}'.format(i,j)].eval(ispec, wavelength)
                     outer(yfunc1[j], xfunc1[i], out=spot1)
                     core1 += c1 * spot1
-        
+
             #- Zero out elements in the core beyond 3 sigma
             #- Only for GaussHermite2
             # ghnsig = self.coeff['GHNSIG'].eval(ispec, wavelength)
@@ -275,15 +275,27 @@ class GaussHermitePSF(PSF):
             xfunc1 = [self._pgh(xccd, i, x, sigma=sigx1) for i in range(degx1+1)]
             yfunc1 = [self._pgh(yccd, i, y, sigma=sigy1) for i in range(degy1+1)]
 
+            ##orig version
+            ##- Create core PSF image
+            #core1 = np.zeros((ny, nx))
+            #spot1 = np.empty_like(core1)
+            #for i in range(degx1+1):
+            #    for j in range(degy1+1):
+            #        c1 = self.coeff['GH-{}-{}'.format(i,j)].eval(ispec, wavelength)
+            #        outer(yfunc1[j], xfunc1[i], out=spot1)
+            #        core1 += c1 * spot1
+
+            #orig version
             #- Create core PSF image
             core1 = np.zeros((ny, nx))
             spot1 = np.empty_like(core1)
             for i in range(degx1+1):
                 for j in range(degy1+1):
-                    c1 = self.coeff['GH-{}-{}'.format(i,j)].eval(ispec, wavelength)
+                    #see if we can squeeze out some extra speed by looking up the values
+                    c1 = legval_dict['GH-{}-{}'.format(i,j)][ispec, iwave_cache]
                     outer(yfunc1[j], xfunc1[i], out=spot1)
                     core1 += c1 * spot1
-
+ 
             #- Clip negative values and normalize to 1.0
             img = core1 + tails
             ### img = core1 + core2 + tails
