@@ -255,6 +255,28 @@ class GaussHermitePSF(PSF):
         else:                        
             return np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
 
+
+    def xsigma(self, ispec, wavelength):
+        """
+        Return Gaussian sigma of PSF spot in cross-dispersion direction
+        in CCD pixel units.
+        
+        ispec : spectrum index
+        wavelength : scalar or vector wavelength(s) to evaluate spot sigmas
+        """
+        return self.coeff['GHSIGX'].eval(ispec, wavelength)
+    
+    def ysigma(self, ispec, wavelength):
+        """
+        Return Gaussian sigma of PSF spot in dispersion direction
+        in CCD pixel units.
+        
+        ispec : spectrum index
+        wavelength : scalar or vector wavelength(s) to evaluate spot sigmas
+        """
+        return self.coeff['GHSIGY'].eval(ispec, wavelength)
+    
+
     def _value(self,x,y,ispec, wavelength):
         
         """
