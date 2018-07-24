@@ -228,7 +228,7 @@ except ImportError:
 
 # Much faster than numpy.polynomial.legendre.legval, but doesn't work with scalars
 import numba
-@numba.jit(nopython=True,cache=True)
+@numba.jit(nopython=True,cache=False)
 def legval_numba(x, c):
     nd=len(c)
     ndd=nd
