@@ -26,9 +26,14 @@ class TraceSet(object):
         return self._coeff.shape[0]
         
     def _xnorm(self, x):
-        if not isinstance(x, (numbers.Real, np.ndarray)):
+        # if not isinstance(x, (numbers.Real, np.ndarray)):
+        #     x = np.array(x)
+        #- Faster to rarely fail & convert than to check everytime
+        try:
+            return 2.0 * (x - self._xmin) / (self._xmax - self._xmin) - 1.0
+        except TypeError:
             x = np.array(x)
-        return 2.0 * (x - self._xmin) / (self._xmax - self._xmin) - 1.0
+            return 2.0 * (x - self._xmin) / (self._xmax - self._xmin) - 1.0
         
     def eval(self, ispec, x):
         xx = np.array(self._xnorm(x))
