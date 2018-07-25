@@ -26,12 +26,11 @@ class TraceSet(object):
         return self._coeff.shape[0]
         
     def _xnorm(self, x):
-        # if not isinstance(x, (numbers.Real, np.ndarray)):
-        #     x = np.array(x)
         #- Faster to rarely fail & convert than to check everytime
         try:
             return 2.0 * (x - self._xmin) / (self._xmax - self._xmin) - 1.0
         except TypeError:
+            #- convert list or tuple to array
             x = np.array(x)
             return 2.0 * (x - self._xmin) / (self._xmax - self._xmin) - 1.0
         
@@ -71,7 +70,7 @@ class TraceSet(object):
         """
         Return a traceset modeling x vs. y instead of y vs. x
         """
-        ytmp = self.eval(None, (self._xmin, self._xmax))
+        ytmp = self.eval(None, np.array([self._xmin, self._xmax]))
         ymin = np.min(ytmp)
         ymax = np.max(ytmp)
         x = np.linspace(self._xmin, self._xmax, 1000)
