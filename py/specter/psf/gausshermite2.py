@@ -74,11 +74,15 @@ class GaussHermite2PSF(PSF):
 
         #- Create inverse y -> wavelength mapping
         self._w = self._y.invert()
-        self._wmin = np.min(self.wavelength(None, 0))
-        self._wmin_all = np.max(self.wavelength(None, 0))
-        self._wmax = np.max(self.wavelength(None, self.npix_y-1))
-        self._wmax_all = np.min(self.wavelength(None, self.npix_y-1))
-                
+
+        #- Cache min/max wavelength per fiber at pixel edges
+        self._wmin_spec = self.wavelength(None, -0.5)
+        self._wmax_spec = self.wavelength(None, self.npix_y-0.5)
+        self._wmin = np.min(self._wmin_spec)
+        self._wmin_all = np.max(self._wmin_spec)
+        self._wmax = np.max(self._wmax_spec)
+        self._wmax_all = np.min(self._wmax_spec)
+
         #- Filled only if needed
         self._xsigma = None
         self._ysigma = None

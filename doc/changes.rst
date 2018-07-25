@@ -7,6 +7,7 @@ specter change log
 
 * Add custom `xsigma` and `ysigma` functions to GaussHermitePSF (PR #66).
 * Don't use numba caching due to MPI race condition (PR #67).
+* Small speed improvements (PR #68).
 
 0.8.6 (2018-06-27)
 ------------------

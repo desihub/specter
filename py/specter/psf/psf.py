@@ -69,14 +69,18 @@ class PSF(object):
             yc = fx['YCOEFF'].data
             hdr = fx['YCOEFF'].header
             self._y = TraceSet(yc, domain=(hdr['WAVEMIN'], hdr['WAVEMAX']))
-        
+
         #- Create inverse y -> wavelength mapping
         self._w = self._y.invert()
-        self._wmin = np.min(self.wavelength(None, 0))
-        self._wmin_all = np.max(self.wavelength(None, 0))
-        self._wmax = np.max(self.wavelength(None, self.npix_y-1))
-        self._wmax_all = np.min(self.wavelength(None, self.npix_y-1))
-                
+
+        #- Cache min/max wavelength per fiber at pixel edges
+        self._wmin_spec = self.wavelength(None, -0.5)
+        self._wmax_spec = self.wavelength(None, self.npix_y-0.5)
+        self._wmin = np.min(self._wmin_spec)
+        self._wmin_all = np.max(self._wmin_spec)
+        self._wmax = np.max(self._wmax_spec)
+        self._wmax_all = np.min(self._wmax_spec)
+
         #- Filled only if needed
         self._xsigma = None
         self._ysigma = None
@@ -235,9 +239,9 @@ class PSF(object):
         if ymax is None:
             ymax = self.npix_y
 
-        if wavelength < self.wavelength(ispec, -0.5):
+        if wavelength < self._wmin_spec[ispec]:
             return slice(0,0), slice(0,0), np.zeros((0,0))
-        elif wavelength > self.wavelength(ispec, self.npix_y-0.5):
+        elif wavelength > self._wmax_spec[ispec]:
             return slice(0,0), slice(ymax, ymax), np.zeros((0,0))
         
         key = (ispec, wavelength)
@@ -645,7 +649,8 @@ class PSF(object):
         ny = ymax - ymin
     
         #- Generate A
-        A = np.zeros( (ny*nx, nspec*nflux) )
+        #- Start with a transposed version to fill it more efficiently
+        A = np.zeros( (nspec*nflux, ny*nx) )
         tmp = np.zeros((ny, nx))
         for ispec in range(specmin, specmax):
             for iflux, w in enumerate(wavelengths):
@@ -656,8 +661,8 @@ class PSF(object):
                 if pix.shape[0]>0 and pix.shape[1]>0:
                     tmp[yslice, xslice] = pix
                     ij = (ispec-specmin)*nflux + iflux
-                    A[:, ij] = tmp.ravel()
+                    A[ij, :] = tmp.ravel()
                     tmp[yslice, xslice] = 0.0
         
-        return scipy.sparse.csr_matrix(A)    
+        return scipy.sparse.csr_matrix(A.T)
 
