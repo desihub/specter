@@ -2,7 +2,12 @@
 specter change log
 ==================
 
-0.8.7 (unreleased)
+0.8.8 (unreleased)
+------------------
+
+* No changes yet.
+
+0.8.7 (2018-07-26)
 ------------------
 
 * Add custom `xsigma` and `ysigma` functions to GaussHermitePSF (PR #66).
