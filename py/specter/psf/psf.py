@@ -69,14 +69,18 @@ class PSF(object):
             yc = fx['YCOEFF'].data
             hdr = fx['YCOEFF'].header
             self._y = TraceSet(yc, domain=(hdr['WAVEMIN'], hdr['WAVEMAX']))
-        
+
         #- Create inverse y -> wavelength mapping
         self._w = self._y.invert()
-        self._wmin = np.min(self.wavelength(None, 0))
-        self._wmin_all = np.max(self.wavelength(None, 0))
-        self._wmax = np.max(self.wavelength(None, self.npix_y-1))
-        self._wmax_all = np.min(self.wavelength(None, self.npix_y-1))
-                
+
+        #- Cache min/max wavelength per fiber at pixel edges
+        self._wmin_spec = self.wavelength(None, -0.5)
+        self._wmax_spec = self.wavelength(None, self.npix_y-0.5)
+        self._wmin = np.min(self._wmin_spec)
+        self._wmin_all = np.max(self._wmin_spec)
+        self._wmax = np.max(self._wmax_spec)
+        self._wmax_all = np.min(self._wmax_spec)
+
         #- Filled only if needed
         self._xsigma = None
         self._ysigma = None
@@ -219,8 +223,7 @@ class PSF(object):
         """
         raise NotImplementedError
         
-    def xypix(self, ispec, wavelength, xmin=0, xmax=None, ymin=0, ymax=None, 
-        iwave_cache=None, legval_dict=None):
+    def xypix(self, ispec, wavelength, xmin=0, xmax=None, ymin=0, ymax=None):
         """
         Evaluate PSF for spectrum[ispec] at given wavelength
         
@@ -236,24 +239,21 @@ class PSF(object):
         if ymax is None:
             ymax = self.npix_y
 
-        if wavelength < self.wavelength(ispec, -0.5):
+        if wavelength < self._wmin_spec[ispec]:
             return slice(0,0), slice(0,0), np.zeros((0,0))
-        elif wavelength > self.wavelength(ispec, self.npix_y-0.5):
+        elif wavelength > self._wmax_spec[ispec]:
             return slice(0,0), slice(ymax, ymax), np.zeros((0,0))
-       
-        #print("ispec in xypix")
-        #print(ispec)
- 
+        
         key = (ispec, wavelength)
         try:
             if key in self._cache:
                 xx, yy, ccdpix = self._cache[key]
             else:
-                xx, yy, ccdpix = self._xypix(ispec, wavelength, iwave_cache=iwave_cache, legval_dict=legval_dict)
+                xx, yy, ccdpix = self._xypix(ispec, wavelength)
                 self._cache[key] = (xx, yy, ccdpix)
         except AttributeError:
             self._cache = CacheDict(2500)
-            xx, yy, ccdpix = self._xypix(ispec, wavelength, iwave_cache=iwave_cache, legval_dict=legval_dict)
+            xx, yy, ccdpix = self._xypix(ispec, wavelength)
             
         xlo, xhi = xx.start, xx.stop
         ylo, yhi = yy.start, yy.stop
@@ -619,17 +619,14 @@ class PSF(object):
         """Maximum wavelength seen by all spectra"""
         return self._wmax_all
     
-    def projection_matrix(self, spec_range, wavelengths, xyrange, iwave_cache=None, legval_dict=None):
+    def projection_matrix(self, spec_range, wavelengths, xyrange):
         """
         Returns sparse projection matrix from flux to pixels
     
-        Args:
+        Inputs:
             spec_range = (ispecmin, ispecmax) or scalar ispec
             wavelengths = array_like wavelengths
             xyrange  = (xmin, xmax, ymin, ymax)
-        Options:
-            iwave_cache: index of wavelengths[0] in the possibly larger
-                wavelengths array previously passed to self.cache_xypix()
             
         Usage:
             xyrange = xmin, xmax, ymin, ymax
@@ -652,32 +649,20 @@ class PSF(object):
         ny = ymax - ymin
     
         #- Generate A
-        A = np.zeros( (ny*nx, nspec*nflux) )
+        #- Start with a transposed version to fill it more efficiently
+        A = np.zeros( (nspec*nflux, ny*nx) )
         tmp = np.zeros((ny, nx))
         for ispec in range(specmin, specmax):
-            for iw, w in enumerate(wavelengths):
-                #- Are use using a pre-cached wavelength?
-                if iwave_cache is not None:
-                    iwave = iwave_cache + iw
-                else:
-                    iwave = None
-
+            for iflux, w in enumerate(wavelengths):
                 #- Get subimage and index slices
-                xslice, yslice, pix = self.xypix(ispec, w,
-                    xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
-                    iwave_cache = iwave
-                    )
+                xslice, yslice, pix = self.xypix(ispec, w, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
                 
                 #- If there is overlap with pix_range, put into sub-region of A
                 if pix.shape[0]>0 and pix.shape[1]>0:
                     tmp[yslice, xslice] = pix
-                    ij = (ispec-specmin)*nflux + iw
-                    A[:, ij] = tmp.ravel()
+                    ij = (ispec-specmin)*nflux + iflux
+                    A[ij, :] = tmp.ravel()
                     tmp[yslice, xslice] = 0.0
         
-        return scipy.sparse.csr_matrix(A)    
-
-
-
-
+        return scipy.sparse.csr_matrix(A.T)
 

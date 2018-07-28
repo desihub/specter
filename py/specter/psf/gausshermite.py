@@ -45,7 +45,7 @@ class GaussHermitePSF(PSF):
         else :
             psf_hdu = "PSF"
         
-        self._polyparams = hdr = fx[psf_hdu].header
+        self._polyparams = hdr = dict(fx[psf_hdu].header)
         if 'PSFTYPE' not in hdr:
             raise ValueError('Missing PSFTYPE keyword')
             
@@ -100,11 +100,15 @@ class GaussHermitePSF(PSF):
         
         #- Create inverse y -> wavelength mapping
         self._w = self._y.invert()
-        self._wmin = np.min(self.wavelength(None, 0))
-        self._wmin_all = np.max(self.wavelength(None, 0))
-        self._wmax = np.max(self.wavelength(None, self.npix_y-1))
-        self._wmax_all = np.min(self.wavelength(None, self.npix_y-1))
-               
+
+        #- Cache min/max wavelength per fiber at pixel edges
+        self._wmin_spec = self.wavelength(None, -0.5)
+        self._wmax_spec = self.wavelength(None, self.npix_y-0.5)
+        self._wmin = np.min(self._wmin_spec)
+        self._wmin_all = np.max(self._wmin_spec)
+        self._wmax = np.max(self._wmax_spec)
+        self._wmax_all = np.min(self._wmax_spec)
+
         #- Filled only if needed
         self._xsigma = None
         self._ysigma = None
@@ -147,166 +151,93 @@ class GaussHermitePSF(PSF):
             return 0.5 * (y[1:] - y[0:-1])
 
 
-    def _xypix(self, ispec, wavelength, iwave_cache=None, legval_dict=None):
-        #print("legval_dict in _xypix")
-        #print(legval_dict)
-        #if we are not passing in legval_dict of precomputed values, revert to the orig version
-        if legval_dict is None:
-            #print("not using cached legval_dict")
-            # x, y = self.xy(ispec, wavelength)
-            x = self._x.eval(ispec, wavelength)
-            y = self._y.eval(ispec, wavelength)
         
-            #- CCD pixel ranges
-            hsizex = self._polyparams['HSIZEX']
-            hsizey = self._polyparams['HSIZEY']
-            xccd = np.arange(int(x-hsizex+0.5), int(x+hsizex+1.5))
-            yccd = np.arange(int(y-hsizey+0.5), int(y+hsizey+1.5))
-            dx = xccd - x
-            dy = yccd - y
-            nx = len(dx)
-            ny = len(dy)
+
+    def _xypix(self, ispec, wavelength):
+
+        # x, y = self.xy(ispec, wavelength)
+        x = self._x.eval(ispec, wavelength)
+        y = self._y.eval(ispec, wavelength)
         
-            #- Extract GH degree and sigma coefficients for convenience
-            degx1 = self._polyparams['GHDEGX']
-            degy1 = self._polyparams['GHDEGY']
-            sigx1 = self.coeff['GHSIGX'].eval(ispec, wavelength)
-            sigy1 = self.coeff['GHSIGY'].eval(ispec, wavelength)
+        #- CCD pixel ranges
+        hsizex = self._polyparams['HSIZEX']
+        hsizey = self._polyparams['HSIZEY']
+        xccd = np.arange(int(x-hsizex+0.5), int(x+hsizex+1.5))
+        yccd = np.arange(int(y-hsizey+0.5), int(y+hsizey+1.5))
+        dx = xccd - x
+        dy = yccd - y
+        nx = len(dx)
+        ny = len(dy)
         
-            #- Background tail image
-            tailxsca = self.coeff['TAILXSCA'].eval(ispec, wavelength)
-            tailysca = self.coeff['TAILYSCA'].eval(ispec, wavelength)
-            tailamp = self.coeff['TAILAMP'].eval(ispec, wavelength)
-            tailcore = self.coeff['TAILCORE'].eval(ispec, wavelength)
-            tailinde = self.coeff['TAILINDE'].eval(ispec, wavelength)
+        #- Extract GH degree and sigma coefficients for convenience
+        degx1 = self._polyparams['GHDEGX']
+        degy1 = self._polyparams['GHDEGY']
+        sigx1 = self.coeff['GHSIGX'].eval(ispec, wavelength)
+        sigy1 = self.coeff['GHSIGY'].eval(ispec, wavelength)
         
-            #- Make tail image (slow version)
-            # img = np.zeros((len(yccd), len(xccd)))
-            # for i, dyy in enumerate(dy):
-            #     for j, dxx in enumerate(dx):
-            #         r2 = (dxx*tailxsca)**2 + (dyy*tailysca)**2
-            #         img[i,j] = tailamp * r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
-
-            #- Make tail image (faster, less readable version)
-            #- r2 = normalized distance from center of each pixel to PSF center
-            r2 = np.tile((dx*tailxsca)**2, ny).reshape(ny, nx) + \
-                 np.repeat((dy*tailysca)**2, nx).reshape(ny, nx)
-            tails = tailamp*r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
+        #- Background tail image
+        tailxsca = self.coeff['TAILXSCA'].eval(ispec, wavelength)
+        tailysca = self.coeff['TAILYSCA'].eval(ispec, wavelength)
+        tailamp = self.coeff['TAILAMP'].eval(ispec, wavelength)
+        tailcore = self.coeff['TAILCORE'].eval(ispec, wavelength)
+        tailinde = self.coeff['TAILINDE'].eval(ispec, wavelength)
         
-            #- Create 1D GaussHermite functions in x and y
-            xfunc1 = [self._pgh(xccd, i, x, sigma=sigx1) for i in range(degx1+1)]
-            yfunc1 = [self._pgh(yccd, i, y, sigma=sigy1) for i in range(degy1+1)]        
-       
-            #- Create core PSF image
-            core1 = np.zeros((ny, nx))
-            spot1 = np.empty_like(core1)
-            for i in range(degx1+1):
-                for j in range(degy1+1):
-                    c1 = self.coeff['GH-{}-{}'.format(i,j)].eval(ispec, wavelength)
-                    outer(yfunc1[j], xfunc1[i], out=spot1)
-                    core1 += c1 * spot1
+        #- Make tail image (slow version)
+        # img = np.zeros((len(yccd), len(xccd)))
+        # for i, dyy in enumerate(dy):
+        #     for j, dxx in enumerate(dx):
+        #         r2 = (dxx*tailxsca)**2 + (dyy*tailysca)**2
+        #         img[i,j] = tailamp * r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
 
-            #- Zero out elements in the core beyond 3 sigma
-            #- Only for GaussHermite2
-            # ghnsig = self.coeff['GHNSIG'].eval(ispec, wavelength)
-            # r2 = np.tile((dx/sigx1)**2, ny).reshape(ny, nx) + \
-            #      np.repeat((dy/sigy1)**2, nx).reshape(ny, nx)
+        #- Make tail image (faster, less readable version)
+        #- r2 = normalized distance from center of each pixel to PSF center
+        r2 = np.tile((dx*tailxsca)**2, ny).reshape(ny, nx) + \
+             np.repeat((dy*tailysca)**2, nx).reshape(ny, nx)
+        tails = tailamp*r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
         
-            # core1 *= (r2<ghnsig**2)
+        #- Create 1D GaussHermite functions in x and y
+        xfunc1 = [self._pgh(xccd, i, x, sigma=sigx1) for i in range(degx1+1)]
+        yfunc1 = [self._pgh(yccd, i, y, sigma=sigy1) for i in range(degy1+1)]        
         
-            #- Add second wider core Gauss-Hermite term        
-            # xfunc2 = [self._pgh(xccd, i, x, sigma=sigx2) for i in range(degx2+1)]
-            # yfunc2 = [self._pgh(yccd, i, y, sigma=sigy2) for i in range(degy2+1)]
-            # core2 = np.zeros((ny, nx))
-            # for i in range(degx2+1):
-            #     for j in range(degy2+1):
-            #         spot2 = outer(yfunc2[j], xfunc2[i])
-            #         c2 = self.coeff['GH2-{}-{}'.format(i,j)].eval(ispec, wavelength)
-            #         core2 += c2 * spot2
-
-            #- Clip negative values and normalize to 1.0
-            img = core1 + tails
-            ### img = core1 + core2 + tails
-
-            img = img.clip(0.0)
-            img /= np.sum(img)
-
-            xslice = slice(xccd[0], xccd[-1]+1)
-            yslice = slice(yccd[0], yccd[-1]+1)
-            return xslice, yslice, img
-            # return xslice, yslice, (core1, core2, tails)
+        #- Create core PSF image
+        core1 = np.zeros((ny, nx))
+        spot1 = np.empty_like(core1)
+        for i in range(degx1+1):
+            for j in range(degy1+1):
+                c1 = self.coeff['GH-{}-{}'.format(i,j)].eval(ispec, wavelength)
+                outer(yfunc1[j], xfunc1[i], out=spot1)
+                core1 += c1 * spot1
         
-       
-        #if we have passed in precomputed values in legval_dict, just look up the values
-        else:
-            x = legval_dict['x_cache'][ispec, iwave_cache]
-            y = legval_dict['y_cache'][ispec, iwave_cache]
+        #- Zero out elements in the core beyond 3 sigma
+        #- Only for GaussHermite2
+        # ghnsig = self.coeff['GHNSIG'].eval(ispec, wavelength)
+        # r2 = np.tile((dx/sigx1)**2, ny).reshape(ny, nx) + \
+        #      np.repeat((dy/sigy1)**2, nx).reshape(ny, nx)
+        
+        # core1 *= (r2<ghnsig**2)
+        
+        #- Add second wider core Gauss-Hermite term        
+        # xfunc2 = [self._pgh(xccd, i, x, sigma=sigx2) for i in range(degx2+1)]
+        # yfunc2 = [self._pgh(yccd, i, y, sigma=sigy2) for i in range(degy2+1)]
+        # core2 = np.zeros((ny, nx))
+        # for i in range(degx2+1):
+        #     for j in range(degy2+1):
+        #         spot2 = outer(yfunc2[j], xfunc2[i])
+        #         c2 = self.coeff['GH2-{}-{}'.format(i,j)].eval(ispec, wavelength)
+        #         core2 += c2 * spot2
 
-            #- CCD pixel ranges
-            hsizex = self._polyparams['HSIZEX']
-            hsizey = self._polyparams['HSIZEY']
-            xccd = np.arange(int(x-hsizex+0.5), int(x+hsizex+1.5))
-            yccd = np.arange(int(y-hsizey+0.5), int(y+hsizey+1.5))
-            dx = xccd - x
-            dy = yccd - y
-            nx = len(dx)
-            ny = len(dy)
+        #- Clip negative values and normalize to 1.0
+        img = core1 + tails
+        ### img = core1 + core2 + tails
 
-            #- Extract GH degree and sigma coefficients for convenience
-            degx1 = self._polyparams['GHDEGX']
-            degy1 = self._polyparams['GHDEGY']
-            sigx1 = legval_dict['sigx1_cache'][ispec, iwave_cache]
-            sigy1 = legval_dict['sigy1_cache'][ispec, iwave_cache]
+        img = img.clip(0.0)
+        img /= np.sum(img)
 
-            #- Background tail image
-            tailxsca = legval_dict['tailxsca_cache'][ispec, iwave_cache]
-            tailysca = legval_dict['tailysca_cache'][ispec, iwave_cache]
-            tailamp = legval_dict['tailamp_cache'][ispec, iwave_cache]
-            tailcore = legval_dict['tailcore_cache'][ispec, iwave_cache]
-            tailinde = legval_dict['tailinde_cache'][ispec, iwave_cache]
-
-            #- Make tail image (faster, less readable version)
-            #- r2 = normalized distance from center of each pixel to PSF center
-            r2 = np.tile((dx*tailxsca)**2, ny).reshape(ny, nx) + \
-                 np.repeat((dy*tailysca)**2, nx).reshape(ny, nx)
-            tails = tailamp*r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
-
-            #- Create 1D GaussHermite functions in x and y
-            xfunc1 = [self._pgh(xccd, i, x, sigma=sigx1) for i in range(degx1+1)]
-            yfunc1 = [self._pgh(yccd, i, y, sigma=sigy1) for i in range(degy1+1)]
-
-            ##orig version
-            ##- Create core PSF image
-            #core1 = np.zeros((ny, nx))
-            #spot1 = np.empty_like(core1)
-            #for i in range(degx1+1):
-            #    for j in range(degy1+1):
-            #        c1 = self.coeff['GH-{}-{}'.format(i,j)].eval(ispec, wavelength)
-            #        outer(yfunc1[j], xfunc1[i], out=spot1)
-            #        core1 += c1 * spot1
-
-            #orig version
-            #- Create core PSF image
-            core1 = np.zeros((ny, nx))
-            spot1 = np.empty_like(core1)
-            for i in range(degx1+1):
-                for j in range(degy1+1):
-                    #see if we can squeeze out some extra speed by looking up the values
-                    c1 = legval_dict['GH-{}-{}'.format(i,j)][ispec, iwave_cache]
-                    outer(yfunc1[j], xfunc1[i], out=spot1)
-                    core1 += c1 * spot1
- 
-            #- Clip negative values and normalize to 1.0
-            img = core1 + tails
-            ### img = core1 + core2 + tails
-
-            img = img.clip(0.0)
-            img /= np.sum(img)
-
-            xslice = slice(xccd[0], xccd[-1]+1)
-            yslice = slice(yccd[0], yccd[-1]+1)
-            return xslice, yslice, img
-            # return xslice, yslice, (core1, core2, tails)
+        xslice = slice(xccd[0], xccd[-1]+1)
+        yslice = slice(yccd[0], yccd[-1]+1)
+        return xslice, yslice, img
+        # return xslice, yslice, (core1, core2, tails)
+        
 
     def _gh(self, x, m=0, xc=0.0, sigma=1.0):
         """
@@ -327,6 +258,28 @@ class GaussHermitePSF(PSF):
             return self._hermitenorm[m](u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
         else:                        
             return np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
+
+
+    def xsigma(self, ispec, wavelength):
+        """
+        Return Gaussian sigma of PSF spot in cross-dispersion direction
+        in CCD pixel units.
+        
+        ispec : spectrum index
+        wavelength : scalar or vector wavelength(s) to evaluate spot sigmas
+        """
+        return self.coeff['GHSIGX'].eval(ispec, wavelength)
+    
+    def ysigma(self, ispec, wavelength):
+        """
+        Return Gaussian sigma of PSF spot in dispersion direction
+        in CCD pixel units.
+        
+        ispec : spectrum index
+        wavelength : scalar or vector wavelength(s) to evaluate spot sigmas
+        """
+        return self.coeff['GHSIGY'].eval(ispec, wavelength)
+    
 
     def _value(self,x,y,ispec, wavelength):
         

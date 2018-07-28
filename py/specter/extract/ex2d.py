@@ -15,8 +15,8 @@ from specter.util import legval_numba
 
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
          regularize=0.0, ndecorr=False, bundlesize=25, nsubbundles=1,
-         wavesize=50, use_cache=None, full_output=False, verbose=False, 
-         debug=False, psferr=None):
+         wavesize=50, full_output=False, verbose=False, 
+         debug=False, psferr=None, use_cache=None):
     '''
     2D PSF extraction of flux from image patch given pixel inverse variance.
     
@@ -46,6 +46,8 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
             fractional error on the psf model instead of the value saved
             in the psf fits file. This is used only to compute the chi2,
             not to weight pixels in fit
+        use_cache: will precompute and store legval results for each patch
+            this gets passed down to ex2d_patch before it is used
 
     Returns (flux, ivar, Rdata):
         flux[nspec, nwave] = extracted resolution convolved flux
@@ -108,14 +110,6 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
             specrange = (speclo, spechi)
 
-            #okay! if we asked for --used_cached_values, we need to compute them first
-            #this will compute the cached legval values for the rectangle between speclo and spechi 
-            #and all wavelengths 
-            legval_dict = None
-            if use_cache is not None:
-                #use ww instead of wavelengths here so we get the remapped values
-                legval_dict = cache_params(psf, specrange, wavelengths)
-
             for iwave in range(0, len(wavelengths), wavesize):
                 #- Low and High wavelengths for the core region
                 wlo = wavelengths[iwave]
@@ -142,12 +136,9 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
         
                 nlo = max(int((wlo - psf.wavelength(speclo, ymin))/dw)-1, ndiag)
                 nhi = max(int((psf.wavelength(speclo, ymax) - whi)/dw)-1, ndiag)
-                #these are the padded wavelength patches
                 ww = np.arange(wlo-nlo*dw, whi+(nhi+0.5)*dw, dw)
                 wmin, wmax = ww[0], ww[-1]
                 nw = len(ww)
-                #also need ot keep track of the wavelength index so we can look it up later
-                iwave_cache = int(round(wmax - wmin)/dw)
 
                 #- include \r carriage return to prevent scrolling
                 if verbose:
@@ -160,7 +151,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                     ex2d_patch(subimg, subivar, psf,
                         specmin=speclo, nspec=spechi-speclo, wavelengths=ww,
                         xyrange=[xlo,xhi,ylo,yhi], regularize=regularize, ndecorr=ndecorr,
-                        full_output=True, iwave_cache=iwave_cache, legval_dict=legval_dict)
+                        full_output=True, use_cache=use_cache)
 
                 specflux = results['flux']
                 specivar = results['ivar']
@@ -245,8 +236,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
 
 def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
-         full_output=False, regularize=0.0, ndecorr=False, iwave_cache=None, 
-         legval_dict=None):
+         full_output=False, regularize=0.0, ndecorr=False, use_cache=None):
     """
     2D PSF extraction of flux from image patch given pixel inverse variance.
     
@@ -265,6 +255,7 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
             intermediate outputs such as the projection matrix.
         ndecorr : if True, decorrelate the noise between fibers, at the
             cost of residual signal correlations between fibers.
+        use_cache: will precompute and store values of legval for each patch
 
     Returns (flux, ivar, R):
         flux[nspec, nwave] = extracted resolution convolved flux
@@ -274,8 +265,9 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
     #- Range of image to consider
     waverange = (wavelengths[0], wavelengths[-1])
-    specrange = (specmin, specmin+nspec)
-    
+    specrange = (specmin, specmin+nspec) 
+ 
+    #since xyrange checks to see if we're on the ccd, we cant cache until after this
     if xyrange is None:
         xmin, xmax, ymin, ymax = xyrange = psf.xyrange(specrange, waverange)
         image = image[ymin:ymax, xmin:xmax]
@@ -288,12 +280,17 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
     
     nspec = specrange[1] - specrange[0]
     nwave = len(wavelengths)
+
+    #ok if we asked for cached values, let's compute and store them here
+    #if not, no problem, we'll just hit a different fork in _xypix
+    legval_dict = None
+    if use_cache:
+        legval_dict = cache_params(psf, specrange, wavelengths)
     
     #- Solve AT W pix = (AT W A) flux
     
     #- Projection matrix and inverse covariance
-    A = psf.projection_matrix(specrange, wavelengths, xyrange, 
-        iwave_cache=iwave_cache, legval_dict=legval_dict)
+    A = psf.projection_matrix(specrange, wavelengths, xyrange, legval_dict=legval_dict)
 
     #- Pixel weights matrix
     w = ivar.ravel()
@@ -415,29 +412,23 @@ def cache_params(psf, specrange, wavelengths):
 
     return legval_dict
 
-#modified version of eval in specter/traceset that can handle 
-#multiple spectra hopefully?
+#modified version of eval in specter/traceset that can handle multiple spectra
 def legval_cache(psf, traceset, specrange, wavelengths):
 
     spec_min, spec_max = specrange
     nspec = spec_max - spec_min
     nwave = len(wavelengths)
 
-    xx_list=[]
-    for w in range(nwave):
-        xx_list.append(traceset._xnorm(wavelengths[w]))
-    xx=np.asarray(xx_list)
+    #_xnorm can be called with an array
+    xx=traceset._xnorm(wavelengths)
 
     #numba requires f8 or smaller
     cc_numba = traceset._coeff[spec_min:spec_max].astype(np.float64, copy=False)
 
-    #have to append (ie can't preallocate) bc size of wavelengths changes
-    y_list=[]
+    #compute and store the values
+    y=np.zeros([nspec, nwave])
     for i in range(nspec):
-        y_list.append(legval_numba(xx, cc_numba[i]))
-
-    #this is a list, convert it back to a np array
-    y = np.asarray(y_list)  
+        y[i,:]=legval_numba(xx, cc_numba[i])
 
     return y
 
