@@ -163,7 +163,7 @@ class GaussHermitePSF(PSF):
         Optional arguments:
             ispec_cache: the index of each spectrum which starts again at 0 for each patch
             iwave_cache: the index of each wavelength which starts again at 0 for each patch
-            legval_dict: if we asked for cached values of legval, here they are, we will
+            legval_dict: unless the user asked not to precompute legval, here are the values; we will
                 finally use them here by looking up according to ispec_cache and iwave_cache
         """
         #if we are not passing in legval_dict of precomputed values, revert to the orig version
