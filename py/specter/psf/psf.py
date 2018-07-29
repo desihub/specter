@@ -237,7 +237,7 @@ class PSF(object):
         Optional inputs:
             ispec_cache = an index into the spectrum number that starts again at 0 for each patch
             iwave_cache = an index into the wavelength number that starts again at 0 for each patch
-            legval_dict = if we asked for cached legval values, here they are
+            legval_dict = unless user asked not to cache values of legval, here they are
         """
         if xmax is None:
             xmax = self.npix_x
@@ -636,7 +636,7 @@ class PSF(object):
             xyrange  = (xmin, xmax, ymin, ymax)
 
         Optional inputs:
-            legval_dict = if we asked for legval results to be precomputed and cached,
+            legval_dict = unless the user specified no_cache (don't precompute legval),
                 the results will be passed in as a dict. They will then be passed to 
                 xypix and then to _xypix where they will be accessed through a spectral
                 index and a wavelength index that is specific to each patch. 
