@@ -11,7 +11,6 @@ from scipy.sparse import spdiags, issparse
 from scipy.sparse.linalg import spsolve
 
 from specter.util import outer
-from specter.util import legval_numba
 
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
          regularize=0.0, ndecorr=False, bundlesize=25, nsubbundles=1,
@@ -283,17 +282,10 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
     nspec = specrange[1] - specrange[0]
     nwave = len(wavelengths)
 
-    #ok unless we said don't cache  values, let's compute and store them here
-    #if not, no problem, we'll just hit a different fork in _xypix
-    if no_cache:
-        legval_dict = None
-    else:
-        legval_dict = cache_params(psf, specrange, wavelengths)
-    
     #- Solve AT W pix = (AT W A) flux
     
     #- Projection matrix and inverse covariance
-    A = psf.projection_matrix(specrange, wavelengths, xyrange, legval_dict=legval_dict)
+    A = psf.projection_matrix(specrange, wavelengths, xyrange, no_cache=no_cache)
 
     #- Pixel weights matrix
     w = ivar.ravel()
@@ -392,48 +384,6 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
         return results
     else:
         return rflux, fluxivar, R
-
-def cache_params(psf, specrange, wavelengths):
-    #store in a dict
-    legval_dict = dict()
-    legval_dict['x_cache'] = legval_cache(psf, psf._x, specrange, wavelengths)
-    legval_dict['y_cache'] = legval_cache(psf, psf._y, specrange, wavelengths)
-    legval_dict['sigx1_cache'] = legval_cache(psf, psf.coeff['GHSIGX'], specrange, wavelengths)
-    legval_dict['sigy1_cache'] = legval_cache(psf, psf.coeff['GHSIGY'], specrange, wavelengths)
-    legval_dict['tailxsca_cache'] = legval_cache(psf, psf.coeff['TAILXSCA'], specrange, wavelengths)
-    legval_dict['tailysca_cache'] = legval_cache(psf, psf.coeff['TAILYSCA'], specrange, wavelengths)
-    legval_dict['tailamp_cache'] = legval_cache(psf, psf.coeff['TAILAMP'], specrange, wavelengths)
-    legval_dict['tailcore_cache'] = legval_cache(psf, psf.coeff['TAILCORE'], specrange, wavelengths)
-    legval_dict['tailinde_cache'] = legval_cache(psf, psf.coeff['TAILINDE'], specrange, wavelengths)
-    #some extra steps to cache what we need for the core PSF image
-    degx1 = psf._polyparams['GHDEGX']
-    degy1 = psf._polyparams['GHDEGY']
-    for i in range(degx1+1):
-        for j in range(degy1+1):
-            core_string = 'GH-{}-{}'.format(i,j)
-            legval_dict[core_string]=legval_cache(psf, psf.coeff[core_string], specrange, wavelengths)
-
-    return legval_dict
-
-#modified version of eval in specter/traceset that can handle multiple spectra
-def legval_cache(psf, traceset, specrange, wavelengths):
-
-    spec_min, spec_max = specrange
-    nspec = spec_max - spec_min
-    nwave = len(wavelengths)
-
-    #_xnorm can be called with an array
-    xx=traceset._xnorm(wavelengths)
-
-    #numba requires f8 or smaller
-    cc_numba = traceset._coeff[spec_min:spec_max].astype(np.float64, copy=False)
-
-    #compute and store the values
-    y=np.zeros([nspec, nwave])
-    for i in range(nspec):
-        y[i,:]=legval_numba(xx, cc_numba[i])
-
-    return y
 
 
 def eigen_compose(w, v, invert=False, sqr=False):
