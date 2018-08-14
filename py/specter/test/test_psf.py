@@ -342,8 +342,10 @@ class GenericPSFTests(object):
     def test_projmat_ispec(self):
         ispec = 0
         ww = self.psf.wavelength(ispec, y=np.arange(0, 10))
+        #legval cache expects a tuple of specmin,specmax 
+        #revert to no_cache for the scalar case
         xyrange = self.psf.xyrange(ispec, ww)
-        A = self.psf.projection_matrix(ispec, ww, xyrange)
+        A = self.psf.projection_matrix(ispec, ww, xyrange, no_cache=True)
         B = self.psf.projection_matrix((ispec, ispec+1), ww, xyrange)
 
         self.assertTrue(A.shape == B.shape)
@@ -503,6 +505,31 @@ class GenericPSFTests(object):
         self.assertEqual(ymax, self.psf.npix_y)
         self.assertLess(xmin, xmax)
         self.assertGreater(xmax, 0)
+
+    def test_cache(self):
+        ww = np.linspace(self.psf.wmin_all, self.psf.wmax_all)
+        spec_range = (3,5)
+        specmin=3
+        specmax=5
+
+        legval_dict=self.psf.cache_params(spec_range,ww)
+
+        for ispec_cache, ispec in enumerate(range(specmin, specmax)):
+            for iflux, w in enumerate(ww):
+                #- Get subimage and index slices
+                #first test uncached case
+                xx1, yy1, pix1 = self.psf.xypix(ispec, w, ispec_cache)
+                #then test cached case
+                xx2, yy2, pix2 = self.psf.xypix(ispec, w, ispec_cache=ispec_cache,
+                    iwave_cache=iflux, legval_dict=legval_dict)
+                #^ the x and y slices will not agree since we re-index if we use the cache
+                #however the pix values SHOULD agree!
+                #- maybe need np.allclose, but let's start with np.all()
+                self.assertTrue(np.all(pix1 == pix2))
+
+        #- Check that calling something that isn't in the cache is still ok
+        xx, yy, pix = self.psf.xypix(0, ww[0]+1.0)
+
 
 #- Test Pixellated PSF format
 class TestPixPSF(GenericPSFTests,unittest.TestCase):
