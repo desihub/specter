@@ -38,7 +38,7 @@ class PixPSF(PSF):
         self.psfimage = fx[5].data.view(np.ndarray)  #- [igroup, icoeff, iy, ix]
         fx.close()
                 
-    def _xypix(self, ispec, wavelength):
+    def _xypix(self, ispec, wavelength, ispec_cache=None, iwave_cache=None, legval_dict=None):
         """
         Evaluate PSF for a given spectrum and wavelength
         
@@ -106,4 +106,10 @@ class PixPSF(PSF):
         assert yslice.stop-yslice.start == psfimage.shape[0]
 
         return xslice, yslice, psfimage
+
+    def cache_params(self, spec_range, wavelengths):
+        """
+        this is implemented in specter.psf.gausshermite, everywhere else just an empty function
+        """
+        pass
 
