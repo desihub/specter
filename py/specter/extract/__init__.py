@@ -80,4 +80,4 @@ rows time
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 ### from ex1d import ex1d
-from .ex2d import ex2d, ex2d_patch, cache_params, legval_cache
+from .ex2d import ex2d, ex2d_patch
