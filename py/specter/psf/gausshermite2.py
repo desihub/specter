@@ -74,10 +74,14 @@ class GaussHermite2PSF(PSF):
 
         #- Create inverse y -> wavelength mapping
         self._w = self._y.invert()
-        self._wmin = np.min(self.wavelength(None, 0))
-        self._wmin_all = np.max(self.wavelength(None, 0))
-        self._wmax = np.max(self.wavelength(None, self.npix_y-1))
-        self._wmax_all = np.min(self.wavelength(None, self.npix_y-1))
+
+        #- Cache min/max wavelength per fiber at pixel edges
+        self._wmin_spec = self.wavelength(None, -0.5)
+        self._wmax_spec = self.wavelength(None, self.npix_y-0.5)
+        self._wmin = np.min(self._wmin_spec)
+        self._wmin_all = np.max(self._wmin_spec)
+        self._wmax = np.max(self._wmax_spec)
+        self._wmax_all = np.min(self._wmax_spec)
                 
         #- Filled only if needed
         self._xsigma = None
@@ -121,7 +125,7 @@ class GaussHermite2PSF(PSF):
             return 0.5 * (y[1:] - y[0:-1])
 
         
-    def _xypix(self, ispec, wavelength):
+    def _xypix(self, ispec, wavelength, ispec_cache=None, iwave_cache=None, legval_dict=None):
 
         # x, y = self.xy(ispec, wavelength)
         x = self.coeff['X'].eval(ispec, wavelength)
@@ -207,5 +211,10 @@ class GaussHermite2PSF(PSF):
         yslice = slice(yccd[0], yccd[-1]+1)
         return xslice, yslice, img
         # return xslice, yslice, (core1, core2, tails)
-        
+       
+    def cache_params(self, spec_range, wavelengths):
+        """
+        this is implemented in specter.psf.gausshermite, everywhere else just an empty function
+        """
+        pass
 
