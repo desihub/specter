@@ -20,7 +20,7 @@ import numpy as np
 from numpy.polynomial.legendre import Legendre, legval, legfit
 import scipy.optimize
 import scipy.sparse
-
+from specter.util import legval_numba
 from specter.util import gausspix, TraceSet, CacheDict
 from astropy.io import fits
 
@@ -626,7 +626,7 @@ class PSF(object):
         """Maximum wavelength seen by all spectra"""
         return self._wmax_all
     
-    def projection_matrix(self, spec_range, wavelengths, xyrange, legval_dict=None):
+    def projection_matrix(self, spec_range, wavelengths, xyrange, no_cache=None):
         """
         Returns sparse projection matrix from flux to pixels
     
@@ -636,7 +636,7 @@ class PSF(object):
             xyrange  = (xmin, xmax, ymin, ymax)
 
         Optional inputs:
-            legval_dict = unless the user specified no_cache (don't precompute legval),
+            no_cache= unless the user specified no_cache (don't precompute legval),
                 the results will be passed in as a dict. They will then be passed to 
                 xypix and then to _xypix where they will be accessed through a spectral
                 index and a wavelength index that is specific to each patch. 
@@ -661,6 +661,13 @@ class PSF(object):
         nx = xmax - xmin
         ny = ymax - ymin
     
+        #ok unless we said don't cache  values, let's compute and store them here
+        #if not, no problem, we'll just hit a different fork in _xypix
+        if no_cache:
+            legval_dict = None
+        else:
+            legval_dict = self.cache_params(spec_range, wavelengths)
+
         #- Generate A
         #- Start with a transposed version to fill it more efficiently
         A = np.zeros( (nspec*nflux, ny*nx) )
@@ -682,4 +689,11 @@ class PSF(object):
                     tmp[yslice, xslice] = 0.0
         
         return scipy.sparse.csr_matrix(A.T)
+
+    def cache_params(self, spec_range, wavelengths):
+        """
+        this is implemented in specter.psf.gausshermite, everywhere else just an empty function
+        """
+        pass
+
 
