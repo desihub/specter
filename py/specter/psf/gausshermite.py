@@ -16,7 +16,7 @@ from scipy import special as sp
 
 from astropy.io import fits
 from specter.psf import PSF
-from specter.util import TraceSet, outer
+from specter.util import TraceSet, outer, legval_numba
 
 class GaussHermitePSF(PSF):
     """
@@ -411,4 +411,51 @@ class GaussHermitePSF(PSF):
         img /= np.sum(img)
 
         return img
+
+    def cache_params(self, specrange, wavelengths):
+        #store in a dict
+        legval_dict = dict()
+        legval_dict['x_cache'] = self.legval_cache(self._x, specrange, wavelengths)
+        legval_dict['y_cache'] = self.legval_cache(self._y, specrange, wavelengths)
+        legval_dict['sigx1_cache'] = self.legval_cache(self.coeff['GHSIGX'], specrange, wavelengths)
+        legval_dict['sigy1_cache'] = self.legval_cache(self.coeff['GHSIGY'], specrange, wavelengths)
+        legval_dict['tailxsca_cache'] = self.legval_cache(self.coeff['TAILXSCA'], specrange, wavelengths)
+        legval_dict['tailysca_cache'] = self.legval_cache(self.coeff['TAILYSCA'], specrange, wavelengths)
+        legval_dict['tailamp_cache'] = self.legval_cache(self.coeff['TAILAMP'], specrange, wavelengths)
+        legval_dict['tailcore_cache'] = self.legval_cache(self.coeff['TAILCORE'], specrange, wavelengths)
+        legval_dict['tailinde_cache'] = self.legval_cache(self.coeff['TAILINDE'], specrange, wavelengths)
+        #some extra steps to cache what we need for the core PSF image
+        degx1 = self._polyparams['GHDEGX']
+        degy1 = self._polyparams['GHDEGY']
+        for i in range(degx1+1):
+            for j in range(degy1+1):
+                core_string = 'GH-{}-{}'.format(i,j)
+                legval_dict[core_string]=self.legval_cache(self.coeff[core_string], specrange, wavelengths)
+
+        return legval_dict
+
+    #modified version of eval in specter/traceset that can handle multiple spectra
+    def legval_cache(self, traceset, specrange, wavelengths):
+
+        #print("traceset")
+        #print(traceset)
+        #print("specrange is %s" %(specrange,))
+        #print("wavelengths is %s" %(wavelengths))
+
+        spec_min, spec_max = specrange
+        nspec = spec_max - spec_min
+        nwave = len(wavelengths)
+
+        #_xnorm can be called with an array
+        xx=traceset._xnorm(wavelengths)
+
+        #numba requires f8 or smaller
+        cc_numba = traceset._coeff[spec_min:spec_max].astype(np.float64, copy=False)
+
+        #compute and store the values
+        y=np.zeros([nspec, nwave])
+        for i in range(nspec):
+            y[i,:]=legval_numba(xx, cc_numba[i])
+
+        return y
 
