@@ -518,12 +518,12 @@ class GenericPSFTests(object):
             for iflux, w in enumerate(ww):
                 #- Get subimage and index slices
                 #first test uncached case
-                xx1, yy1, pix1 = self.psf.xypix(ispec, w, ispec_cache)
+                xx1, yy1, pix1 = self.psf.xypix(ispec, w)
                 #then test cached case
                 xx2, yy2, pix2 = self.psf.xypix(ispec, w, ispec_cache=ispec_cache,
                     iwave_cache=iflux, legval_dict=legval_dict)
                 #^ the x and y slices will not agree since we re-index if we use the cache
-                #however the pix values SHOULD agree!
+                #however, the pix values SHOULD agree!
                 #- maybe need np.allclose, but let's start with np.all()
                 self.assertTrue(np.all(pix1 == pix2))
 
