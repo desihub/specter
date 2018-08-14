@@ -30,7 +30,7 @@ class MonoSpotPSF(PSF):
             self._spot = spot.copy()
             self._scale = scale
         
-    def _xypix(self, ispec, wavelength):
+    def _xypix(self, ispec, wavelength, ispec_cache=None, iwave_cache=None, legval_dict=None):
         """
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
         """
@@ -67,6 +67,12 @@ class MonoSpotPSF(PSF):
         yy = slice(yccd, yccd+ccdpix.shape[0])
 
         return xx, yy, ccdpix
+
+    def cache_params(self, spec_range, wavelengths):
+        """
+        this is implemented in specter.psf.gausshermite, everywhere else just an empty function
+        """
+        pass
     
 
 #- Incomplete code for creating without a file
