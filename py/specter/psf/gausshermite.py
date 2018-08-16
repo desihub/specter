@@ -113,6 +113,9 @@ class GaussHermitePSF(PSF):
         self._xsigma = None
         self._ysigma = None
 
+        #create dict to hold legval cached data
+        self.legval_dict = None
+
         #- Cache hermitenorm polynomials so we don't have to create them
         #- every time xypix is called
         self._hermitenorm = list()
@@ -150,7 +153,7 @@ class GaussHermitePSF(PSF):
             y = sp.erf(u/np.sqrt(2.))
             return 0.5 * (y[1:] - y[0:-1])
 
-    def _xypix(self, ispec, wavelength, ispec_cache=None, iwave_cache=None, legval_dict=None):
+    def _xypix(self, ispec, wavelength, ispec_cache=None, iwave_cache=None):
         """
         Two branches of this function which does legendre series fitting
         First branch = no caching, will recompute legval every time eval is used (slow)
@@ -163,11 +166,9 @@ class GaussHermitePSF(PSF):
         Optional arguments:
             ispec_cache: the index of each spectrum which starts again at 0 for each patch
             iwave_cache: the index of each wavelength which starts again at 0 for each patch
-            legval_dict: unless the user asked not to precompute legval, here are the values; we will
-                finally use them here by looking up according to ispec_cache and iwave_cache
         """
         #if we are not passing in legval_dict of precomputed values, revert to the orig version
-        if legval_dict is None:
+        if self.legval_dict is None:
             #print("not using cached legval_dict")
             # x, y = self.xy(ispec, wavelength)
             x = self._x.eval(ispec, wavelength)
@@ -255,8 +256,9 @@ class GaussHermitePSF(PSF):
        
         #if we have passed in precomputed values in legval_dict, just look up the values
         else:
-            x = legval_dict['x_cache'][ispec_cache, iwave_cache]
-            y = legval_dict['y_cache'][ispec_cache, iwave_cache]
+
+            x = self.legval_dict['x_cache'][ispec_cache, iwave_cache]
+            y = self.legval_dict['y_cache'][ispec_cache, iwave_cache]
 
             #- CCD pixel ranges
             hsizex = self._polyparams['HSIZEX']
@@ -271,15 +273,15 @@ class GaussHermitePSF(PSF):
             #- Extract GH degree and sigma coefficients for convenience
             degx1 = self._polyparams['GHDEGX']
             degy1 = self._polyparams['GHDEGY']
-            sigx1 = legval_dict['sigx1_cache'][ispec_cache, iwave_cache]
-            sigy1 = legval_dict['sigy1_cache'][ispec_cache, iwave_cache]
+            sigx1 = self.legval_dict['sigx1_cache'][ispec_cache, iwave_cache]
+            sigy1 = self.legval_dict['sigy1_cache'][ispec_cache, iwave_cache]
 
             #- Background tail image
-            tailxsca = legval_dict['tailxsca_cache'][ispec_cache, iwave_cache]
-            tailysca = legval_dict['tailysca_cache'][ispec_cache, iwave_cache]
-            tailamp = legval_dict['tailamp_cache'][ispec_cache, iwave_cache]
-            tailcore = legval_dict['tailcore_cache'][ispec_cache, iwave_cache]
-            tailinde = legval_dict['tailinde_cache'][ispec_cache, iwave_cache]
+            tailxsca = self.legval_dict['tailxsca_cache'][ispec_cache, iwave_cache]
+            tailysca = self.legval_dict['tailysca_cache'][ispec_cache, iwave_cache]
+            tailamp = self.legval_dict['tailamp_cache'][ispec_cache, iwave_cache]
+            tailcore = self.legval_dict['tailcore_cache'][ispec_cache, iwave_cache]
+            tailinde = self.legval_dict['tailinde_cache'][ispec_cache, iwave_cache]
 
             #- Make tail image (faster, less readable version)
             #- r2 = normalized distance from center of each pixel to PSF center
@@ -297,7 +299,7 @@ class GaussHermitePSF(PSF):
             for i in range(degx1+1):
                 for j in range(degy1+1):
                     #see if we can squeeze out some extra speed by looking up the values
-                    c1 = legval_dict['GH-{}-{}'.format(i,j)][ispec_cache, iwave_cache]
+                    c1 = self.legval_dict['GH-{}-{}'.format(i,j)][ispec_cache, iwave_cache]
                     outer(yfunc1[j], xfunc1[i], out=spot1)
                     core1 += c1 * spot1
  
@@ -308,8 +310,19 @@ class GaussHermitePSF(PSF):
             img = img.clip(0.0)
             img /= np.sum(img)
 
-            xslice = slice(xccd[0], xccd[-1]+1)
-            yslice = slice(yccd[0], yccd[-1]+1)
+
+            #here we want to return the slices using the original incidies (ispec, iwave)
+            #instead of those from (ispec_cache, iwave_cache)
+            #so let's compute those values here
+            x_orig = self._x.eval(ispec, wavelength)
+            y_orig = self._y.eval(ispec, wavelength)
+            #- CCD pixel ranges
+            hsizex_orig = self._polyparams['HSIZEX']
+            hsizey_orig = self._polyparams['HSIZEY']
+            xccd_orig = np.arange(int(x_orig-hsizex_orig+0.5), int(x+hsizex_orig+1.5))
+            yccd_orig = np.arange(int(y_orig-hsizey_orig+0.5), int(y+hsizey_orig+1.5))
+            xslice = slice(xccd_orig[0], xccd_orig[-1]+1)
+            yslice = slice(yccd_orig[0], yccd_orig[-1]+1)
             return xslice, yslice, img
             # return xslice, yslice, (core1, core2, tails)
         
@@ -414,33 +427,26 @@ class GaussHermitePSF(PSF):
 
     def cache_params(self, specrange, wavelengths):
         #store in a dict
-        legval_dict = dict()
-        legval_dict['x_cache'] = self.legval_cache(self._x, specrange, wavelengths)
-        legval_dict['y_cache'] = self.legval_cache(self._y, specrange, wavelengths)
-        legval_dict['sigx1_cache'] = self.legval_cache(self.coeff['GHSIGX'], specrange, wavelengths)
-        legval_dict['sigy1_cache'] = self.legval_cache(self.coeff['GHSIGY'], specrange, wavelengths)
-        legval_dict['tailxsca_cache'] = self.legval_cache(self.coeff['TAILXSCA'], specrange, wavelengths)
-        legval_dict['tailysca_cache'] = self.legval_cache(self.coeff['TAILYSCA'], specrange, wavelengths)
-        legval_dict['tailamp_cache'] = self.legval_cache(self.coeff['TAILAMP'], specrange, wavelengths)
-        legval_dict['tailcore_cache'] = self.legval_cache(self.coeff['TAILCORE'], specrange, wavelengths)
-        legval_dict['tailinde_cache'] = self.legval_cache(self.coeff['TAILINDE'], specrange, wavelengths)
+        self.legval_dict = dict()
+        self.legval_dict['x_cache'] = self.legval_cache(self._x, specrange, wavelengths)
+        self.legval_dict['y_cache'] = self.legval_cache(self._y, specrange, wavelengths)
+        self.legval_dict['sigx1_cache'] = self.legval_cache(self.coeff['GHSIGX'], specrange, wavelengths)
+        self.legval_dict['sigy1_cache'] = self.legval_cache(self.coeff['GHSIGY'], specrange, wavelengths)
+        self.legval_dict['tailxsca_cache'] = self.legval_cache(self.coeff['TAILXSCA'], specrange, wavelengths)
+        self.legval_dict['tailysca_cache'] = self.legval_cache(self.coeff['TAILYSCA'], specrange, wavelengths)
+        self.legval_dict['tailamp_cache'] = self.legval_cache(self.coeff['TAILAMP'], specrange, wavelengths)
+        self.legval_dict['tailcore_cache'] = self.legval_cache(self.coeff['TAILCORE'], specrange, wavelengths)
+        self.legval_dict['tailinde_cache'] = self.legval_cache(self.coeff['TAILINDE'], specrange, wavelengths)
         #some extra steps to cache what we need for the core PSF image
         degx1 = self._polyparams['GHDEGX']
         degy1 = self._polyparams['GHDEGY']
         for i in range(degx1+1):
             for j in range(degy1+1):
                 core_string = 'GH-{}-{}'.format(i,j)
-                legval_dict[core_string]=self.legval_cache(self.coeff[core_string], specrange, wavelengths)
-
-        return legval_dict
+                self.legval_dict[core_string]=self.legval_cache(self.coeff[core_string], specrange, wavelengths)
 
     #modified version of eval in specter/traceset that can handle multiple spectra
     def legval_cache(self, traceset, specrange, wavelengths):
-
-        #print("traceset")
-        #print(traceset)
-        #print("specrange is %s" %(specrange,))
-        #print("wavelengths is %s" %(wavelengths))
 
         spec_min, spec_max = specrange
         nspec = spec_max - spec_min
