@@ -2,7 +2,19 @@
 specter change log
 ==================
 
-0.8.6 (unreleased)
+0.8.8 (unreleased)
+------------------
+
+* No changes yet.
+
+0.8.7 (2018-07-26)
+------------------
+
+* Add custom `xsigma` and `ysigma` functions to GaussHermitePSF (PR #66).
+* Don't use numba caching due to MPI race condition (PR #67).
+* Small speed improvements (PR #68 and #69).
+
+0.8.6 (2018-06-27)
 ------------------
 
 * Added numba-ized legval for ~20% overall ex2d speedup (PR #61).

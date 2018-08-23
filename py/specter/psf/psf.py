@@ -691,5 +691,3 @@ class PSF(object):
         this is implemented in specter.psf.gausshermite, everywhere else just an empty function
         """
         pass
-
-

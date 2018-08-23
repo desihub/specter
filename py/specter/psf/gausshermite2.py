@@ -82,7 +82,7 @@ class GaussHermite2PSF(PSF):
         self._wmin_all = np.max(self._wmin_spec)
         self._wmax = np.max(self._wmax_spec)
         self._wmax_all = np.min(self._wmax_spec)
-                
+
         #- Filled only if needed
         self._xsigma = None
         self._ysigma = None
