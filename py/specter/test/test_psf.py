@@ -529,7 +529,7 @@ class GenericPSFTests(object):
                 xx2, yy2, pix2 = self.psf.xypix(ispec, w, ispec_cache=ispec_cache, iwave_cache=iflux)
                 #now let's clear self.legval_dict
                 self.psf.legval_dict = None
-                #now we can compare!
+                #now we can compare the x and y slices
                 self.assertTrue(np.all(xx1 == xx2))
                 self.assertTrue(np.all(yy1 == yy2))
                 #- maybe need np.allclose, but let's start with np.all()
