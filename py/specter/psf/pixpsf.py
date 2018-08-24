@@ -107,9 +107,4 @@ class PixPSF(PSF):
 
         return xslice, yslice, psfimage
 
-    def cache_params(self, spec_range, wavelengths):
-        """
-        this is implemented in specter.psf.gausshermite, everywhere else just an empty function
-        """
-        pass
 
