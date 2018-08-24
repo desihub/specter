@@ -214,7 +214,7 @@ class PSF(object):
         """
         return self.xypix(ispec, wavelength)[2]
 
-    def _xypix(self, ispec, wavelength):
+    def _xypix(self, ispec, wavelength, ispec_cache=None, iwave_cache=None):
         """
         Subclasses of PSF should implement this to return
         xslice, yslice, pixels[iy,ix] for their particular

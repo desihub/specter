@@ -30,7 +30,7 @@ class MonoSpotPSF(PSF):
             self._spot = spot.copy()
             self._scale = scale
         
-    def _xypix(self, ispec, wavelength, ispec_cache=None, iwave_cache=None, legval_dict=None):
+    def _xypix(self, ispec, wavelength, ispec_cache=None, iwave_cache=None):
         """
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
         """

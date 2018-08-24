@@ -125,7 +125,7 @@ class GaussHermite2PSF(PSF):
             return 0.5 * (y[1:] - y[0:-1])
 
         
-    def _xypix(self, ispec, wavelength, ispec_cache=None, iwave_cache=None, legval_dict=None):
+    def _xypix(self, ispec, wavelength, ispec_cache=None, iwave_cache=None):
 
         # x, y = self.xy(ispec, wavelength)
         x = self.coeff['X'].eval(ispec, wavelength)
