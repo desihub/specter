@@ -68,12 +68,6 @@ class MonoSpotPSF(PSF):
 
         return xx, yy, ccdpix
 
-    def cache_params(self, spec_range, wavelengths):
-        """
-        this is implemented in specter.psf.gausshermite, everywhere else just an empty function
-        """
-        pass
-    
 
 #- Incomplete code for creating without a file
 # def __init__(self, x, y, w, spot, scale=1):
