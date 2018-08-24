@@ -15,7 +15,7 @@ from specter.util import outer
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
          regularize=0.0, ndecorr=False, bundlesize=25, nsubbundles=1,
          wavesize=50, full_output=False, verbose=False, 
-         debug=False, psferr=None, no_cache=None):
+         debug=False, psferr=None):
     '''
     2D PSF extraction of flux from image patch given pixel inverse variance.
     
@@ -45,9 +45,6 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
             fractional error on the psf model instead of the value saved
             in the psf fits file. This is used only to compute the chi2,
             not to weight pixels in fit
-        no_cache: users requests the old (slower) version where legval is called 
-            every time for (ispec,wavelength) instead of pre-computing
-            legval for the whole patch and then looking up the values
 
     Returns (flux, ivar, Rdata):
         flux[nspec, nwave] = extracted resolution convolved flux
@@ -146,12 +143,12 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                         specrange=specrange, wmin=wmin, wmax=wmax, wlo=wlo, whi=whi))
                     sys.stdout.flush()
 
-                #- Do the extraction
+                #- Do the extraction with legval cache as default
                 results = \
                     ex2d_patch(subimg, subivar, psf,
                         specmin=speclo, nspec=spechi-speclo, wavelengths=ww,
                         xyrange=[xlo,xhi,ylo,yhi], regularize=regularize, ndecorr=ndecorr,
-                        full_output=True, no_cache=no_cache)
+                        full_output=True, use_cache=True)
 
                 specflux = results['flux']
                 specivar = results['ivar']
@@ -236,7 +233,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
 
 def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
-         full_output=False, regularize=0.0, ndecorr=False, no_cache=None):
+         full_output=False, regularize=0.0, ndecorr=False, use_cache=None):
     """
     2D PSF extraction of flux from image patch given pixel inverse variance.
     
@@ -255,8 +252,7 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
             intermediate outputs such as the projection matrix.
         ndecorr : if True, decorrelate the noise between fibers, at the
             cost of residual signal correlations between fibers.
-        no_cache: user requests the old (slower) version where legval is called
-            each time it is needed, rather than precomputing all values for a patch
+        use_cache: default behavior, can be turned off for testing purposes
 
     Returns (flux, ivar, R):
         flux[nspec, nwave] = extracted resolution convolved flux
@@ -285,7 +281,7 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
     #- Solve AT W pix = (AT W A) flux
     
     #- Projection matrix and inverse covariance
-    A = psf.projection_matrix(specrange, wavelengths, xyrange, no_cache=no_cache)
+    A = psf.projection_matrix(specrange, wavelengths, xyrange, use_cache=use_cache)
 
     #- Pixel weights matrix
     w = ivar.ravel()
