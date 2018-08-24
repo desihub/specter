@@ -27,13 +27,27 @@ class TraceSet(object):
         
     def _xnorm(self, x):
         return 2.0 * (x - self._xmin) / (self._xmax - self._xmin) - 1.0
-        
+     
     def eval(self, ispec, x):
+        # TODO: this function could be a little more robust/elegant
         xx = np.array(self._xnorm(x))
+        #wavelength input may be a scalar
         scalar_input = np.isscalar(x)
-   
+        #ispec input may be in the form (min, max)
+        tuple_input = False
+        if type(ispec) is tuple:
+            tuple_input = True
+            spec_min, spec_max = ispec
+            #in this case ispec is coming from the cached branch of xypix, which means
+            #that we need to use nspec instead of ispec due to re-indexing
+            nspec = spec_max - spec_min
+            nwave = len(x)            
+
         #numba requires f8 or smaller
-        cc_numba = self._coeff[ispec].astype(np.float64, copy=False)
+        if tuple_input is False:
+            cc_numba = self._coeff[ispec].astype(np.float64, copy=False)
+        else:
+            cc_numba = self._coeff[spec_min:spec_max].astype(np.float64, copy=False)
 
         #use numba version of legval if possible
         if isinstance(ispec, numbers.Integral):
@@ -42,7 +56,16 @@ class TraceSet(object):
                 return results[0]
             else:
                 return results
+        #handle tuple case from _xypix cached branch
+        elif tuple_input:
+            #compute and store the values
+            y=np.zeros([nspec, nwave])
+            for i in range(nspec):
+                y[i,:]=legval_numba(xx, cc_numba[i])
+            return y    
+
         else:
+            #ispec may sometimes be None
             if ispec is None:
                 ispec = list(range(self._coeff.shape[0]))
 
@@ -56,6 +79,7 @@ class TraceSet(object):
                     y.append(legval_numba(xx, cc_i))
 
             return np.array(y)
+   
             
     # def __call__(self, ispec, x):
     #     return self.eval(ispec, x)
