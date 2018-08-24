@@ -132,13 +132,6 @@ class SpotGridPSF(PSF):
             img[i]=spline((xr[i]-xc)*ratio,(yr[i]-yc)*ratio)
         return img.reshape(x.shape)
 
-
-    def cache_params(self, spec_range, wavelengths):
-        """
-        this is implemented in specter.psf.gausshermite, everywhere else just an empty function
-        """
-        pass
-
 import numba
 @numba.jit(nopython=True,cache=False)
 def new_pixshift(xc,yc,pix_spot_values,rebin):
