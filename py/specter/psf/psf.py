@@ -20,7 +20,7 @@ import numpy as np
 from numpy.polynomial.legendre import Legendre, legval, legfit
 import scipy.optimize
 import scipy.sparse
-
+from specter.util import legval_numba
 from specter.util import gausspix, TraceSet, CacheDict
 from astropy.io import fits
 
@@ -84,7 +84,7 @@ class PSF(object):
         #- Filled only if needed
         self._xsigma = None
         self._ysigma = None
-        
+
     #- Utility function to fit spot sigma vs. wavelength
     def _fit_spot_sigma(self, ispec, axis=0, npoly=5):
         """
@@ -214,7 +214,7 @@ class PSF(object):
         """
         return self.xypix(ispec, wavelength)[2]
 
-    def _xypix(self, ispec, wavelength):
+    def _xypix(self, ispec, wavelength, ispec_cache=None, iwave_cache=None):
         """
         Subclasses of PSF should implement this to return
         xslice, yslice, pixels[iy,ix] for their particular
@@ -223,7 +223,7 @@ class PSF(object):
         """
         raise NotImplementedError
         
-    def xypix(self, ispec, wavelength, xmin=0, xmax=None, ymin=0, ymax=None):
+    def xypix(self, ispec, wavelength, xmin=0, xmax=None, ymin=0, ymax=None, ispec_cache=None, iwave_cache=None):
         """
         Evaluate PSF for spectrum[ispec] at given wavelength
         
@@ -233,6 +233,10 @@ class PSF(object):
         
         if xmin or ymin are set, the slices are relative to those
         minima (useful for simulating subimages)
+
+        Optional inputs:
+            ispec_cache = an index into the spectrum number that starts again at 0 for each patch
+            iwave_cache = an index into the wavelength number that starts again at 0 for each patch
         """
         if xmax is None:
             xmax = self.npix_x
@@ -249,11 +253,11 @@ class PSF(object):
             if key in self._cache:
                 xx, yy, ccdpix = self._cache[key]
             else:
-                xx, yy, ccdpix = self._xypix(ispec, wavelength)
+                xx, yy, ccdpix = self._xypix(ispec, wavelength, ispec_cache=ispec_cache, iwave_cache=iwave_cache)
                 self._cache[key] = (xx, yy, ccdpix)
         except AttributeError:
             self._cache = CacheDict(2500)
-            xx, yy, ccdpix = self._xypix(ispec, wavelength)
+            xx, yy, ccdpix = self._xypix(ispec, wavelength, ispec_cache=ispec_cache, iwave_cache=iwave_cache)
             
         xlo, xhi = xx.start, xx.stop
         ylo, yhi = yy.start, yy.stop
@@ -619,7 +623,7 @@ class PSF(object):
         """Maximum wavelength seen by all spectra"""
         return self._wmax_all
     
-    def projection_matrix(self, spec_range, wavelengths, xyrange):
+    def projection_matrix(self, spec_range, wavelengths, xyrange, use_cache=None):
         """
         Returns sparse projection matrix from flux to pixels
     
@@ -627,6 +631,9 @@ class PSF(object):
             spec_range = (ispecmin, ispecmax) or scalar ispec
             wavelengths = array_like wavelengths
             xyrange  = (xmin, xmax, ymin, ymax)
+
+        Optional inputs:
+            use_cache= default True, legval values will be precomputed
             
         Usage:
             xyrange = xmin, xmax, ymin, ymax
@@ -648,14 +655,23 @@ class PSF(object):
         nx = xmax - xmin
         ny = ymax - ymin
     
+        if use_cache:
+            self.cache_params(spec_range, wavelengths)
+        else:
+            #make sure legval_dict is empty if we're not using it
+            self.legval_dict = None
+
         #- Generate A
         #- Start with a transposed version to fill it more efficiently
         A = np.zeros( (nspec*nflux, ny*nx) )
         tmp = np.zeros((ny, nx))
-        for ispec in range(specmin, specmax):
+        for ispec_cache, ispec in enumerate(range(specmin, specmax)):
             for iflux, w in enumerate(wavelengths):
                 #- Get subimage and index slices
-                xslice, yslice, pix = self.xypix(ispec, w, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
+                #have to keep track of an extra set of indicides if we're using cached values
+                #i.e. they have to start over again in the patch 
+                xslice, yslice, pix = self.xypix(ispec, w, xmin=xmin, xmax=xmax, 
+                    ymin=ymin, ymax=ymax, ispec_cache=ispec_cache, iwave_cache=iflux)
                 
                 #- If there is overlap with pix_range, put into sub-region of A
                 if pix.shape[0]>0 and pix.shape[1]>0:
@@ -663,6 +679,15 @@ class PSF(object):
                     ij = (ispec-specmin)*nflux + iflux
                     A[ij, :] = tmp.ravel()
                     tmp[yslice, xslice] = 0.0
+
+        #when we are finished with legval_dict clear it out
+        #this is important so we don't enter the cached branch of _xypix at the wrong time
+        self.legval_dict = None
         
         return scipy.sparse.csr_matrix(A.T)
 
+    def cache_params(self, spec_range, wavelengths):
+        """
+        this is implemented in specter.psf.gausshermite, everywhere else just an empty function
+        """
+        pass

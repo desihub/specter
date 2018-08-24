@@ -14,7 +14,8 @@ from specter.util import outer
 
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
          regularize=0.0, ndecorr=False, bundlesize=25, nsubbundles=1,
-         wavesize=50, full_output=False, verbose=False, debug=False, psferr=None):
+         wavesize=50, full_output=False, verbose=False, 
+         debug=False, psferr=None):
     '''
     2D PSF extraction of flux from image patch given pixel inverse variance.
     
@@ -88,7 +89,6 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
     #- Orig was ndiag = 10, which fails when dw gets too large compared to PSF size
     Rd = np.zeros( (nspec, 2*ndiag+1, nwave) )
 
-
     if psferr is None :
         psferr = psf.psferr
 
@@ -143,12 +143,12 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                         specrange=specrange, wmin=wmin, wmax=wmax, wlo=wlo, whi=whi))
                     sys.stdout.flush()
 
-                #- Do the extraction
+                #- Do the extraction with legval cache as default
                 results = \
                     ex2d_patch(subimg, subivar, psf,
                         specmin=speclo, nspec=spechi-speclo, wavelengths=ww,
                         xyrange=[xlo,xhi,ylo,yhi], regularize=regularize, ndecorr=ndecorr,
-                        full_output=True)
+                        full_output=True, use_cache=True)
 
                 specflux = results['flux']
                 specivar = results['ivar']
@@ -167,7 +167,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                     #- number of spectra and wavelengths for this sub-extraction
                     subnspec = spechi-speclo
                     subnwave = len(ww)
-            
+        
                     #- Model image
                     submodel = A.dot(xflux.ravel()).reshape(subimg.shape)
             
@@ -233,7 +233,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
 
 def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
-         full_output=False, regularize=0.0, ndecorr=False):
+         full_output=False, regularize=0.0, ndecorr=False, use_cache=None):
     """
     2D PSF extraction of flux from image patch given pixel inverse variance.
     
@@ -252,6 +252,7 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
             intermediate outputs such as the projection matrix.
         ndecorr : if True, decorrelate the noise between fibers, at the
             cost of residual signal correlations between fibers.
+        use_cache: default behavior, can be turned off for testing purposes
 
     Returns (flux, ivar, R):
         flux[nspec, nwave] = extracted resolution convolved flux
@@ -261,8 +262,9 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
     #- Range of image to consider
     waverange = (wavelengths[0], wavelengths[-1])
-    specrange = (specmin, specmin+nspec)
-    
+    specrange = (specmin, specmin+nspec) 
+ 
+    #since xyrange checks to see if we're on the ccd, we cant cache until after this
     if xyrange is None:
         xmin, xmax, ymin, ymax = xyrange = psf.xyrange(specrange, waverange)
         image = image[ymin:ymax, xmin:xmax]
@@ -275,11 +277,11 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
     
     nspec = specrange[1] - specrange[0]
     nwave = len(wavelengths)
-    
+
     #- Solve AT W pix = (AT W A) flux
     
     #- Projection matrix and inverse covariance
-    A = psf.projection_matrix(specrange, wavelengths, xyrange)
+    A = psf.projection_matrix(specrange, wavelengths, xyrange, use_cache=use_cache)
 
     #- Pixel weights matrix
     w = ivar.ravel()
@@ -449,7 +451,6 @@ def eigen_compose(w, v, invert=False, sqr=False):
     # multiply to get result
     wdiag = spdiags(wscaled, 0, dim, dim)
     return v.dot( wdiag.dot(v.T) )
-
 
 def resolution_from_icov(icov, decorr=None):
     """

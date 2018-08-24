@@ -53,7 +53,7 @@ class SpotGridPSF(PSF):
         
         fx.close()
         
-    def _xypix(self, ispec, wavelength):
+    def _xypix(self, ispec, wavelength, ispec_cache=None, iwave_cache=None):
         """
         Return xslice, yslice, pix for PSF at spectrum ispec, wavelength
         """
@@ -132,7 +132,6 @@ class SpotGridPSF(PSF):
             img[i]=spline((xr[i]-xc)*ratio,(yr[i]-yc)*ratio)
         return img.reshape(x.shape)
 
-
 import numba
 @numba.jit(nopython=True,cache=False)
 def new_pixshift(xc,yc,pix_spot_values,rebin):
@@ -164,4 +163,6 @@ def new_pixshift(xc,yc,pix_spot_values,rebin):
             resampled_pix_spot_values[dy+1+i,dx+1+j]   += w11*pix_spot_values[i,j] 
 
     return resampled_pix_spot_values        
-        
+       
+
+ 
