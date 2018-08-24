@@ -212,9 +212,4 @@ class GaussHermite2PSF(PSF):
         return xslice, yslice, img
         # return xslice, yslice, (core1, core2, tails)
        
-    def cache_params(self, spec_range, wavelengths):
-        """
-        this is implemented in specter.psf.gausshermite, everywhere else just an empty function
-        """
-        pass
 
