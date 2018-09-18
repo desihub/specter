@@ -127,39 +127,8 @@ class GaussHermitePSF(PSF):
 
         fx.close()
 
+        #try this to avoid passing self to numba functions
         hermitetest = self._hermitenorm
-
-    #i think we might need jitclass here because of self
-    #@numba.jit(nopython=False,cache=False)
-    #@property
-    def _pgh(hermitetest, x, m=0, xc=0.0, sigma=1.0):
-        """
-        Pixel-integrated (probabilist) Gauss-Hermite function.
-
-        Arguments:
-          x: pixel-center baseline array
-          m: order of Hermite polynomial multiplying Gaussian core
-          xc: sub-pixel position of Gaussian centroid relative to x baseline
-          sigma: sigma parameter of Gaussian core in units of pixels
-
-        Uses the relationship
-        Integral{ H_k(x) exp(-0.5 x^2) dx} = -H_{k-1}(x) exp(-0.5 x^2) + const
-
-        Written: Adam S. Bolton, U. of Utah, fall 2010
-        Adapted for efficiency by S. Bailey while dropping generality
-        """
-        #- Evaluate H[m-1] at half-pixel offsets above and below x
-        dx = x-xc-0.5
-        u = np.concatenate( (dx, dx[-1:]+0.5) ) / sigma
-        
-        if m > 0:
-            y = -hermitetest[m-1](u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
-            return (y[1:] - y[0:-1])
-        else:            
-            y = custom_erf(u/np.sqrt(2.))
-            #y = sp.erf(u/np.sqrt(2.))
-            return 0.5 * (y[1:] - y[0:-1])
-
 
     def _xypix(self, ispec, wavelength, ispec_cache=None, iwave_cache=None):
         """
@@ -413,7 +382,6 @@ class GaussHermitePSF(PSF):
                 core_string = 'GH-{}-{}'.format(i,j)
                 self.legval_dict[core_string]=self.coeff[core_string].eval(specrange, wavelengths)
 
-#i think we might need jitclass here because of self
 @numba.jit(nopython=True,cache=False)
 def pgh(hermitetest, x, m=0, xc=0.0, sigma=1.0):
     """
@@ -433,9 +401,13 @@ def pgh(hermitetest, x, m=0, xc=0.0, sigma=1.0):
     """
     #- Evaluate H[m-1] at half-pixel offsets above and below x
     dx = x-xc-0.5
-    #numba will not handle concatenate, need to replace
-    u = np.concatenate( (dx, dx[-1:]+0.5) ) / sigma
-
+    #numba will not handle concatenate, need to replace with list operations
+    #u = np.concatenate( (dx, dx[-1:]+0.5) ) / sigma
+    dx_list = dx.tolist()
+    dx_offset = dx_list[-1:]+0.5
+    u_list = (dx_list + dx_offset) / sigma
+    #ok now convert back to numpy array
+    u = np.asarray(u_list)
     if m > 0:
         y = -hermitetest[m-1](u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
         return (y[1:] - y[0:-1])
@@ -452,6 +424,8 @@ def pgh(hermitetest, x, m=0, xc=0.0, sigma=1.0):
 # fractional error in math formula less than 1.2 * 10 ^ -7.
 # although subject to catastrophic cancellation when z in very close to 0
 # from Chebyshev fitting formula for erf(z) from Numerical Recipes, 6.2
+
+#need to verify that this provides the same result as scipy.special.erf
 def custom_erf(z):
     t = 1.0 / (1.0 + 0.5 * np.abs(z))
     # use Horner's method
