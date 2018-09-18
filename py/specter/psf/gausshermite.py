@@ -18,6 +18,8 @@ from astropy.io import fits
 from specter.psf import PSF
 from specter.util import TraceSet, outer, legval_numba
 
+import numba
+
 class GaussHermitePSF(PSF):
     """
     Model PSF with two central Gauss-Hermite cores with different sigmas
@@ -125,7 +127,12 @@ class GaussHermitePSF(PSF):
 
         fx.close()
 
-    def _pgh(self, x, m=0, xc=0.0, sigma=1.0):
+        hermitetest = self._hermitenorm
+
+    #i think we might need jitclass here because of self
+    #@numba.jit(nopython=False,cache=False)
+    #@property
+    def _pgh(hermitetest, x, m=0, xc=0.0, sigma=1.0):
         """
         Pixel-integrated (probabilist) Gauss-Hermite function.
 
@@ -141,17 +148,18 @@ class GaussHermitePSF(PSF):
         Written: Adam S. Bolton, U. of Utah, fall 2010
         Adapted for efficiency by S. Bailey while dropping generality
         """
-
         #- Evaluate H[m-1] at half-pixel offsets above and below x
         dx = x-xc-0.5
         u = np.concatenate( (dx, dx[-1:]+0.5) ) / sigma
         
         if m > 0:
-            y = -self._hermitenorm[m-1](u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
+            y = -hermitetest[m-1](u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
             return (y[1:] - y[0:-1])
         else:            
-            y = sp.erf(u/np.sqrt(2.))
+            y = custom_erf(u/np.sqrt(2.))
+            #y = sp.erf(u/np.sqrt(2.))
             return 0.5 * (y[1:] - y[0:-1])
+
 
     def _xypix(self, ispec, wavelength, ispec_cache=None, iwave_cache=None):
         """
@@ -167,6 +175,9 @@ class GaussHermitePSF(PSF):
             ispec_cache: the index of each spectrum which starts again at 0 for each patch
             iwave_cache: the index of each wavelength which starts again at 0 for each patch
         """
+
+        #testing
+        hermitetest = self._hermitenorm
 
         #trying to avoid duplicating code between branches, will split into
         #cached branch and non-cached branch depending on self.legval_dict
@@ -234,8 +245,8 @@ class GaussHermitePSF(PSF):
         tails = tailamp*r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
         
         #- Create 1D GaussHermite functions in x and y
-        xfunc1 = [self._pgh(xccd, i, x, sigma=sigx1) for i in range(degx1+1)]
-        yfunc1 = [self._pgh(yccd, i, y, sigma=sigy1) for i in range(degy1+1)]        
+        xfunc1 = [pgh(hermitetest, xccd, i, x, sigma=sigx1) for i in range(degx1+1)]
+        yfunc1 = [pgh(hermitetest, yccd, i, y, sigma=sigy1) for i in range(degy1+1)]        
        
         #- Create core PSF image
         core1 = np.zeros((ny, nx))
@@ -401,5 +412,60 @@ class GaussHermitePSF(PSF):
             for j in range(degy1+1):
                 core_string = 'GH-{}-{}'.format(i,j)
                 self.legval_dict[core_string]=self.coeff[core_string].eval(specrange, wavelengths)
+
+#i think we might need jitclass here because of self
+@numba.jit(nopython=True,cache=False)
+def pgh(hermitetest, x, m=0, xc=0.0, sigma=1.0):
+    """
+    Pixel-integrated (probabilist) Gauss-Hermite function.
+
+    Arguments:
+      x: pixel-center baseline array
+      m: order of Hermite polynomial multiplying Gaussian core
+      xc: sub-pixel position of Gaussian centroid relative to x baseline
+      sigma: sigma parameter of Gaussian core in units of pixels
+
+    Uses the relationship
+    Integral{ H_k(x) exp(-0.5 x^2) dx} = -H_{k-1}(x) exp(-0.5 x^2) + const
+
+    Written: Adam S. Bolton, U. of Utah, fall 2010
+    Adapted for efficiency by S. Bailey while dropping generality
+    """
+    #- Evaluate H[m-1] at half-pixel offsets above and below x
+    dx = x-xc-0.5
+    #numba will not handle concatenate, need to replace
+    u = np.concatenate( (dx, dx[-1:]+0.5) ) / sigma
+
+    if m > 0:
+        y = -hermitetest[m-1](u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
+        return (y[1:] - y[0:-1])
+    else:
+        y = custom_erf(u/np.sqrt(2.))
+        #y = sp.erf(u/np.sqrt(2.))
+        return 0.5 * (y[1:] - y[0:-1])
+
+@numba.jit(nopython=True,cache=False)
+# from: http://www.cs.princeton.edu/introcs/21function/ErrorFunction.java.html
+# Implements the Gauss error function.
+#   erf(z) = 2 / sqrt(pi) * integral(exp(-t*t), t = 0..z)
+#
+# fractional error in math formula less than 1.2 * 10 ^ -7.
+# although subject to catastrophic cancellation when z in very close to 0
+# from Chebyshev fitting formula for erf(z) from Numerical Recipes, 6.2
+def custom_erf(z):
+    t = 1.0 / (1.0 + 0.5 * np.abs(z))
+    # use Horner's method
+    ans = 1 - t * np.exp( -z*z -  1.26551223 +
+                            t * ( 1.00002368 +
+                            t * ( 0.37409196 + 
+                            t * ( 0.09678418 + 
+                            t * (-0.18628806 + 
+                            t * ( 0.27886807 + 
+                            t * (-1.13520398 + 
+                            t * ( 1.48851587 + 
+                            t * (-0.82215223 + 
+                            t * ( 0.17087277))))))))))
+
+    return ans
 
 
