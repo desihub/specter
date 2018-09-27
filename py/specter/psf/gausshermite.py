@@ -120,15 +120,13 @@ class GaussHermitePSF(PSF):
 
         #- Cache hermitenorm polynomials so we don't have to create them
         #- every time xypix is called
+        #other functions use this too like _gh
         self._hermitenorm = list()
         maxdeg = max(hdr['GHDEGX'], hdr['GHDEGY'])
         for i in range(maxdeg+1):
             self._hermitenorm.append( sp.hermitenorm(i) )
 
         fx.close()
-
-        #try this to avoid passing self to numba functions
-        hermitetest = self._hermitenorm
 
     def _xypix(self, ispec, wavelength, ispec_cache=None, iwave_cache=None):
         """
@@ -144,9 +142,6 @@ class GaussHermitePSF(PSF):
             ispec_cache: the index of each spectrum which starts again at 0 for each patch
             iwave_cache: the index of each wavelength which starts again at 0 for each patch
         """
-
-        #testing
-        hermitetest = self._hermitenorm
 
         #trying to avoid duplicating code between branches, will split into
         #cached branch and non-cached branch depending on self.legval_dict
@@ -214,8 +209,8 @@ class GaussHermitePSF(PSF):
         tails = tailamp*r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
         
         #- Create 1D GaussHermite functions in x and y
-        xfunc1 = [pgh(hermitetest, xccd, i, x, sigma=sigx1) for i in range(degx1+1)]
-        yfunc1 = [pgh(hermitetest, yccd, i, y, sigma=sigy1) for i in range(degy1+1)]        
+        xfunc1 = [pgh(self, xccd, i, x, sigma=sigx1) for i in range(degx1+1)]
+        yfunc1 = [pgh(self, yccd, i, y, sigma=sigy1) for i in range(degy1+1)]        
        
         #- Create core PSF image
         core1 = np.zeros((ny, nx))
@@ -382,50 +377,87 @@ class GaussHermitePSF(PSF):
                 core_string = 'GH-{}-{}'.format(i,j)
                 self.legval_dict[core_string]=self.coeff[core_string].eval(specrange, wavelengths)
 
-@numba.jit(nopython=True,cache=False)
-def pgh(hermitetest, x, m=0, xc=0.0, sigma=1.0):
+#eventually numba-ize
+#@numba.jit(nopython=False, cache=False)
+def pgh(self, x, m=0, xc=0.0, sigma=1.0):
     """
     Pixel-integrated (probabilist) Gauss-Hermite function.
-
     Arguments:
       x: pixel-center baseline array
       m: order of Hermite polynomial multiplying Gaussian core
       xc: sub-pixel position of Gaussian centroid relative to x baseline
       sigma: sigma parameter of Gaussian core in units of pixels
-
     Uses the relationship
     Integral{ H_k(x) exp(-0.5 x^2) dx} = -H_{k-1}(x) exp(-0.5 x^2) + const
-
     Written: Adam S. Bolton, U. of Utah, fall 2010
     Adapted for efficiency by S. Bailey while dropping generality
     """
+
     #- Evaluate H[m-1] at half-pixel offsets above and below x
     dx = x-xc-0.5
-    #numba will not handle concatenate, need to replace with list operations
-    #u = np.concatenate( (dx, dx[-1:]+0.5) ) / sigma
-    dx_list = dx.tolist()
-    dx_offset = dx_list[-1:]+0.5
-    u_list = (dx_list + dx_offset) / sigma
-    #ok now convert back to numpy array
-    u = np.asarray(u_list)
+    u = np.concatenate( (dx, dx[-1:]+0.5) ) / sigma
+        
     if m > 0:
-        y = -hermitetest[m-1](u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
+        #keep orig lookup version for speed comparison
+        #here we are looking up values already calculated and stored in self
+        #y_old = -self._hermitenorm[m-1](u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
+        #print("old hermite result")
+        #print(y_old)
+        #also try new numbaized version
+        #inputs should be (order, x) which in this case is (m-1, u)
+        #here we are calculating the polynomial from scractch
+        #and then evaluating it
+        #account for a sign flip somewhere in our custom version
+        y  = -custom_hermitenorm(m-1,u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
+        #print("new hermite result")
+        #print(y)
+        #print("diff hermite result")
+        #print(y_old-y)
         return (y[1:] - y[0:-1])
-    else:
-        y = custom_erf(u/np.sqrt(2.))
-        #y = sp.erf(u/np.sqrt(2.))
+    else:            
+        #y = custom_erf(u/np.sqrt(2.))
+        y = sp.erf(u/np.sqrt(2.))
         return 0.5 * (y[1:] - y[0:-1])
 
-@numba.jit(nopython=True,cache=False)
-# from: http://www.cs.princeton.edu/introcs/21function/ErrorFunction.java.html
+#eventually have numbaized function to create hermitenorm
+#can't numba-ize until we get rid of he_roots and all its scipy dependents
+@numba.jit(nopython=True, cache=False)
+def custom_hermitenorm(n, u):
+    
+    #below is (mostly) cut and paste from scipy orthogonal_eval.pxd
+    #some modifications have been made to operate on an array
+    #rather than a single value (as in the original version)
+    res=np.zeros(len(u))
+    if n < 0:
+        return (0.0)*np.ones(len(u))
+    elif n == 0:
+        return (1.0)*np.ones(len(u))
+    elif n == 1:
+        return u
+    else:
+        y3 = 0.0
+        y2 = 1.0
+        for i,x in enumerate(u):
+            for k in range(n, 1, -1):
+                y1 = x*y2-k*y3
+                y3 = y2
+                y2 = y1
+            res[i]=x*y2-y3
+            #have to reset before the next iteration
+            y3 = 0.0
+            y2 = 1.0
+        return res
+
+
+#from : http://www.cs.princeton.edu/introcs/21function/ErrorFunction.java.html
 # Implements the Gauss error function.
 #   erf(z) = 2 / sqrt(pi) * integral(exp(-t*t), t = 0..z)
 #
 # fractional error in math formula less than 1.2 * 10 ^ -7.
 # although subject to catastrophic cancellation when z in very close to 0
 # from Chebyshev fitting formula for erf(z) from Numerical Recipes, 6.2
-
 #need to verify that this provides the same result as scipy.special.erf
+#@numba.jit("f8(f8)", nopython=True, cache=False)
 def custom_erf(z):
     t = 1.0 / (1.0 + 0.5 * np.abs(z))
     # use Horner's method
@@ -434,12 +466,12 @@ def custom_erf(z):
                             t * ( 0.37409196 + 
                             t * ( 0.09678418 + 
                             t * (-0.18628806 + 
+                            t * (-0.18628806 + 
                             t * ( 0.27886807 + 
                             t * (-1.13520398 + 
                             t * ( 1.48851587 + 
                             t * (-0.82215223 + 
-                            t * ( 0.17087277))))))))))
-
+                            t * ( 0.17087277)))))))))))
     return ans
 
 
