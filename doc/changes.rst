@@ -2,7 +2,7 @@
 specter change log
 ==================
 
-0.9.0 (unreleased)
+0.9.0 (2018-09-26)
 ------------------
 
 * Faster extractions by vectorizing and caching legval calls (PR #70).
