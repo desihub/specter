@@ -118,13 +118,15 @@ class GaussHermitePSF(PSF):
         #create dict to hold legval cached data
         self.legval_dict = None
 
-        #- Cache hermitenorm polynomials so we don't have to create them
-        #- every time xypix is called
-        #other functions use this too like _gh
-        self._hermitenorm = list()
-        maxdeg = max(hdr['GHDEGX'], hdr['GHDEGY'])
-        for i in range(maxdeg+1):
-            self._hermitenorm.append( sp.hermitenorm(i) )
+        #now that we are doing our own hermite eval in pgh i don't think we need this 
+
+        ##- Cache hermitenorm polynomials so we don't have to create them
+        ##- every time xypix is called
+        ##other functions use this too like _gh
+        #self._hermitenorm = list()
+        #maxdeg = max(hdr['GHDEGX'], hdr['GHDEGY'])
+        #for i in range(maxdeg+1):
+        #    self._hermitenorm.append( sp.hermitenorm(i) )
 
         fx.close()
 
@@ -489,7 +491,7 @@ def custom_erf(y):
     for i,x in enumerate(y):
         ax=abs(x) 
         #change gotos into something sensible
-        if ax < 0.5E0:
+        if ax <= 0.5E0:
             t=x*x
             top = ((((a1*t+a2)*t+a3)*t+a4)*t+a5) + 1.0E0
             bot = ((b1*t+b2)*t+b3)*t + 1.0E0
@@ -498,27 +500,27 @@ def custom_erf(y):
             top = ((((((p1*ax+p2)*ax+p3)*ax+p4)*ax+p5)*ax+p6)*ax + p7)*ax + p8
             bot = ((((((q1*ax+q2)*ax+q3)*ax+q4)*ax+q5)*ax+q6)*ax + q7)*ax + q8
             val = 0.5E0 + (0.5E0 - np.exp(-x*x)*top/bot)
-            if x < 0.0:
+            if x < 0.0E0:
                 erf[i] = -val
             else:
                 erf[i] = val
-        elif 4.0E0 < ax <= 5.8E0:
+        elif 4.0E0 < ax < 5.8E0:
             x2 = x*x
             t = 1.0E0/x2
             top = (((r1*t+r2)*t+r3)*t+r4)*t + r5
             bot = (((s1*t+s2)*t+s3)*t+s4)*t + 1.0E0
             val = (c-top/ (x2*bot)) / ax
             val = 0.5E0 + (0.5E0 - np.exp(-x2)*val)
-            if x < 0.0:
+            if x < 0.0E0:
                 erf[i] = -val
             else:
                 erf[i] = val
-        elif ax > 5.8E0:
+        elif ax >= 5.8E0:
             #choose the sign
-            if x < 0.0:
-                erf[i] = -1.0
+            if x < 0.0E0:
+                erf[i] = -1.0E0
             else:
-                erf[i] = 1.0
+                erf[i] = 1.0E0
 
     return erf
     
