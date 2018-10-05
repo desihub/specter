@@ -118,15 +118,6 @@ class GaussHermitePSF(PSF):
         #create dict to hold legval cached data
         self.legval_dict = None
 
-        #now that we are doing our own hermite eval in pgh i don't think we need this 
-
-        ##- Cache hermitenorm polynomials so we don't have to create them
-        ##- every time xypix is called
-        ##other functions use this too like _gh
-        #self._hermitenorm = list()
-        #maxdeg = max(hdr['GHDEGX'], hdr['GHDEGY'])
-        #for i in range(maxdeg+1):
-        #    self._hermitenorm.append( sp.hermitenorm(i) )
 
         fx.close()
 
@@ -393,6 +384,8 @@ def pgh(x, m=0, xc=0.0, sigma=1.0):
     Integral{ H_k(x) exp(-0.5 x^2) dx} = -H_{k-1}(x) exp(-0.5 x^2) + const
     Written: Adam S. Bolton, U. of Utah, fall 2010
     Adapted for efficiency by S. Bailey while dropping generality
+    modified from the orig _pgh to enable jit-compiling
+    --> no longer passing in self, calling custom numba functions in util
     """
 
     #- Evaluate H[m-1] at half-pixel offsets above and below x
@@ -400,13 +393,10 @@ def pgh(x, m=0, xc=0.0, sigma=1.0):
     u = np.concatenate( (dx, dx[-1:]+0.5) ) / sigma
         
     if m > 0:
-        #y_old = -self._hermitenorm[m-1](u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
-        #account for a sign flip somewhere in our custom version
         y  = -custom_hermitenorm(m-1,u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
         return (y[1:] - y[0:-1])
     else:            
         y = custom_erf(u/np.sqrt(2.))
-        #y = sp.erf(u/np.sqrt(2.))
         return 0.5 * (y[1:] - y[0:-1])
 
     
