@@ -8,9 +8,11 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import sys
 import os
 import numpy as np
+from scipy import special as sp
 import unittest
 from pkg_resources import resource_filename
 from specter.psf import load_psf
+from specter.util import custom_hermitenorm, custom_erf
 
 class GenericPSFTests(object):
     """
@@ -537,6 +539,39 @@ class GenericPSFTests(object):
 
         #- Check that calling something that isn't in the cache is still ok
         xx, yy, pix = self.psf.xypix(0, ww[0]+1.0)
+
+
+    def test_custom_hermitenorm(self):
+        #need to compare our custom hermite norm function to the scipy one
+        m = 3 #degree of the polynomial
+        u = np.random.uniform(0,10,size=10)
+        #generate scipy polynomial
+        scipy_poly = sp.hermitenorm(m)
+        #evalulate at point u
+        scipy_out = scipy_poly(u)
+        #now try our custom fuction
+        custom_out = custom_hermitenorm(m,u)
+        #check if they're the same
+        self.assertTrue(np.all(scipy_out == custom_out))
+
+
+    def test_custom_erf(self):
+        #try getting full printout to terminal
+        np.set_printoptions(precision=16)
+        #need to compare out custom error function to the scipy one
+        y = np.random.uniform(0,6,size=10).astype(np.float64) #test all branches of loop
+        #try the original scipy
+        scipy_out = sp.erf(y)
+        print("scipy_out")
+        print(scipy_out)
+        #now try our custom version
+        custom_out = custom_erf(y)
+        print("custom_out")
+        print(custom_out)
+        #check if they're the same
+        #self.assertTrue(np.all(scipy_out == custom_out))
+        #self.assertTrue(np.array_equal(scipy_out,custom_out))
+        self.assertTrue(np.all(np.isclose(scipy_out,custom_out)))
 
 #- Test Pixellated PSF format
 class TestPixPSF(GenericPSFTests,unittest.TestCase):
