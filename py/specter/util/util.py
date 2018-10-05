@@ -242,4 +242,133 @@ def legval_numba(x, c):
         c0 = c[-i] - (c1*(nd - 1))*nd_inv
         c1 = tmp + (c1*x*(2*nd - 1))*nd_inv
     return c0 + c1*x
+  
+@numba.jit(nopython=True, cache=False)
+def custom_hermitenorm(n, u):
+    #below is (mostly) cut and paste from scipy orthogonal_eval.pxd
+    #some modifications have been made to operate on an array
+    #rather than a single value (as in the original version)
+    res=np.zeros(len(u))
+    if n < 0:
+        return (0.0)*np.ones(len(u))
+    elif n == 0:
+        return (1.0)*np.ones(len(u))
+    elif n == 1:
+        return u
+    else:
+        y3 = 0.0
+        y2 = 1.0
+        for i,x in enumerate(u):
+            for k in range(n, 1, -1):
+                y1 = x*y2-k*y3
+                y3 = y2
+                y2 = y1
+            res[i]=x*y2-y3
+            #have to reset before the next iteration
+            y3 = 0.0
+            y2 = 1.0
+        return res
+
+
+#going to re-implement the scipy erf.f fortran function 
+#in python so we can eventually jit-compile (which currently
+#does not support scipy)
+@numba.jit(nopython=True, cache=False)
+def custom_erf(y):
+    #have to define a ton of constants
+    c=0.564189583547756E0
+    ###
+    a1=.771058495001320E-04 
+    a2=-0.133733772997339E-02
+    a3=0.323076579225834E-01
+    a4=0.479137145607681E-01
+    a5=0.128379167095513E+00
+    ###
+    b1=0.301048631703895E-02
+    b2=0.538971687740286E-01
+    b3=0.375795757275549E+00
+    ###
+    p1=-1.36864857382717E-07
+    p2=5.64195517478974E-01
+    p3=7.21175825088309E+00
+    p4=4.31622272220567E+01
+    p5=1.52989285046940E+02
+    p6=3.39320816734344E+02
+    p7=4.51918953711873E+02
+    p8=3.00459261020162E+02
+    ###
+    q1=1.00000000000000E+00
+    q2=1.27827273196294E+01
+    q3=7.70001529352295E+01 
+    q4=2.77585444743988E+02 
+    q5=6.38980264465631E+02
+    q6=9.31354094850610E+02
+    q7=7.90950925327898E+02
+    q8=3.00459260956983E+02
+    ###
+    r1=2.10144126479064E+00
+    r2=2.62370141675169E+01
+    r3=2.13688200555087E+01
+    r4=4.65807828718470E+00
+    r5=2.82094791773523E-01
+    ###
+    s1=9.41537750555460E+01
+    s2=1.87114811799590E+02
+    s3=9.90191814623914E+01
+    s4=1.80124575948747E+01
+    ###
+    #end of constants
+
+    #the orig version is meant for a single point
+    #need to modify to work on an array
+    erf = np.zeros(len(y))
+    for i,x in enumerate(y):
+        ax=abs(x) 
+        #change gotos into something sensible
+        if ax <= 0.5E0:
+            t=x*x
+            top = ((((a1*t+a2)*t+a3)*t+a4)*t+a5) + 1.0E0
+            bot = ((b1*t+b2)*t+b3)*t + 1.0E0
+            erf[i] = x * (top/bot)
+        elif 0.5E0 < ax <= 4.0E0:
+            top = ((((((p1*ax+p2)*ax+p3)*ax+p4)*ax+p5)*ax+p6)*ax + p7)*ax + p8
+            bot = ((((((q1*ax+q2)*ax+q3)*ax+q4)*ax+q5)*ax+q6)*ax + q7)*ax + q8
+            val = 0.5E0 + (0.5E0 - np.exp(-x*x)*top/bot)
+            if x < 0.0E0:
+                erf[i] = -val
+            else:
+                erf[i] = val
+        elif 4.0E0 < ax < 5.8E0:
+            x2 = x*x
+            t = 1.0E0/x2
+            top = (((r1*t+r2)*t+r3)*t+r4)*t + r5
+            bot = (((s1*t+s2)*t+s3)*t+s4)*t + 1.0E0
+            val = (c-top/ (x2*bot)) / ax
+            val = 0.5E0 + (0.5E0 - np.exp(-x2)*val)
+            if x < 0.0E0:
+                erf[i] = -val
+            else:
+                erf[i] = val
+        elif ax >= 5.8E0:
+            #choose the sign
+            if x < 0.0E0:
+                erf[i] = -1.0E0
+            else:
+                erf[i] = 1.0E0
+
+    return erf
     
+    
+   
+
+
+
+
+
+
+
+
+
+
+
+  
