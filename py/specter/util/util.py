@@ -243,6 +243,7 @@ def legval_numba(x, c):
         c1 = tmp + (c1*x*(2*nd - 1))*nd_inv
     return c0 + c1*x
   
+
 @numba.jit(nopython=True, cache=False)
 def custom_hermitenorm(n, u):
     #below is (mostly) cut and paste from scipy orthogonal_eval.pxd
@@ -270,15 +271,16 @@ def custom_hermitenorm(n, u):
         return res
 
 
-#going to re-implement the scipy erf.f fortran function 
-#in python so we can eventually jit-compile (which currently
-#does not support scipy)
 @numba.jit(nopython=True, cache=False)
 def custom_erf(y):
+    #here we have re-implemented the scipy erf.f fortran function 
+    #in python so we can jit-compile (which currently does not
+    #support scipy)
+
     #have to define a ton of constants
     c=0.564189583547756E0
     ###
-    a1=.771058495001320E-04 
+    a1=0.771058495001320E-04 
     a2=-0.133733772997339E-02
     a3=0.323076579225834E-01
     a4=0.479137145607681E-01
