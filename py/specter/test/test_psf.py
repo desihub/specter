@@ -556,18 +556,12 @@ class GenericPSFTests(object):
 
 
     def test_custom_erf(self):
-        #try getting full printout to terminal
-        np.set_printoptions(precision=16)
         #need to compare out custom error function to the scipy one
         y = np.random.uniform(0,6,size=10).astype(np.float64) #test all branches of loop
         #try the original scipy
         scipy_out = sp.erf(y)
-        print("scipy_out")
-        print(scipy_out)
         #now try our custom version
         custom_out = custom_erf(y)
-        print("custom_out")
-        print(custom_out)
         #check if they're the same
         #self.assertTrue(np.all(scipy_out == custom_out))
         #self.assertTrue(np.array_equal(scipy_out,custom_out))
