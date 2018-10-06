@@ -246,6 +246,20 @@ def legval_numba(x, c):
 
 @numba.jit(nopython=True, cache=False)
 def custom_hermitenorm(n, u):
+    """
+    Custom implementation of scipy.special.hermitenorm to enable jit-compiling
+        with Numba (which as of 10/2018 does not support scipy). This functionality
+        is equivalent to:
+        fn = scipy.special.hermitenorm(n)
+        return fn(u)
+        with the exception that scalar values of u are not supported.
+    Inputs:
+        n: the degree of the hermite polynomial
+        u: (requires array) points at which the polynomial will be evaulated. 
+    Outputs:
+        res: the value of the hermite polynomial at array points(u)
+    """
+
     #below is (mostly) cut and paste from scipy orthogonal_eval.pxd
     #some modifications have been made to operate on an array
     #rather than a single value (as in the original version)
@@ -273,9 +287,19 @@ def custom_hermitenorm(n, u):
 
 @numba.jit(nopython=True, cache=False)
 def custom_erf(y):
-    #here we have re-implemented the scipy erf.f fortran function 
-    #in python so we can jit-compile (which currently does not
-    #support scipy)
+    """
+    Custom implementation of scipy.special.erf to enable jit-compiling
+        with Numba (which as of 10/2018 does not support scipy). This functionality is equilvalent to:
+        scipy.special.erf(y)
+        with the exception that scalar values of y are not supported.
+    Input: y, an array of points at which the error function will be evaluated
+    Output: erf, the value of the error function at points in array y
+    Note: this function has been translated from the original fortran function
+        to python. The original scipy erf function can be found at:
+        https://github.com/scipy/scipy/blob/8dba340293fe20e62e173bdf2c10ae208286692f/scipy/special/cdflib/erf.f
+        Note that this new function introduces a small amount of machine-precision numerical error
+        as compared to the original scipy function. 
+    """
 
     #have to define a ton of constants
     c=0.564189583547756E0
