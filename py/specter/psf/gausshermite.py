@@ -16,7 +16,9 @@ from scipy import special as sp
 
 from astropy.io import fits
 from specter.psf import PSF
-from specter.util import TraceSet, outer, legval_numba
+from specter.util import TraceSet, outer, legval_numba, custom_hermitenorm, custom_erf
+
+import numba
 
 class GaussHermitePSF(PSF):
     """
@@ -116,42 +118,8 @@ class GaussHermitePSF(PSF):
         #create dict to hold legval cached data
         self.legval_dict = None
 
-        #- Cache hermitenorm polynomials so we don't have to create them
-        #- every time xypix is called
-        self._hermitenorm = list()
-        maxdeg = max(hdr['GHDEGX'], hdr['GHDEGY'])
-        for i in range(maxdeg+1):
-            self._hermitenorm.append( sp.hermitenorm(i) )
 
         fx.close()
-
-    def _pgh(self, x, m=0, xc=0.0, sigma=1.0):
-        """
-        Pixel-integrated (probabilist) Gauss-Hermite function.
-
-        Arguments:
-          x: pixel-center baseline array
-          m: order of Hermite polynomial multiplying Gaussian core
-          xc: sub-pixel position of Gaussian centroid relative to x baseline
-          sigma: sigma parameter of Gaussian core in units of pixels
-
-        Uses the relationship
-        Integral{ H_k(x) exp(-0.5 x^2) dx} = -H_{k-1}(x) exp(-0.5 x^2) + const
-
-        Written: Adam S. Bolton, U. of Utah, fall 2010
-        Adapted for efficiency by S. Bailey while dropping generality
-        """
-
-        #- Evaluate H[m-1] at half-pixel offsets above and below x
-        dx = x-xc-0.5
-        u = np.concatenate( (dx, dx[-1:]+0.5) ) / sigma
-        
-        if m > 0:
-            y = -self._hermitenorm[m-1](u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
-            return (y[1:] - y[0:-1])
-        else:            
-            y = sp.erf(u/np.sqrt(2.))
-            return 0.5 * (y[1:] - y[0:-1])
 
     def _xypix(self, ispec, wavelength, ispec_cache=None, iwave_cache=None):
         """
@@ -234,8 +202,8 @@ class GaussHermitePSF(PSF):
         tails = tailamp*r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
         
         #- Create 1D GaussHermite functions in x and y
-        xfunc1 = [self._pgh(xccd, i, x, sigma=sigx1) for i in range(degx1+1)]
-        yfunc1 = [self._pgh(yccd, i, y, sigma=sigy1) for i in range(degy1+1)]        
+        xfunc1 = [pgh(xccd, i, x, sigma=sigx1) for i in range(degx1+1)]
+        yfunc1 = [pgh(yccd, i, y, sigma=sigy1) for i in range(degy1+1)]        
        
         #- Create core PSF image
         core1 = np.zeros((ny, nx))
@@ -268,6 +236,7 @@ class GaussHermitePSF(PSF):
         
         # core1 *= (r2<ghnsig**2)
         
+        #this code will not work, needs to be modified for new pgh!
         #- Add second wider core Gauss-Hermite term        
         # xfunc2 = [self._pgh(xccd, i, x, sigma=sigx2) for i in range(degx2+1)]
         # yfunc2 = [self._pgh(yccd, i, y, sigma=sigy2) for i in range(degy2+1)]
@@ -401,5 +370,60 @@ class GaussHermitePSF(PSF):
             for j in range(degy1+1):
                 core_string = 'GH-{}-{}'.format(i,j)
                 self.legval_dict[core_string]=self.coeff[core_string].eval(specrange, wavelengths)
+
+@numba.jit(nopython=True, cache=False)
+def pgh(x, m=0, xc=0.0, sigma=1.0):
+    """
+    Pixel-integrated (probabilist) Gauss-Hermite function.
+    Arguments:
+      x: pixel-center baseline array
+      m: order of Hermite polynomial multiplying Gaussian core
+      xc: sub-pixel position of Gaussian centroid relative to x baseline
+      sigma: sigma parameter of Gaussian core in units of pixels
+    Uses the relationship
+    Integral{ H_k(x) exp(-0.5 x^2) dx} = -H_{k-1}(x) exp(-0.5 x^2) + const
+    Written: Adam S. Bolton, U. of Utah, fall 2010
+    Adapted for efficiency by S. Bailey while dropping generality
+    modified from the orig _pgh to enable jit-compiling
+    --> no longer passing in self, calling custom numba functions in util
+    """
+
+    #- Evaluate H[m-1] at half-pixel offsets above and below x
+    dx = x-xc-0.5
+    u = np.concatenate( (dx, dx[-1:]+0.5) ) / sigma
+        
+    if m > 0:
+        y  = -custom_hermitenorm(m-1,u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
+        return (y[1:] - y[0:-1])
+    else:            
+        y = custom_erf(u/np.sqrt(2.))
+        return 0.5 * (y[1:] - y[0:-1])
+
+    
+    
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
