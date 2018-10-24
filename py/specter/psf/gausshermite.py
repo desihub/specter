@@ -375,7 +375,7 @@ class GaussHermitePSF(PSF):
                 core_string = 'GH-{}-{}'.format(i,j)
                 self.legval_dict[core_string]=self.coeff[core_string].eval(specrange, wavelengths)
 
-#@numba.jit(nopython=True, cache=False)
+@numba.jit(nopython=True, cache=False)
 def pgh(x, m=0, xc=0.0, sigma=1.0):
     """
     Pixel-integrated (probabilist) Gauss-Hermite function.
@@ -404,29 +404,6 @@ def pgh(x, m=0, xc=0.0, sigma=1.0):
         return 0.5 * (y[1:] - y[0:-1])
 
     
-   
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  
 
 
