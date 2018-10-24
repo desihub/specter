@@ -317,8 +317,8 @@ class GaussHermitePSF(PSF):
         tails = tailamp*r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
         
         #- Create 1D GaussHermite functions in x and y
-        xfunc1 = [self.gh(x, i, xc, sigma=sigx1) for i in range(degx1+1)]
-        yfunc1 = [self.gh(y, i, yc, sigma=sigy1) for i in range(degy1+1)]        
+        xfunc1 = [gh(x, i, xc, sigma=sigx1) for i in range(degx1+1)]
+        yfunc1 = [gh(y, i, yc, sigma=sigy1) for i in range(degy1+1)]        
         
         
         #- Create core PSF image
