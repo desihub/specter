@@ -118,6 +118,12 @@ class GaussHermitePSF(PSF):
         #create dict to hold legval cached data
         self.legval_dict = None
 
+        #- Cache hermitenorm polynomials so we don't have to create them
+        #- every time xypix is called
+        self._hermitenorm = list()
+        maxdeg = max(hdr['GHDEGX'], hdr['GHDEGY'])
+        for i in range(maxdeg+1):
+            self._hermitenorm.append( sp.hermitenorm(i) )
 
         fx.close()
 
@@ -259,11 +265,9 @@ class GaussHermitePSF(PSF):
         return xslice, yslice, img
         # return xslice, yslice, (core1, core2, tails)
         
-       
     def _gh(self, x, m=0, xc=0.0, sigma=1.0):
         """
         return Gauss-Hermite function value, NOT integrated, for display of PSF.
-
         Arguments:
           x: coordinates baseline array
           m: order of Hermite polynomial multiplying Gaussian core
@@ -278,7 +282,7 @@ class GaussHermitePSF(PSF):
         if m > 0:
             return self._hermitenorm[m](u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
         else:                        
-            return np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
+            return np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)       
 
 
     def xsigma(self, ispec, wavelength):
@@ -400,30 +404,6 @@ def pgh(x, m=0, xc=0.0, sigma=1.0):
         return 0.5 * (y[1:] - y[0:-1])
 
     
-    
-   
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  
 
 

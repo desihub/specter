@@ -691,3 +691,12 @@ class PSF(object):
         this is implemented in specter.psf.gausshermite, everywhere else just an empty function
         """
         pass
+
+    def _value(self, x, y, ispec, wavelength):
+        """
+        this is implemented in specter.psf.gausshermite and specter.psf.spotgrid,
+        everywhere else just an empty function
+        """
+        pass
+
+

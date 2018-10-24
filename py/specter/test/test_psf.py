@@ -355,6 +355,15 @@ class GenericPSFTests(object):
         self.assertTrue(A.shape == B.shape)
         self.assertTrue(np.all(A.data == B.data))
 
+    #test psf._value to make sure we haven't broken it
+    def test_value(self):
+        ispec = 0
+        #value expects a single wavelength
+        wave = self.psf.wavelength(0)[0]
+        x = self.psf.x(0, wave)
+        y = self.psf.y(0, wave)
+        img=self.psf._value(x,y,ispec,wave)
+
     #- Test shift of PSF xy solution
     @unittest.expectedFailure
     def test_shift_xy(self):
