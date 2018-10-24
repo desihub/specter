@@ -260,27 +260,6 @@ class GaussHermitePSF(PSF):
         # return xslice, yslice, (core1, core2, tails)
         
        
-    def _gh(self, x, m=0, xc=0.0, sigma=1.0):
-        """
-        return Gauss-Hermite function value, NOT integrated, for display of PSF.
-
-        Arguments:
-          x: coordinates baseline array
-          m: order of Hermite polynomial multiplying Gaussian core
-          xc: sub-pixel position of Gaussian centroid relative to x baseline
-          sigma: sigma parameter of Gaussian core in units of pixels
-        
-        """
-
-        
-        u = (x-xc) / sigma
-        
-        if m > 0:
-            return self._hermitenorm[m](u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
-        else:                        
-            return np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
-
-
     def xsigma(self, ispec, wavelength):
         """
         Return Gaussian sigma of PSF spot in cross-dispersion direction
@@ -338,8 +317,8 @@ class GaussHermitePSF(PSF):
         tails = tailamp*r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
         
         #- Create 1D GaussHermite functions in x and y
-        xfunc1 = [self._gh(x, i, xc, sigma=sigx1) for i in range(degx1+1)]
-        yfunc1 = [self._gh(y, i, yc, sigma=sigy1) for i in range(degy1+1)]        
+        xfunc1 = [self.gh(x, i, xc, sigma=sigx1) for i in range(degx1+1)]
+        yfunc1 = [self.gh(y, i, yc, sigma=sigy1) for i in range(degy1+1)]        
         
         
         #- Create core PSF image
@@ -399,7 +378,27 @@ def pgh(x, m=0, xc=0.0, sigma=1.0):
         y = custom_erf(u/np.sqrt(2.))
         return 0.5 * (y[1:] - y[0:-1])
 
-    
+@numba.jit(nopython=True, cache=False)
+def gh(x, m=0, xc=0.0, sigma=1.0):
+    """
+    return Gauss-Hermite function value, NOT integrated, for display of PSF.
+
+    Arguments:
+      x: coordinates baseline array
+      m: order of Hermite polynomial multiplying Gaussian core
+      xc: sub-pixel position of Gaussian centroid relative to x baseline
+      sigma: sigma parameter of Gaussian core in units of pixels
+    modified from the orig _gh to enable jit-compiling
+    --> no longer passing in self, calling custom numba functions in util   
+    """
+    u = (x-xc) / sigma
+
+    if m > 0:
+        #return self._hermitenorm[m](u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
+        return custom_hermitenorm(m,u) * np.exp(-0.5 * n**2) / np.sqrt(2 * np.pi)
+    else:
+        return np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
+  
     
    
 
