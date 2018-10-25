@@ -220,6 +220,10 @@ class GaussHermitePSF(PSF):
 
             for i in range(degx1+1):
                 for j in range(degy1+1):
+                    #note that we can't use self.core_keys here because it is 
+                    #only constructed in the cached branch. this is okay for
+                    #now because line_profiler shows less than 1 percent of
+                    #runtime is spent here
                     c1 = self.coeff['GH-{}-{}'.format(i,j)].eval(ispec, wavelength)
                     outer(yfunc1[j], xfunc1[i], out=spot1)
                     core1 += c1 * spot1
@@ -227,12 +231,22 @@ class GaussHermitePSF(PSF):
         else:
             #cached branch
 
+            #but first some prep
+            npfx = np.array(xfunc1)
+            npfy = np.array(yfunc1)
+
+            #store values of c1
+            c1_array = np.zeros((ny, nx))
+
+            #get legval_value
             for i in range(degx1+1):
                 for j in range(degy1+1):
                     #see if we can squeeze out some extra speed by looking up the values
-                    c1 = self.legval_dict['GH-{}-{}'.format(i,j)][ispec_cache, iwave_cache]
-                    outer(yfunc1[j], xfunc1[i], out=spot1)
-                    core1 += c1 * spot1
+                    c1_array[i,j] = self.legval_dict[self.core_keys[i][j]][ispec_cache, iwave_cache]
+
+            #call our numba-ized function that does some of the expensive
+            #matrix multiplication and bookkeeping
+            core1 = generate_core(degx1, degy1, npfx, npfy, spot1, core1, c1_array)
 
         #- Zero out elements in the core beyond 3 sigma
         #- Only for GaussHermite2
@@ -365,15 +379,18 @@ class GaussHermitePSF(PSF):
     def cache_params(self, specrange, wavelengths):
         #store in a dict
         self.legval_dict = dict()
+        #store keys in a list
+        self.core_keys = list()
         for key in self.coeff.keys():
             self.legval_dict[key] = self.coeff[key].eval(specrange, wavelengths)
         #some extra steps to cache what we need for the core PSF image
         degx1 = self._polyparams['GHDEGX']
         degy1 = self._polyparams['GHDEGY']
         for i in range(degx1+1):
+            self.core_keys.append(list())
             for j in range(degy1+1):
-                core_string = 'GH-{}-{}'.format(i,j)
-                self.legval_dict[core_string]=self.coeff[core_string].eval(specrange, wavelengths)
+                self.core_keys[-1].append('GH-{}-{}'.format(i,j))
+                self.legval_dict[self.core_keys[i][j]]=self.coeff[self.core_keys[i][j]].eval(specrange, wavelengths)
 
 @numba.jit(nopython=True, cache=False)
 def pgh(x, m=0, xc=0.0, sigma=1.0):
@@ -403,7 +420,27 @@ def pgh(x, m=0, xc=0.0, sigma=1.0):
         y = custom_erf(u/np.sqrt(2.))
         return 0.5 * (y[1:] - y[0:-1])
 
-    
+@numba.jit(nopython=True, cache=False)
+def generate_core(degx1, degy1, npfx, npfy, spot1, core1, c1_array):
+    """
+    Funtion to speed up some of the expensive parts of _xypix by 
+    using numba to JIT-compile
+    Arguments:
+      degx1: self._polyparams['GHDEGX'], gauss-hermite x degree
+      degy1: self._polyparams['GHDEGY'], gauss-hermite y degree
+      npfx: xfunc1 converted to numpy array (numba doesn't like lists of numpy arrays)
+      npfy: yfunc1 converted to numpy array (numba doesn't like lists of numpy arrays)
+      spot1: a preallocated empty 2d array that is the same size as core1
+      core1: a 2d array that is modified in place and then returned
+        as the final function output
+      c1_array: the legval values for degx1, degy1, ispec_cache, and iwave_cache 
+        which cannot be fed in directly because numba will not handle dictionaries
+    """
+    for i in range(degx1+1):
+        for j in range(degy1+1):
+            outer(npfy[j], npfx[i], out=spot1)
+            core1 += c1_array[i,j] * spot1
+    return core1    
   
 
 
