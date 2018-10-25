@@ -220,6 +220,10 @@ class GaussHermitePSF(PSF):
 
             for i in range(degx1+1):
                 for j in range(degy1+1):
+                    #note that we can't use self.core_keys here because it is 
+                    #only constructed in the cached branch. this is okay for
+                    #now because line_profiler shows less than 1 percent of
+                    #runtime is spent here
                     c1 = self.coeff['GH-{}-{}'.format(i,j)].eval(ispec, wavelength)
                     outer(yfunc1[j], xfunc1[i], out=spot1)
                     core1 += c1 * spot1
@@ -227,13 +231,6 @@ class GaussHermitePSF(PSF):
         else:
             #cached branch
 
-            #for i in range(degx1+1):
-            #    for j in range(degy1+1):
-            #        #see if we can squeeze out some extra speed by looking up the values
-            #        c1 = self.legval_dict['GH-{}-{}'.format(i,j)][ispec_cache, iwave_cache]
-            #        outer(yfunc1[j], xfunc1[i], out=spot1)
-            #        core1 += c1 * spot1
-            #try our own function
             #but first some prep
             npfx = np.array(xfunc1)
             npfy = np.array(yfunc1)
@@ -247,6 +244,8 @@ class GaussHermitePSF(PSF):
                     #see if we can squeeze out some extra speed by looking up the values
                     c1_array[i,j] = self.legval_dict[self.core_keys[i][j]][ispec_cache, iwave_cache]
 
+            #call our numba-ized function that does some of the expensive
+            #matrix multiplication and bookkeeping
             core1 = generate_core(degx1, degy1, npfx, npfy, spot1, core1, c1_array)
 
         #- Zero out elements in the core beyond 3 sigma
@@ -391,7 +390,7 @@ class GaussHermitePSF(PSF):
             self.core_keys.append(list())
             for j in range(degy1+1):
                 self.core_keys[-1].append('GH-{}-{}'.format(i,j))
-                self.legval_dict['GH-{}-{}'.format(i,j)]=self.coeff[self.core_keys[i][j]].eval(specrange, wavelengths)
+                self.legval_dict[self.core_keys[i][j]]=self.coeff[self.core_keys[i][j]].eval(specrange, wavelengths)
 
 @numba.jit(nopython=True, cache=False)
 def pgh(x, m=0, xc=0.0, sigma=1.0):
