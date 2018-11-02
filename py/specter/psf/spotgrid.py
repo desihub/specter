@@ -118,7 +118,6 @@ class SpotGridPSF(PSF):
         x_spot=(np.arange(nx_spot)-nx_spot//2)
         y_spot=(np.arange(ny_spot)-ny_spot//2)
         spline=scipy.interpolate.RectBivariateSpline(y_spot,x_spot,pix_spot_values,kx=2, ky=2, s=0)
-        
         xc, yc = self.xy(ispec, wavelength) # center of PSF in CCD coordinates
         ratio=self.CcdPixelSize/self.SpotPixelSize
         
@@ -129,7 +128,7 @@ class SpotGridPSF(PSF):
         #return img/np.sum(img)
         img=np.zeros(xr.shape)
         for i in range(xr.size) :
-            img[i]=spline((xr[i]-xc)*ratio,(yr[i]-yc)*ratio)
+            img[i]=spline((yr[i]-yc)*ratio,(xr[i]-xc)*ratio)
         return img.reshape(x.shape)
 
 import numba
