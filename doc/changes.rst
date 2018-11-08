@@ -2,10 +2,18 @@
 specter change log
 ==================
 
-0.9.1 (unreleased)
+0.9.2 (unreleased)
 ------------------
 
-* Faster Pixelated Gauss-Hermite (pgh) for ~25-30% extraction speedup (PR #71).
+* No changes yet.
+
+0.9.1 (2018-11-07)
+------------------
+
+* Faster Pixelated Gauss-Hermite (pgh) for ~25-30% extraction speedup
+  (PR #71 and #73).
+* Faster xypix 10-50% extraction speedup (PR #74).
+* Memory and operation order improvements for ~few percent speedup (PR #75).
 
 0.9.0 (2018-09-26)
 ------------------
