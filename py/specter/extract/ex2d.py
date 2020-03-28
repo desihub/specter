@@ -154,6 +154,18 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                 specivar = results['ivar']
                 R = results['R']
 
+                #- entirely masked inputs can cause flux=NaN; fix those
+                ii = np.isnan(flux)
+                if np.any(ii):
+                    numNaN = np.count_nonzero(ii)
+                    percent_input_masked = \
+                        100*np.count_nonzero(subivar == 0.0) / subivar.size
+                    print(f"ERROR: spectra {speclo}:{spechi} wavelengths "
+                        f"{wmin:.1f}:{wmax:.1f} masking {numNaN} flux=NaN "
+                        f"pixels ({percent_input_masked:.1f}% input pixels masked)")
+                    flux[ii] = 0.0
+                    ivar[ii] = 0.0
+
                 #- Fill in the final output arrays
                 ## iispec = slice(speclo-specmin, spechi-specmin)
                 iispec = np.arange(speclo-specmin, spechi-specmin)
@@ -163,6 +175,9 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                 if full_output:
                     A = results['A'].copy()
                     xflux = results['xflux']
+
+                    #- Avoid NaN but still propagate into model to mask it too
+                    badxflux = np.isnan(xflux)
             
                     #- number of spectra and wavelengths for this sub-extraction
                     subnspec = spechi-speclo
@@ -170,7 +185,9 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
         
                     #- Model image
                     submodel = A.dot(xflux.ravel()).reshape(subimg.shape)
-            
+                    badmodel = np.isnan(submodel)
+                    submodel[badmodel] = 0.0
+
                     #- Fraction of input pixels that are unmasked for each flux bin
                     subpixmask_fraction = 1.0-(A.T.dot(subivar.ravel()>0)).reshape(subnspec, subnwave)
 
@@ -180,6 +197,8 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
                     #- pixel variance including input noise and PSF model errors
                     modelivar = (submodel*psferr + 1e-32)**-2
+                    modelivar[badmodel] = 0.0
+                    xflux[badxflux] = 0.0
                     ii = (modelivar > 0) & (subivar > 0)
                     totpix_ivar = np.zeros(submodel.shape)
                     totpix_ivar[ii] = 1.0 / (1.0/modelivar[ii] + 1.0/subivar[ii])
