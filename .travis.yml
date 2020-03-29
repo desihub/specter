@@ -68,7 +68,7 @@ matrix:
         # Check for sphinx doc build warnings - we do this first because it
         # runs for a long time
         - os: linux
-          env: PYTHON_VERSION=2.7 SETUP_CMD='build_sphinx'
+          env: PYTHON_VERSION=3.6 SETUP_CMD='build_sphinx'
           # -w is an astropy extension
 
         # Try 2.7 and 3.5 python versions with the latest numpy
@@ -79,7 +79,7 @@ matrix:
         #        PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
         - os: linux
-          env: PYTHON_VERSION=3.5
+          env: PYTHON_VERSION=3.6
                SETUP_CMD="test"
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
