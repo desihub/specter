@@ -2,10 +2,15 @@
 specter change log
 ==================
 
-0.9.2 (unreleased)
+0.9.3 (unreleased)
 ------------------
 
 * No changes yet.
+
+0.9.2 (2020-04-07)
+------------------
+
+* Fix NaN flux coming from masked input pixels (PR #76).
 
 0.9.1 (2018-11-07)
 ------------------
