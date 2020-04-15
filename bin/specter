@@ -15,6 +15,7 @@ import numpy as np
 import optparse
 import multiprocessing as MP
 from functools import reduce
+from specter.io import read_simspec
 
 #- Parse options
 parser = optparse.OptionParser(
@@ -74,7 +75,7 @@ badopts = False
 if opts.input is None:
     print("ERROR: -i/--input spectra filename required", file=sys.stderr)
     badopts = True
-    
+
 if opts.output is None:
     print("ERROR: -o/--output image filename required", file=sys.stderr)
     badopts = True
@@ -121,12 +122,12 @@ if opts.wavelength is not None:
     wmin, wmax = opts.wavelength
 else:
     wmin = np.min( psf.wavelength(None, y=-0.5) )        #- bottom edge of CCD
-    wmax = np.max( psf.wavelength(None, y=psf.npix_y-0.5) ) #- top edge of CCD 
+    wmax = np.max( psf.wavelength(None, y=psf.npix_y-0.5) ) #- top edge of CCD
     opts.wavelength = [wmin, wmax]
-    
+
 #- Load input spectra
 #- returns dictionary with keys flux, wavelength, units, objtype
-spectra = specter.io.read_simspec(opts.input)
+spectra = read_simspec(opts.input)
 wavelength = spectra['wavelength']
 flux = spectra['flux']
 units = spectra['units']
@@ -158,7 +159,7 @@ else:
     ii = (wmin <= wavelength.min(axis=0)) & (wavelength.max(axis=0) <= wmax)
     wavelength = wavelength[:, ii]
     flux = flux[opts.inspecmin:, ii]
-        
+
 #- Expand objtype into array
 objtype = spectra['objtype']
 if isinstance(objtype, str) and (flux.ndim == 2):
@@ -185,16 +186,16 @@ if units.endswith('/A'):
         wmid = psf.wavelength(i, y=ymid)
         newwave[i] = wmid
         newflux[i] = specter.util.resample(wedges, wavelength[i], flux[i], xedges=True)
-        
+
     wavelength = newwave
     flux = newflux
-    
+
 #- For each spectrum, set flux=0 for wavelengths out of range
 #- When spectral wavelength ranges are different, some may need trimming
 #- even if others don't.
 for i in range(flux.shape[0]):
     iibad = (wavelength[i] < wmin) | (wmax < wavelength[i])
-    flux[i, iibad] = 0.0    
+    flux[i, iibad] = 0.0
 
 #- Convert flux to photons, and 1D -> 2D if needed
 if flux.ndim == 1:
@@ -208,18 +209,18 @@ else:
 
 #- Add sky spectrum
 if opts.sky:
-    sky = specter.io.read_simspec(opts.sky)
+    sky = read_simspec(opts.sky)
     if not units.endswith('/A') or not sky['units'].endswith('/A/arcsec^2'):
         print("I don't know how to combine these units")
         print(units, sky['units'])
         sys.exit(1)
-    
+
     for i in range(opts.nspec):
         wedges = psf.wavelength(i, y=yedges)
         skyflux = specter.util.resample(wedges, sky['wavelength'], sky['flux'], xedges=True)
         skyphot = thru.photons(wavelength[i], skyflux, sky['units'], objtype='SKY')
         photons[i] += skyphot
-    
+
 if opts.trimxy:
     specminmax = specrange[0], specrange[-1]
     waverange = opts.wavelength[0], opts.wavelength[-1]
@@ -238,7 +239,7 @@ else:
     def project(args):
         psf = args['psf']
         return psf.project(args['wavelength'], args['photons'], args['specmin'], args['xyrange'])
-    
+
     #- Setup list of dictionaries with arguments
     arglist = list()
     n = max(1, (len(specrange)+1)//opts.numcores)
@@ -252,7 +253,7 @@ else:
     #- Parallel map to run project(arglist[0]), project(arglist[1]), etc.
     pool = MP.Pool(opts.numcores)
     images = pool.map(project, arglist)
-        
+
     #- Add the individual images
     img = reduce(np.add, images)
 
@@ -264,7 +265,7 @@ define function to
   - get (photons, wavelength, specmin) from input queue
   - process that
   - put resulting image on outut queue
-  
+
 put 8 sets of (photons, wavelength, specmin) into input queue
 start 8 processes with the input, output queues
 wait for them to finish
@@ -313,7 +314,7 @@ if opts.image:
             input_readnoise = np.mean(amp_noise)
         else:
             input_readnoise = np.sqrt(np.median(input_var))   #- ???
-            
+
     fx.close()  #- close input image file
 
 #- Variance to add to new image
@@ -329,12 +330,12 @@ if opts.noise:
     else:
         #- photon shot noise (float -> int)
         img = np.random.poisson(img)
-        
+
         #- Convert to ADU, add gaussian read noise, then integerize
         adu = img/opts.gain
         if opts.readnoise > 0:
             adu += np.random.normal(scale=opts.readnoise/opts.gain, size=img.shape)
-                    
+
         adu = (adu+0.5).astype(int)  #- Integerize ADU
         img = adu * opts.gain        #- back to photons (and back to float)
 
@@ -348,7 +349,7 @@ if opts.image:
         nx = min(input_image.shape[1], img.shape[1])
         img[0:ny, 0:nx] += input_image[0:ny, 0:nx]
         var[0:ny, 0:nx] += input_var[0:ny, 0:nx]
-    
+
 #- Decide what to write for read noise
 if opts.image:
     output_readnoise = input_readnoise
@@ -356,7 +357,7 @@ elif opts.noise:
     output_readnoise = opts.readnoise
 else:
     output_readnoise = 0.0
-        
+
 #- Write output
 print("Writing", opts.output)
 
@@ -382,12 +383,12 @@ else:
 hx = fits.HDUList()
 hx.append(fits.PrimaryHDU(img, header=hdr))
 
-#- Add IVAR HDU 
+#- Add IVAR HDU
 hx.append(fits.ImageHDU(1.0/var, name='IVAR'))
 
 #--- Add additional HDUs with extra info about inputs ---
 if opts.extra:
-    #- Trim arrays to just those with information    
+    #- Trim arrays to just those with information
     ii = np.where(np.any(photons>0, axis=0))[0]
     ii = list(range(ii[0], ii[-1]+1))
     photons = photons[:, ii]
@@ -399,28 +400,28 @@ if opts.extra:
             dtype=[('PHOTONS',     str(photons.dtype), (nwave,)),
                    ('WAVELENGTH',  str(wavelength.dtype), (nwave,)),
                    ])
-        
+
     hdr = fits.Header()
     hdr['SPECMIN'] = (specrange[0], 'First spectrum index')
     hx.append(fits.BinTableHDU(a, header=hdr, name='PHOTONS'))
-    
+
     #- X,Y vs. wavelength
     yy = np.arange(psf.npix_y)
     y = np.tile(yy, opts.nspec).reshape(opts.nspec, psf.npix_y)
     x = np.zeros(y.shape)
     w = np.zeros(y.shape)
-    
+
     for i, ispec in enumerate(specrange):
         w[i] = psf.wavelength(ispec=ispec, y=yy)
         x[i] = psf.x(ispec=ispec, wavelength=w[i])
-    
+
     a = np.array(list(zip(x, y, w)),
                 dtype=[('X', str(x.dtype), (psf.npix_y,)),
                        ('Y', str(y.dtype), (psf.npix_y,)),
                        ('WAVELENGTH',  str(wavelength.dtype), (psf.npix_y,)),
                        ])
     hx.append(fits.BinTableHDU(a, header=hdr, name='XYWAVE'))
-    
+
 hx.writeto(opts.output, clobber=True)
 
 if opts.debug:
