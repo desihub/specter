@@ -25,17 +25,6 @@ sys.path.insert(0, os.path.abspath('../py'))
 
 # If your documentation needs a minimal Sphinx version, state it here.
 
-try:
-    import sphinx.ext.napoleon
-    napoleon_extension = 'sphinx.ext.napoleon'
-except ImportError:
-    try:
-        import sphinxcontrib.napoleon
-        napoleon_extension = 'sphinxcontrib.napoleon'
-        needs_sphinx = '1.2'
-    except ImportError:
-        needs_sphinx = '1.3'
-
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
@@ -45,12 +34,12 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
-    napoleon_extension
+    'sphinx.ext.napoleon'
 ]
 
 # Configuration for intersphinx, copied from astropy.
 intersphinx_mapping = {
-    'python': ('http://docs.python.org/', None),
+    'python': ('http://docs.python.org/3/', None),
     # 'python3': ('http://docs.python.org/3/', path.abspath(path.join(path.dirname(__file__), 'local/python3links.inv'))),
     'numpy': ('http://docs.scipy.org/doc/numpy/', None),
     'scipy': ('http://docs.scipy.org/doc/scipy/reference/', None),
@@ -73,7 +62,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'specter'
-copyright = u'2014-2016, DESI Collaboration'
+copyright = u'2014-2020, DESI Collaboration'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -132,7 +121,7 @@ napoleon_include_private_with_doc = True
 # some external dependencies are not met at build time and break the
 # building process.
 autodoc_mock_imports = []
-for missing in ('astropy', 'desiutil'):
+for missing in ('astropy', 'desiutil', 'scipy'):
     try:
         foo = import_module(missing)
     except ImportError:
