@@ -5,7 +5,9 @@ specter change log
 0.9.4 (unreleased)
 ------------------
 
-* No changes yet.
+* Update documentation configuration for ReadTheDocs (PR `#77`_).
+
+.. _`#77`: https://github.com/desihub/specter/pull/77
 
 0.9.3 (2020-04-16)
 ------------------

@@ -91,11 +91,11 @@ Full Documentation
 
 Please visit `specter on Read the Docs`_
 
-.. image:: https://readthedocs.org/projects/specter/badge/?version=latest
-    :target: http://specter.readthedocs.org/en/latest/
+.. image:: https://readthedocs.org/projects/desi-specter/badge/?version=latest
+    :target: https://desi-specter.readthedocs.io/en/latest/
     :alt: Documentation Status
 
-.. _`specter on Read the Docs`: http://specter.readthedocs.org/en/latest/
+.. _`specter on Read the Docs`: https://desi-specter.readthedocs.io/en/latest/
 
 **This is not actually the specter documentation.  It is some other package
 that happens to also be called "specter".**

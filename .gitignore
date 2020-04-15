@@ -11,6 +11,7 @@ htmlcov
 # Sphinx
 doc/api
 doc/_build
+_build
 
 # iPython
 doc/nb/.ipynb_checkpoints
