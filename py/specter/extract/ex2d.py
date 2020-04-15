@@ -14,49 +14,68 @@ from specter.util import outer
 
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
          regularize=0.0, ndecorr=False, bundlesize=25, nsubbundles=1,
-         wavesize=50, full_output=False, verbose=False, 
+         wavesize=50, full_output=False, verbose=False,
          debug=False, psferr=None):
-    '''
-    2D PSF extraction of flux from image patch given pixel inverse variance.
-    
-    Inputs:
-        image : 2D array of pixels
-        imageivar : 2D array of inverse variance for the image
-        psf   : PSF object
-        specmin : index of first spectrum to extract
-        nspec : number of spectra to extract
-        wavelengths : 1D array of wavelengths to extract
+    '''2D PSF extraction of flux from image patch given pixel inverse variance.
 
-    Optional Inputs:
-        xyrange = (xmin, xmax, ymin, ymax): treat image as a subimage
-            cutout of this region from the full image
-        regularize: experimental regularization factor to minimize ringing
-        ndecorr : if True, decorrelate the noise between fibers, at the
-            cost of residual signal correlations between fibers.
-        bundlesize: extract in groups of fibers of this size, assuming no
-            correlation with fibers outside of this bundle
-        nsubbundles: (int) number of overlapping subbundles to use per bundle
-        wavesize: number of wavelength steps to include per sub-extraction
-        full_output: Include additional outputs based upon chi2 of model
-            projected into pixels
-        verbose: print more stuff
-        debug: if True, enter interactive ipython session before returning
-        psferr:  fractional error on the psf model. if not None, use this
-            fractional error on the psf model instead of the value saved
-            in the psf fits file. This is used only to compute the chi2,
-            not to weight pixels in fit
+    Parameters
+    ----------
+    image : array-like
+        2D array of pixels
+    imageivar : array-like
+        2D array of inverse variance for the image
+    psf : object
+        PSF object
+    specmin : int
+        index of first spectrum to extract
+    nspec : int
+        number of spectra to extract
+    wavelengths : array-like
+        1D array of wavelengths to extract
+    xyrange : list, optional
+        (xmin, xmax, ymin, ymax): treat image as a subimage cutout of this
+        region from the full image
+    regularize : float, optional
+        experimental regularization factor to minimize ringing
+    ndecorr : bool, optional
+        if True, decorrelate the noise between fibers, at the
+        cost of residual signal correlations between fibers.
+    bundlesize : int, optional
+        extract in groups of fibers of this size, assuming no
+        correlation with fibers outside of this bundle
+    nsubbundles : int, optional
+        number of overlapping subbundles to use per bundle
+    wavesize : int, optional
+        number of wavelength steps to include per sub-extraction
+    full_output : bool, optional
+        Include additional outputs based upon chi2 of model
+        projected into pixels
+    verbose : bool, optional
+        print more stuff
+    debug : bool, optional
+        if True, enter interactive ipython session before returning
+    psferr : float, optional
+        fractional error on the psf model. if not None, use this
+        fractional error on the psf model instead of the value saved
+        in the psf fits file. This is used only to compute the chi2,
+        not to weight pixels in fit
 
-    Returns (flux, ivar, Rdata):
-        flux[nspec, nwave] = extracted resolution convolved flux
-        ivar[nspec, nwave] = inverse variance of flux
-        Rdata[nspec, 2*ndiag+1, nwave] = sparse Resolution matrix data
+    Returns
+    -------
+    tuple
+        A tuple of (flux, ivar, Rdata):
 
-    TODO: document output if full_output=True
+        * flux[nspec, nwave] = extracted resolution convolved flux
+        * ivar[nspec, nwave] = inverse variance of flux
+        * Rdata[nspec, 2*ndiag+1, nwave] = sparse Resolution matrix data
 
-    ex2d uses divide-and-conquer to extract many overlapping subregions
-    and then stitches them back together.  Params wavesize and bundlesize
-    control the size of the subregions that are extracted; the necessary
-    amount of overlap is auto-calculated based on PSF extent.
+    Notes
+    -----
+    * TODO: document output if full_output=True
+    * ex2d uses divide-and-conquer to extract many overlapping subregions
+      and then stitches them back together.  Params wavesize and bundlesize
+      control the size of the subregions that are extracted; the necessary
+      amount of overlap is auto-calculated based on PSF extent.
     '''
     #- TODO: check input dimensionality etc.
 
@@ -114,7 +133,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                     whi = wavelengths[iwave+wavesize]
                 else:
                     whi = wavelengths[-1]
-        
+
                 #- Identify subimage that covers the core wavelengths
                 subxyrange = xlo,xhi,ylo,yhi = psf.xyrange(specrange, (wlo, whi))
 
@@ -125,12 +144,12 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
                 subimg = image[subxy]
                 subivar = imageivar[subxy]
-    
+
                 #- Determine extra border wavelength extent: nlo,nhi extra wavelength bins
                 ny, nx = psf.pix(speclo, wlo).shape
                 ymin = ylo-ny+2
                 ymax = yhi+ny-2
-        
+
                 nlo = max(int((wlo - psf.wavelength(speclo, ymin))/dw)-1, ndiag)
                 nhi = max(int((psf.wavelength(speclo, ymax) - whi)/dw)-1, ndiag)
                 ww = np.arange(wlo-nlo*dw, whi+(nhi+0.5)*dw, dw)
@@ -178,11 +197,11 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
                     #- Avoid NaN but still propagate into model to mask it too
                     badxflux = np.isnan(xflux)
-            
+
                     #- number of spectra and wavelengths for this sub-extraction
                     subnspec = spechi-speclo
                     subnwave = len(ww)
-        
+
                     #- Model image
                     submodel = A.dot(xflux.ravel()).reshape(subimg.shape)
                     badmodel = np.isnan(submodel)
@@ -216,7 +235,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                     modelimage[subxy] = submodel
                     pixmask_fraction[iispec[keep], iwave:iwave+wavesize+1] = subpixmask_fraction[keep, nlo:-nhi]
                     chi2pix[iispec[keep], iwave:iwave+wavesize+1] = chi2x[keep, nlo:-nhi]
-    
+
                 #- Fill diagonals of resolution matrix
                 for ispec in np.arange(speclo, spechi)[keep]:
                     #- subregion of R for this spectrum
@@ -232,7 +251,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
         print()
 
     #+ TODO: what should this do to R in the case of non-uniform bins?
-    #+       maybe should do everything in photons/A from the start.            
+    #+       maybe should do everything in photons/A from the start.
     #- Convert flux to photons/A instead of photons/bin
     dwave = np.gradient(wavelengths)
     flux /= dwave
@@ -243,7 +262,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
         import IPython
         IPython.embed()
         #--- DEBUG ---
-    
+
     if full_output:
         return dict(flux=flux, ivar=ivar, resolution_data=Rd, modelimage=modelimage,
             pixmask_fraction=pixmask_fraction, chi2pix=chi2pix)
@@ -255,22 +274,23 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
          full_output=False, regularize=0.0, ndecorr=False, use_cache=None):
     """
     2D PSF extraction of flux from image patch given pixel inverse variance.
-    
-    Inputs:
+
+    Arguments:
         image : 2D array of pixels
         ivar  : 2D array of inverse variance for the image
         psf   : PSF object
         specmin : index of first spectrum to extract
         nspec : number of spectra to extract
         wavelengths : 1D array of wavelengths to extract
-        
-    Optional Inputs:
-        xyrange = (xmin, xmax, ymin, ymax): treat image as a subimage
+        xyrange : (xmin, xmax, ymin, ymax): treat image as a subimage
             cutout of this region from the full image
+
         full_output : if True, return a dictionary of outputs including
             intermediate outputs such as the projection matrix.
+
         ndecorr : if True, decorrelate the noise between fibers, at the
             cost of residual signal correlations between fibers.
+
         use_cache: default behavior, can be turned off for testing purposes
 
     Returns (flux, ivar, R):
@@ -281,8 +301,8 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
     #- Range of image to consider
     waverange = (wavelengths[0], wavelengths[-1])
-    specrange = (specmin, specmin+nspec) 
- 
+    specrange = (specmin, specmin+nspec)
+
     #since xyrange checks to see if we're on the ccd, we cant cache until after this
     if xyrange is None:
         xmin, xmax, ymin, ymax = xyrange = psf.xyrange(specrange, waverange)
@@ -293,12 +313,12 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
     nx, ny = xmax-xmin, ymax-ymin
     npix = nx*ny
-    
+
     nspec = specrange[1] - specrange[0]
     nwave = len(wavelengths)
 
     #- Solve AT W pix = (AT W A) flux
-    
+
     #- Projection matrix and inverse covariance
     A = psf.projection_matrix(specrange, wavelengths, xyrange, use_cache=use_cache)
 
@@ -310,29 +330,29 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
     #- Extend A with an optional regularization term to limit ringing.
     #- If any flux bins don't contribute to these pixels,
     #- also use this term to constrain those flux bins to 0.
-    
+
     #- Original: exclude flux bins with 0 pixels contributing
     # ibad = (A.sum(axis=0).A == 0)[0]
-    
-    #- Identify fluxes with very low weights of pixels contributing            
+
+    #- Identify fluxes with very low weights of pixels contributing
     fluxweight = W.dot(A).sum(axis=0).A[0]
 
-    # The following minweight is a regularization term needed to avoid ringing due to 
+    # The following minweight is a regularization term needed to avoid ringing due to
     # a flux bias on the edge flux bins in the
     # divide and conquer approach when the PSF is not perfect
     # (the edge flux bins are constrained only by a few CCD pixels and the wings of the PSF).
     # The drawback is that this is biasing at the high flux limit because bright pixels
     # have a relatively low weight due to the Poisson noise.
-    # we set this weight to a value of 1-e4 = ratio of readnoise**2 to Poisson variance for 1e5 electrons 
+    # we set this weight to a value of 1-e4 = ratio of readnoise**2 to Poisson variance for 1e5 electrons
     # 1e5 electrons/pixel is the CCD full well, and 10 is about the read noise variance.
     # This was verified on the DESI first spectrograph data.
-    minweight = 1.e-4*np.max(fluxweight) 
+    minweight = 1.e-4*np.max(fluxweight)
     ibad = fluxweight < minweight
-    
+
     #- Original version; doesn't work on older versions of scipy
     # I = regularize*scipy.sparse.identity(nspec*nwave)
     # I.data[0,ibad] = minweight - fluxweight[ibad]
-    
+
     #- Add regularization of low weight fluxes
     Idiag = regularize*np.ones(nspec*nwave)
     Idiag[ibad] = minweight - fluxweight[ibad]
@@ -361,14 +381,14 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
         all_input_masked = True
 
     #- Solve (image = A flux) weighted by Wx:
-    #-     A^T W image = (A^T W A) flux = iCov flux    
+    #-     A^T W image = (A^T W A) flux = iCov flux
     y = Ax.T.dot(Wx.dot(pix))
-    
+
     xflux = spsolve(iCov, y).reshape((nspec, nwave))
 
     #- TODO: could check for outliers, remask and re-extract
     #- Be careful in case masking blocks off all inputs to a flux bin and
-    #- thus creates a singular array.  May need to keep regularization piece.    
+    #- thus creates a singular array.  May need to keep regularization piece.
     # model = A.dot(xflux.ravel())
     # chi = (image.ravel() - model) * np.sqrt(ivar.ravel())
     # good = np.abs(chi)<5
@@ -387,12 +407,12 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
         from astropy.io import fits
         fits.writeto(outfile, image, clobber=True)
         fits.append(outfile, ivar, name='IVAR')
-        fits.append(outfile, A.data, name='ADATA') 
+        fits.append(outfile, A.data, name='ADATA')
         fits.append(outfile, A.indices, name='AINDICES')
         fits.append(outfile, A.indptr, name='AINDPTR')
         fits.append(outfile, iCov.toarray(), name='ICOV')
         raise err
-        
+
     #- Convolve with Resolution matrix to decorrelate errors
     fluxivar = fluxivar.reshape((nspec, nwave))
     rflux = R.dot(xflux.ravel()).reshape(xflux.shape)
@@ -423,11 +443,11 @@ def eigen_compose(w, v, invert=False, sqr=False):
     Given the eigendecomposition of a matrix, recompose this
     into a real symmetric matrix.  Optionally take the square
     root of the eigenvalues and / or invert the eigenvalues.
-    The eigenvalues are regularized such that the condition 
-    number remains within machine precision for 64bit floating 
+    The eigenvalues are regularized such that the condition
+    number remains within machine precision for 64bit floating
     point values.
 
-    Args:
+    Arguments:
         w (array): 1D array of eigenvalues
         v (array): 2D array of eigenvectors.
         invert (bool): Should the eigenvalues be inverted? (False)
@@ -508,7 +528,7 @@ def resolution_from_icov(icov, decorr=None):
     """
     #- force symmetry since due to rounding it might not be exactly symmetric
     icov = 0.5*(icov + icov.T)
-    
+
     if issparse(icov):
         icov = icov.toarray()
 
@@ -547,16 +567,18 @@ def split_bundle(bundlesize, n):
         bundlesize: (int) number of fibers in the bundle
         n: (int) number of subbundles to generate
 
-    Returns (subbundles, extract_subbundles) where
-
-    subbundles = list of arrays of indices belonging to each subbundle
-    extract_subbundles = list of arrays of indices to extract for each
-        subbundle, including edge overlaps except for first and last fiber
+    Returns:
+        (subbundles, extract_subbundles) where
+            subbundles = list of arrays of indices belonging to each subbundle;
+            extract_subbundles = list of arrays of indices to extract for each
+            subbundle, including edge overlaps except for first and last fiber
 
     NOTE: resulting partition is such that the lengths of the extract_subbundles
     differ by at most 1.
-    
-    Example: split_bundle(10, 3) returns
+
+    Example:
+
+    >>> split_bundle(10, 3)
     ([array([0, 1, 2]), array([3, 4, 5]), array([6, 7, 8, 9])],
      [array([0, 1, 2, 3]), array([2, 3, 4, 5, 6]), array([5, 6, 7, 8, 9])])
     '''

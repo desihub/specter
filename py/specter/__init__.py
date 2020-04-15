@@ -14,6 +14,4 @@ defines the interface for any PSF object.  Specific instruments
 
 to describe how a given spectrum ispec and wavelength project onto the CCD.
 """
-import specter.io
-
 from ._version import __version__

@@ -28,7 +28,7 @@ class GaussHermitePSF(PSF):
     def __init__(self, filename):
         """
         Initialize GaussHermitePSF from input file
-        """        
+        """
         #- Check that this file is a current generation Gauss Hermite PSF
         fx = fits.open(filename, memmap=False)
 
@@ -41,28 +41,28 @@ class GaussHermitePSF(PSF):
         if 'PSFVER' not in phdr:
             raise ValueError("PSFVER missing; this version not supported")
         PSFVER = float(phdr["PSFVER"])
-        
+
         if PSFVER<3 :
             psf_hdu = 1
         else :
             psf_hdu = "PSF"
-        
+
         self._polyparams = hdr = dict(fx[psf_hdu].header)
         if 'PSFTYPE' not in hdr:
             raise ValueError('Missing PSFTYPE keyword')
-            
+
         if hdr['PSFTYPE'] != 'GAUSS-HERMITE':
             raise ValueError('PSFTYPE {} is not GAUSS-HERMITE'.format(hdr['PSFTYPE']))
-            
+
         if 'PSFVER' not in hdr:
             raise ValueError("PSFVER missing; this version not supported")
-            
+
         if hdr['PSFVER'] < '1':
             raise ValueError("Only GAUSS-HERMITE versions 1.0 and greater are supported")
-            
+
         #- Calculate number of spectra from FIBERMIN and FIBERMAX (inclusive)
         self.nspec = hdr['FIBERMAX'] - hdr['FIBERMIN'] + 1
-        
+
         #- Other necessary keywords
         self.npix_x = hdr['NPIX_X']
         self.npix_y = hdr['NPIX_Y']
@@ -78,28 +78,28 @@ class GaussHermitePSF(PSF):
         data = fx[psf_hdu].data
         self.coeff = dict()
         if PSFVER<3 : # old format
-            
+
             for p in data:
                 domain = (p['WAVEMIN'], p['WAVEMAX'])
                 for p in data:
                     name = p['PARAM'].strip()
                     self.coeff[name] = TraceSet(p['COEFF'], domain=domain)
-    
+
             #- Pull out x and y as special tracesets
             self._x = self.coeff['X']
             self._y = self.coeff['Y']
 
         else : # new format
-            
+
             domain = (hdr['WAVEMIN'], hdr['WAVEMAX'])
             for p in data:
                 name = p['PARAM'].strip()
                 self.coeff[name] = TraceSet(p['COEFF'], domain=domain)
-            
+
             self._x = TraceSet(fx["XTRACE"].data, domain=(fx['XTRACE'].header["WAVEMIN"], fx['XTRACE'].header['WAVEMAX']))
             self._y = TraceSet(fx["YTRACE"].data, domain=(fx['YTRACE'].header["WAVEMIN"], fx['YTRACE'].header['WAVEMAX']))
-            
-        
+
+
         #- Create inverse y -> wavelength mapping
         self._w = self._y.invert()
 
@@ -136,7 +136,7 @@ class GaussHermitePSF(PSF):
         Arguments:
             ispec: the index of each spectrum
             wavelength: the wavelength at which to evaluate the legendre series
-            
+
         Optional arguments:
             ispec_cache: the index of each spectrum which starts again at 0 for each patch
             iwave_cache: the index of each wavelength which starts again at 0 for each patch
@@ -170,14 +170,14 @@ class GaussHermitePSF(PSF):
             #- Extract GH degree and sigma coefficients for convenience
             sigx1 = self.coeff['GHSIGX'].eval(ispec, wavelength)
             sigy1 = self.coeff['GHSIGY'].eval(ispec, wavelength)
-        
+
             #- Background tail image
             tailxsca = self.coeff['TAILXSCA'].eval(ispec, wavelength)
             tailysca = self.coeff['TAILYSCA'].eval(ispec, wavelength)
             tailamp = self.coeff['TAILAMP'].eval(ispec, wavelength)
             tailcore = self.coeff['TAILCORE'].eval(ispec, wavelength)
             tailinde = self.coeff['TAILINDE'].eval(ispec, wavelength)
- 
+
         else:
             #cached branch
             #print("self.legval_dict is not None, hitting cached branch")
@@ -193,7 +193,7 @@ class GaussHermitePSF(PSF):
             tailcore = self.legval_dict['TAILCORE'][ispec_cache, iwave_cache]
             tailinde = self.legval_dict['TAILINDE'][ispec_cache, iwave_cache]
 
-        
+
         #- Make tail image (slow version)
         # img = np.zeros((len(yccd), len(xccd)))
         # for i, dyy in enumerate(dy):
@@ -206,11 +206,11 @@ class GaussHermitePSF(PSF):
         r2 = np.tile((dx*tailxsca)**2, ny).reshape(ny, nx) + \
              np.repeat((dy*tailysca)**2, nx).reshape(ny, nx)
         tails = tailamp*r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
-        
+
         #- Create 1D GaussHermite functions in x and y
         xfunc1 = [pgh(xccd, i, x, sigma=sigx1) for i in range(degx1+1)]
-        yfunc1 = [pgh(yccd, i, y, sigma=sigy1) for i in range(degy1+1)]        
-       
+        yfunc1 = [pgh(yccd, i, y, sigma=sigy1) for i in range(degy1+1)]
+
         #- Create core PSF image
         core1 = np.zeros((ny, nx))
         spot1 = np.empty_like(core1)
@@ -220,7 +220,7 @@ class GaussHermitePSF(PSF):
 
             for i in range(degx1+1):
                 for j in range(degy1+1):
-                    #note that we can't use self.core_keys here because it is 
+                    #note that we can't use self.core_keys here because it is
                     #only constructed in the cached branch. this is okay for
                     #now because line_profiler shows less than 1 percent of
                     #runtime is spent here
@@ -253,11 +253,11 @@ class GaussHermitePSF(PSF):
         # ghnsig = self.coeff['GHNSIG'].eval(ispec, wavelength)
         # r2 = np.tile((dx/sigx1)**2, ny).reshape(ny, nx) + \
         #      np.repeat((dy/sigy1)**2, nx).reshape(ny, nx)
-        
+
         # core1 *= (r2<ghnsig**2)
-        
+
         #this code will not work, needs to be modified for new pgh!
-        #- Add second wider core Gauss-Hermite term        
+        #- Add second wider core Gauss-Hermite term
         # xfunc2 = [self._pgh(xccd, i, x, sigma=sigx2) for i in range(degx2+1)]
         # yfunc2 = [self._pgh(yccd, i, y, sigma=sigy2) for i in range(degy2+1)]
         # core2 = np.zeros((ny, nx))
@@ -278,7 +278,7 @@ class GaussHermitePSF(PSF):
         yslice = slice(yccd[0], yccd[-1]+1)
         return xslice, yslice, img
         # return xslice, yslice, (core1, core2, tails)
-        
+
     def _gh(self, x, m=0, xc=0.0, sigma=1.0):
         """
         return Gauss-Hermite function value, NOT integrated, for display of PSF.
@@ -287,41 +287,41 @@ class GaussHermitePSF(PSF):
           m: order of Hermite polynomial multiplying Gaussian core
           xc: sub-pixel position of Gaussian centroid relative to x baseline
           sigma: sigma parameter of Gaussian core in units of pixels
-        
+
         """
 
-        
+
         u = (x-xc) / sigma
-        
+
         if m > 0:
             return self._hermitenorm[m](u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
-        else:                        
-            return np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)       
+        else:
+            return np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
 
 
     def xsigma(self, ispec, wavelength):
         """
         Return Gaussian sigma of PSF spot in cross-dispersion direction
         in CCD pixel units.
-        
+
         ispec : spectrum index
         wavelength : scalar or vector wavelength(s) to evaluate spot sigmas
         """
         return self.coeff['GHSIGX'].eval(ispec, wavelength)
-    
+
     def ysigma(self, ispec, wavelength):
         """
         Return Gaussian sigma of PSF spot in dispersion direction
         in CCD pixel units.
-        
+
         ispec : spectrum index
         wavelength : scalar or vector wavelength(s) to evaluate spot sigmas
         """
         return self.coeff['GHSIGY'].eval(ispec, wavelength)
-    
+
 
     def _value(self,x,y,ispec, wavelength):
-        
+
         """
         return PSF value (same shape as x and y), NOT integrated, for display of PSF.
 
@@ -330,43 +330,43 @@ class GaussHermitePSF(PSF):
           y: y-coordinates baseline array (same shape as x)
           ispec: fiber
           wavelength: wavelength
-       
+
         """
 
         # x, y = self.xy(ispec, wavelength)
         xc = self._x.eval(ispec, wavelength)
         yc = self._y.eval(ispec, wavelength)
-                
+
         #- Extract GH degree and sigma coefficients for convenience
         degx1 = self._polyparams['GHDEGX']
         degy1 = self._polyparams['GHDEGY']
         sigx1 = self.coeff['GHSIGX'].eval(ispec, wavelength)
         sigy1 = self.coeff['GHSIGY'].eval(ispec, wavelength)
-        
+
         #- Background tail image
         tailxsca = self.coeff['TAILXSCA'].eval(ispec, wavelength)
         tailysca = self.coeff['TAILYSCA'].eval(ispec, wavelength)
         tailamp = self.coeff['TAILAMP'].eval(ispec, wavelength)
         tailcore = self.coeff['TAILCORE'].eval(ispec, wavelength)
         tailinde = self.coeff['TAILINDE'].eval(ispec, wavelength)
-        
-        
+
+
         #- Make tail image (faster, less readable version)
         r2 = ((x-xc)*tailxsca)**2+((y-yc)*tailysca)**2
         tails = tailamp*r2 / (tailcore**2 + r2)**(1+tailinde/2.0)
-        
+
         #- Create 1D GaussHermite functions in x and y
         xfunc1 = [self._gh(x, i, xc, sigma=sigx1) for i in range(degx1+1)]
-        yfunc1 = [self._gh(y, i, yc, sigma=sigy1) for i in range(degy1+1)]        
-        
-        
+        yfunc1 = [self._gh(y, i, yc, sigma=sigy1) for i in range(degy1+1)]
+
+
         #- Create core PSF image
         core1 = np.zeros(x.shape)
         for i in range(degx1+1):
             for j in range(degy1+1):
                 c1 = self.coeff['GH-{}-{}'.format(i,j)].eval(ispec, wavelength)
                 core1 += c1 * yfunc1[j]*xfunc1[i]
-        
+
         #- Clip negative values and normalize to 1.0
         img = core1 + tails
         ### img = core1 + core2 + tails
@@ -412,35 +412,33 @@ def pgh(x, m=0, xc=0.0, sigma=1.0):
     #- Evaluate H[m-1] at half-pixel offsets above and below x
     dx = x-xc-0.5
     u = np.concatenate( (dx, dx[-1:]+0.5) ) / sigma
-        
+
     if m > 0:
         y  = -custom_hermitenorm(m-1,u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
         return (y[1:] - y[0:-1])
-    else:            
+    else:
         y = custom_erf(u/np.sqrt(2.))
         return 0.5 * (y[1:] - y[0:-1])
 
 @numba.jit(nopython=True, cache=False)
 def generate_core(degx1, degy1, npfx, npfy, spot1, core1, c1_array):
     """
-    Funtion to speed up some of the expensive parts of _xypix by 
-    using numba to JIT-compile
+    Funtion to speed up some of the expensive parts of _xypix by
+    using numba to JIT-compile.
+
     Arguments:
-      degx1: self._polyparams['GHDEGX'], gauss-hermite x degree
-      degy1: self._polyparams['GHDEGY'], gauss-hermite y degree
-      npfx: xfunc1 converted to numpy array (numba doesn't like lists of numpy arrays)
-      npfy: yfunc1 converted to numpy array (numba doesn't like lists of numpy arrays)
-      spot1: a preallocated empty 2d array that is the same size as core1
-      core1: a 2d array that is modified in place and then returned
-        as the final function output
-      c1_array: the legval values for degx1, degy1, ispec_cache, and iwave_cache 
-        which cannot be fed in directly because numba will not handle dictionaries
+        degx1: self._polyparams['GHDEGX'], gauss-hermite x degree
+        degy1: self._polyparams['GHDEGY'], gauss-hermite y degree
+        npfx: xfunc1 converted to numpy array (numba doesn't like lists of numpy arrays)
+        npfy: yfunc1 converted to numpy array (numba doesn't like lists of numpy arrays)
+        spot1: a preallocated empty 2d array that is the same size as core1
+        core1: a 2d array that is modified in place and then returned
+            as the final function output
+        c1_array: the legval values for degx1, degy1, ispec_cache, and iwave_cache
+            which cannot be fed in directly because numba will not handle dictionaries
     """
     for i in range(degx1+1):
         for j in range(degy1+1):
             outer(npfy[j], npfx[i], out=spot1)
             core1 += c1_array[i,j] * spot1
-    return core1    
-  
-
-
+    return core1
