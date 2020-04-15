@@ -1,6 +1,7 @@
-#!/usr/bin/env python
-
 """
+specter.psf.psf
+===============
+
 Base class for 2D PSFs
 
 Provides PSF base class which defines the interface for other code

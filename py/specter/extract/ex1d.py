@@ -1,6 +1,7 @@
-#!/usr/bin/env python
-
 """
+specter.extract.ex1d
+====================
+
 1D Extraction like Horne 1986
 
 Stephen Bailey, LBL

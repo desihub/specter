@@ -1,4 +1,7 @@
 """
+specter.util.traceset
+=====================
+
 Handle sets of Legendre coefficients
 """
 
@@ -20,16 +23,16 @@ class TraceSet(object):
         self._coeff = coeff.copy()
         self._xmin = domain[0]
         self._xmax = domain[1]
-    
+
     @property
-    def ntrace(self):    
+    def ntrace(self):
         return self._coeff.shape[0]
-        
+
     def _xnorm(self, x):
         #return 2.0 * (x - self._xmin) / (self._xmax - self._xmin) - 1.0
-        #implement oleksandr-pavlyk's fix from the memory branch 
+        #implement oleksandr-pavlyk's fix from the memory branch
         return (x - self._xmin) * (2.0 / (self._xmax - self._xmin)) - 1.0
-     
+
     def eval(self, ispec, x):
         # TODO: this function could be a little more robust/elegant
         xx = np.array(self._xnorm(x))
@@ -43,7 +46,7 @@ class TraceSet(object):
             #in this case ispec is coming from the cached branch of xypix, which means
             #that we need to use nspec instead of ispec due to re-indexing
             nspec = spec_max - spec_min
-            nwave = len(x)            
+            nwave = len(x)
 
         #numba requires f8 or smaller
         if tuple_input is False:
@@ -64,7 +67,7 @@ class TraceSet(object):
             y=np.zeros([nspec, nwave])
             for i in range(nspec):
                 y[i,:]=legval_numba(xx, cc_numba[i])
-            return y    
+            return y
 
         else:
             #ispec may sometimes be None
@@ -81,11 +84,11 @@ class TraceSet(object):
                     y.append(legval_numba(xx, cc_i))
 
             return np.array(y)
-   
-            
+
+
     # def __call__(self, ispec, x):
     #     return self.eval(ispec, x)
-            
+
     def invert(self, domain=None, deg=None):
         """
         Return a traceset modeling x vs. y instead of y vs. x
@@ -96,7 +99,7 @@ class TraceSet(object):
         x = np.linspace(self._xmin, self._xmax, 1000)
         if deg is None:
             deg = self._coeff.shape[1]+2
-            
+
         c = np.zeros((self.ntrace, deg+1))
         for i in range(self.ntrace):
             y = self.eval(i, x)
@@ -104,13 +107,13 @@ class TraceSet(object):
             #implement oleksandr-pavlyk's fix from the memory branch
             yy = (y-ymin) * (2.0 / (ymax-ymin)) - 1.0
             c[i] = legfit(yy, x, deg)
-            
+
         return TraceSet(c, domain=(ymin, ymax))
-            
+
 def fit_traces(x, yy, deg=5, domain=None):
     """
     returns TraceSet object modeling y[i] vs. x
-    
+
     Args:
         x : 1D array
         y : 2D array[nspec, nx]
@@ -124,7 +127,7 @@ def fit_traces(x, yy, deg=5, domain=None):
         xmin, xmax = x[0], x[-1]
     else:
         xmin, xmax = domain
-        
+
     c = np.zeros((nspec, deg+1))
     #implement oleksandr-pavlyk's fix from the memory branch
     xx = x - xmin
@@ -135,5 +138,3 @@ def fit_traces(x, yy, deg=5, domain=None):
         c[i] = legfit(xx, yy[i], deg)
 
     return TraceSet(c, [xmin, xmax])
-
-    

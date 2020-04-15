@@ -1,5 +1,7 @@
-#!/usr/bin/env python
 """
+specter.psf.gausshermite
+========================
+
 GaussHermitePSF - PSF modeled with 2D Gauss-Hermite polynomials as generated
 by the specex package at https://github.com/julienguy/specex
 

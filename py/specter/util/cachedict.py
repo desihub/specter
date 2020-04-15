@@ -1,4 +1,7 @@
 """
+specter.util.cachedict
+======================
+
 Implement a dictionary that caches the last N entries and throws the rest away
 """
 
@@ -26,16 +29,15 @@ class CacheDict(dict):
     #- object first to get those right, before calling __setitem__
     def __reduce__(self):
         return type(self), (self._n, dict(self))
-        
+
     def __setitem__(self, key, value):
         """Sets the key/value, possibly dropping an earlier cached key/value"""
         if key in self:
             return
-       
+
         i = self._current = (self._current + 1) % self._n
         if self._keys[i] is not None:
             del self[self._keys[i]]
-            
+
         self._keys[i] = key
         dict.__setitem__(self, key, value)
-        

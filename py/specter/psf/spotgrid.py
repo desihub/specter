@@ -1,5 +1,7 @@
-#!/usr/bin/env python
 """
+specter.psf.spotgrid
+====================
+
 SpotGridPSF - Linear interpolate hi-res sampled spots to model PSF
 
 Stephen Bailey

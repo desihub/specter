@@ -1,4 +1,7 @@
 """
+specter.util.util
+=================
+
 Utility functions and classes for specter
 
 Stephen Bailey
