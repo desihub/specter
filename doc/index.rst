@@ -14,7 +14,7 @@ Contents
    :maxdepth: 1
 
    api
-   release_notes
+   changes
    data_files
    datamodel/index
 

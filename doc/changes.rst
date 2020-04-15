@@ -87,6 +87,7 @@ specter change log
 ------------------
 
 PR #40:
+
 * Added full_output option to ex2d to get model image and metrics based upon
   goodness of fit
 * PSFs can specify their model error with PSFERR header keyword; default 0.01
