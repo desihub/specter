@@ -353,6 +353,13 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
     Wx = spdiags(wx, 0, len(wx), len(wx))
     iCov = Ax.T.dot(Wx.dot(Ax))
 
+    #- if everything was masked, create diagonal iCov so that that the
+    #- math below can proceed as-is, but flag final data as ivar=0
+    all_input_masked = False
+    if np.all(w == 0.0) or (iCov.nnz == 0):
+        iCov = scipy.sparse.csr_matrix(1e-8*scipy.sparse.identity(nspec*nwave))
+        all_input_masked = True
+
     #- Solve (image = A flux) weighted by Wx:
     #-     A^T W image = (A^T W A) flux = iCov flux    
     y = Ax.T.dot(Wx.dot(pix))
@@ -389,6 +396,14 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
     #- Convolve with Resolution matrix to decorrelate errors
     fluxivar = fluxivar.reshape((nspec, nwave))
     rflux = R.dot(xflux.ravel()).reshape(xflux.shape)
+
+    #- If all inputs were masked, this patch is meaningless so flag as ivar=0
+    if all_input_masked:
+        fluxivar[:,:] = 0.0
+
+    #- also mask any fluxes that originally had exactly zero weight
+    bad = np.isclose(fluxweight.reshape(fluxivar.shape), 0.0)
+    fluxivar[bad] = 0.0
 
     if full_output:
         results = dict(flux=rflux, ivar=fluxivar, R=R, xflux=xflux, A=A, iCov=iCov)
