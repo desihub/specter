@@ -2,7 +2,12 @@
 specter change log
 ==================
 
-0.9.3 (unreleased)
+0.9.4 (unreleased)
+------------------
+
+* No changes yet.
+
+0.9.3 (2020-04-16)
 ------------------
 
 * Improve handling of heavily (or completely) masked inputs (PR #78).
