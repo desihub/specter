@@ -5,7 +5,7 @@ specter change log
 0.9.3 (unreleased)
 ------------------
 
-* No changes yet.
+* Improve handling of heavily (or completely) masked inputs (PR #78).
 
 0.9.2 (2020-04-07)
 ------------------
