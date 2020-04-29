@@ -5,7 +5,7 @@ specter change log
 0.9.4 (unreleased)
 ------------------
 
-* No changes yet.
+* Fix last-bin bug in pixellated Gauss-Hermite integration (PR #79).
 
 0.9.3 (2020-04-16)
 ------------------
