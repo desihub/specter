@@ -413,8 +413,8 @@ def pgh(x, m=0, xc=0.0, sigma=1.0):
 
     #- Evaluate H[m-1] at half-pixel offsets above and below x
     dx = x-xc-0.5
-    u = np.concatenate( (dx, dx[-1:]+0.5) ) / sigma
-
+    u = np.concatenate( (dx, dx[-1:]+1.0) ) / sigma
+        
     if m > 0:
         y  = -custom_hermitenorm(m-1,u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
         return (y[1:] - y[0:-1])

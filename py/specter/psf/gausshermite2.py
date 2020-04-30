@@ -117,8 +117,8 @@ class GaussHermite2PSF(PSF):
 
         #- Evaluate H[m-1] at half-pixel offsets above and below x
         dx = x-xc-0.5
-        u = np.concatenate( (dx, dx[-1:]+0.5) ) / sigma
-
+        u = np.concatenate( (dx, dx[-1:]+1.0) ) / sigma
+        
         if m > 0:
             y = -self._hermitenorm[m-1](u) * np.exp(-0.5 * u**2) / np.sqrt(2. * np.pi)
             return (y[1:] - y[0:-1])
