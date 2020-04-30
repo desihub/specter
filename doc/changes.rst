@@ -5,7 +5,11 @@ specter change log
 0.9.4 (unreleased)
 ------------------
 
-* Fix last-bin bug in pixellated Gauss-Hermite integration (PR #79).
+* Update documentation configuration for ReadTheDocs (PR `#77`_).
+* Fix last-bin bug in pixellated Gauss-Hermite integration (PR `#79`_).
+
+.. _`#77`: https://github.com/desihub/specter/pull/77
+.. _`#79`: https://github.com/desihub/specter/pull/79
 
 0.9.3 (2020-04-16)
 ------------------
@@ -87,6 +91,7 @@ specter change log
 ------------------
 
 PR #40:
+
 * Added full_output option to ex2d to get model image and metrics based upon
   goodness of fit
 * PSFs can specify their model error with PSFERR header keyword; default 0.01

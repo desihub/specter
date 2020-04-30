@@ -1,7 +1,11 @@
-# pixelsplines.py
-# Pixel-integrated sline utilities.
-# Written by A. Bolton, U. of Utah, 2010-2013.
+"""
+specter.util.pixspline
+======================
 
+Pixel-integrated spline utilities.
+
+Written by A. Bolton, U. of Utah, 2010-2013.
+"""
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import numbers
@@ -28,9 +32,9 @@ def cen2bound(pixelcen):
 #     The matrix will be flux-conserving if the spectrum to which it is
 #     applied has units of 'counts per unit x', and pixbound and sig_conv
 #     both have units of x.
-# 
+#
 #     pixbound should have one more element than sig_conv.
-# 
+#
 #     Output is a scipy sparse matrix that can implement the blurring as:
 #       blurflux = gauss_blur_matrix * flux
 #     where 'flux' has the same dimensions as 'sig_conv'.
@@ -93,7 +97,7 @@ class PixSplineError(Exception):
 class PixelSpline:
     """
     Pixel Spline object class.
-    
+
     Initialize as follows:
         PS = PixelSpline(pixbound, flux)
     where
@@ -109,12 +113,12 @@ class PixelSpline:
         extent of each pixel.
     """
     def __init__(self, pixbound, flux):
-        
+
         #- If pixbound and flux have same number of elements, assume they
         #- are centers rather than edges
         if len(pixbound) == len(flux):
             pixbound = cen2bound(pixbound)
-        
+
         npix = len(flux)
         # Test for correct argument dimensions:
         if (len(pixbound) - npix) != 1:
@@ -139,27 +143,27 @@ class PixelSpline:
         # Solve the banded matrix for the slopes at the ducks:
         acoeff = la.solve_banded((1,1), band_matrix, rhs)
         self.duckslopes = np.append(np.append(0., acoeff), 0.)
-        
+
     #- convenience wrapper
     def __call__(self, xnew):
         """
         Evaluate underlying pixel spline at array of points
-        
+
         Also see: PixelSpline.resample()
         """
         return self.point_evaluate(xnew, missing=0.0)
-        
+
     def point_evaluate(self, xnew, missing=0.):
         """
         Evaluate underlying pixel spline at array of points
-        
+
         Also see: PixelSpline.resample()
         """
         input_scalar = False
         if isinstance(xnew, numbers.Real):
             input_scalar = True
             xnew = np.array( (xnew,) )
-        
+
         # Initialize output array:
         outflux = 0. * self.flux[0] * xnew + missing
         # Digitize into bins:
@@ -183,11 +187,11 @@ class PixelSpline:
             return outflux[0]
         else:
             return outflux
-        
+
     def find_extrema(self, minima=False):
         """
         Return array of extrema of underlying pixelspline
-        
+
         if minima is False, return only maxima
         """
         # Find the formal extrema positions:
@@ -203,7 +207,7 @@ class PixelSpline:
             return np.array([])
         x_ext = x_ext[wh_ext]
         return x_ext
-        
+
     def _subpixel_average(self, ipix, xlo, xhi):
         adiff = self.duckslopes[ipix+1] - self.duckslopes[ipix]
         asum = self.duckslopes[ipix+1] + self.duckslopes[ipix]
@@ -212,7 +216,7 @@ class PixelSpline:
         outval = adiff * ((xhi-xlo)**2 / 6. + xhi_c * xlo_c / 2.) / self.dxpix[ipix] \
                  + asum * (xhi_c + xlo_c) / 4. - adiff * self.dxpix[ipix] / 24. + self.flux[ipix]
         return outval
-        
+
     def resample(self, pb_new):
         """
         Resample a pixelspline analytically onto a new set of pixel boundaries
@@ -222,7 +226,7 @@ class PixelSpline:
         ### xnew_hi = pb_new[1:].copy()
         xnew_lo = pb_new[:-1]
         xnew_hi = pb_new[1:]
-        
+
         # Test for monotonic:
         new_fulldx = xnew_hi - xnew_lo
         if new_fulldx.min() <= 0.:
@@ -232,19 +236,19 @@ class PixelSpline:
         # searchsorted is faster than digitize for sorted data
         ### bin_idx = np.digitize(pb_new, self.pixbound) - 1
         bin_idx = np.searchsorted(self.pixbound, pb_new) - 1
-        
+
         ### bin_lo = bin_idx[:-1].copy()
         ### bin_hi = bin_idx[1:].copy()
         bin_lo = bin_idx[:-1]
         bin_hi = bin_idx[1:]
-        
+
         # Array for accumulating new counts:
         new_counts = np.zeros(npix_new, dtype=self.flux.dtype)
-                
+
         # Array for accumulating new pixel widths by pieces.
         # Only used for debugging so far, but may be useful in future.
         #new_dxpix = np.zeros(npix_new, dtype=self.flux.dtype)
-        
+
         # For convenience, we define the following.
         # Careful not to modify them... they are views, not copies!
         xold_lo = self.pixbound[:-1]
@@ -282,12 +286,12 @@ class PixelSpline:
             pcounts = self.flux * self.dxpix
             bin_lo1 = bin_lo+1  #- for speed
             #dx_this = np.array([self.dxpix[bin_lo[wh_this[0][ii]]+1:bin_hi[wh_this[0][ii]]].sum() for ii in range(nwhole)])
-            
+
             #- Progressively faster versions of same thing:
             ### icounts_this = np.array([pcounts[bin_lo[wh_this[0][ii]]+1:bin_hi[wh_this[0][ii]]].sum() for ii in range(nwhole)])  # Slowest bit
             ### icounts_this = np.array([pcounts[bin_lo1[wh_this[0][ii]]:bin_hi[wh_this[0][ii]]].sum() for ii in range(nwhole)])  # Slowest bit
             icounts_this = np.array([pcounts[a:b].sum() for a, b in zip(bin_lo1[wh_this], bin_hi[wh_this]) ])
-            
+
             #new_dxpix[wh_this] += dx_this
             new_counts[wh_this] += icounts_this
 
@@ -295,19 +299,19 @@ class PixelSpline:
         return new_counts / new_fulldx
 
 #- Currently unused (absorbed into PixelSpline), but kept for reference
-#- and maybe reviving if needed.        
+#- and maybe reviving if needed.
 # def _compute_duck_slopes(pixbound, flux):
 #     """
 #     Compute the slope of the illuminating quadratic spline at
 #     the locations of the 'ducks', i.e., the pixel boundaries,
 #     given the integrated flux per unit baseline within the pixels.
-# 
+#
 #     ARGUMENTS:
 #       pixbound: (npix + 1) ndarray of pixel boundaries, in units of
 #         wavelength or log-wavelength or frequency or whatever you like.
 #       flux: (npix) ndarray of spectral flux (energy or counts) per
 #         abscissa unit, averaged over the extent of the pixel
-# 
+#
 #     RETURNS:
 #       an (npix+1) ndarray of the slope of the underlying/illuminating
 #       flux per unit abscissa spectrum at the position of the pixel
@@ -337,5 +341,3 @@ class PixelSpline:
 #     acoeff = la.solve_banded((1,1), band_matrix, rhs)
 #     acoeff = np.append(np.append(0., acoeff), 0.)
 #     return acoeff
-
-
