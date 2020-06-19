@@ -67,7 +67,7 @@ def write_spectra(outfile, wave, flux, ivar, resolution, header):
     hx.append(fits.ImageHDU(ivar.astype(np.float32), name='IVAR'))
     hx.append(fits.ImageHDU(wave.astype(np.float32), name='WAVELENGTH'))
     hx.append(fits.ImageHDU(resolution.astype(np.float32), name='RESOLUTION'))
-    hx.writeto(outfile, clobber=True)
+    hx.writeto(outfile, overwrite=True)
 
 
 def read_simspec(filename):

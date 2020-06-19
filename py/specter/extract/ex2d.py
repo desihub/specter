@@ -408,7 +408,7 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
         print("ERROR: Linear Algebra didn't converge")
         print("Dumping {} for debugging".format(outfile))
         from astropy.io import fits
-        fits.writeto(outfile, image, clobber=True)
+        fits.writeto(outfile, image, overwrite=True)
         fits.append(outfile, ivar, name='IVAR')
         fits.append(outfile, A.data, name='ADATA')
         fits.append(outfile, A.indices, name='AINDICES')

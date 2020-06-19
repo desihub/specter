@@ -177,6 +177,31 @@ class TestExtract(unittest.TestCase):
             dR = (Rdata[i] - Rdata3[i]) / np.max(Rdata[i])
             self.assertLess(np.max(np.abs(dR)), 0.01)
 
+    def test_ex2d_reproducibility(self):
+        pix = np.random.normal(0, 3.0, size=(400,400))
+        ivar = np.ones_like(pix) / 3.0**2
+
+        wave = np.arange(7500, 7600, 0.75)
+        flux1, ivar1, R1 = ex2d(pix, ivar, self.psf, 0, 3, wave)
+        flux2, ivar2, R2 = ex2d(pix, ivar, self.psf, 0, 3, wave)
+
+        #- first check if they are allclose as a hint in case they later fail
+        #- the exact bitwise check
+        self.assertTrue(np.all(flux1 == flux2))
+        self.assertTrue(np.all(ivar1 == ivar2))
+        self.assertTrue(np.all(R1 == R2))
+
+        self.assertTrue(np.all(flux1 == flux2))
+        self.assertTrue(np.all(ivar1 == ivar2))
+        self.assertTrue(np.all(R1 == R2))
+
+        #- But with regularization, they should match exactly
+        flux1, ivar1, R1 = ex2d(pix, ivar, self.psf, 0, 3, wave, regularize=0.01)
+        flux2, ivar2, R2 = ex2d(pix, ivar, self.psf, 0, 3, wave, regularize=0.01)
+        self.assertTrue(np.all(flux1 == flux2))
+        self.assertTrue(np.all(ivar1 == ivar2))
+        self.assertTrue(np.all(R1 == R2))
+
     def test_ex2d_xyrange(self):
         xyrange = xmin,xmax,ymin,ymax = self.psf.xyrange([0,self.nspec], self.ww)
         subimage = self.image[ymin:ymax, xmin:xmax]
@@ -245,8 +270,12 @@ class TestExtract(unittest.TestCase):
         subflux, subfluxivar, subR = ex2d_patch(subimg, subivar, self.psf, \
             0, self.nspec, self.ww, xyrange=xyrange)
 
-        #- These arrays pass np.allclose, but sometimes fail np.all on edison.
-        #- They should be absolutely identical.  Leaving this as failing.
+        #- First test for allclose as a hint in case the later
+        #- bitwise match test fails
+        self.assertTrue( np.allclose(subflux, flux) )
+        self.assertTrue( np.allclose(subfluxivar, fluxivar) )
+        self.assertTrue( np.allclose(subR, R) )
+
         self.assertTrue( np.all(subflux == flux) )
         self.assertTrue( np.all(subfluxivar == fluxivar) )
         self.assertTrue( np.all(subR == R) )
