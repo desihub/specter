@@ -54,7 +54,7 @@ def write_imgspec(flux, wave, loglam, objtype):
         hdr['OBJTYPE'] = objtype
     
     filename = get_next_filename()
-    fits.writeto(filename, flux, header=hdr, clobber=True)
+    fits.writeto(filename, flux, header=hdr, overwrite=True)
     if wave is not None:
         if loglam:
             fits.append(filename, wave, extname='LOGLAM')
@@ -93,7 +93,7 @@ def write_tblspec(flux, wave, loglam, objtype):
         data['objtype'] = objtype['OBJTYPE']
     
     filename = get_next_filename()
-    fits.writeto(filename, data, header=hdr, clobber=True)
+    fits.writeto(filename, data, header=hdr, overwrite=True)
 
     return filename
 

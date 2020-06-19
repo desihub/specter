@@ -28,7 +28,7 @@ spotpos, sposhdr    = fx[7].data, fx[7].header
 spotwave, swavehdr  = fx[8].data, fx[8].header
 throughput, thruhdr = fx[9].data, fx[9].header
 
-fits.writeto(outfile, x[:, 0::10], header=xhdr, clobber=True)
+fits.writeto(outfile, x[:, 0::10], header=xhdr, overwrite=True)
 fits.append(outfile, y[:, 0::10], header=yhdr)
 fits.append(outfile, w[:, 0::10], header=whdr)
 
