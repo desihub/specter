@@ -187,17 +187,10 @@ class TestExtract(unittest.TestCase):
 
         #- first check if they are allclose as a hint in case they later fail
         #- the exact bitwise check
-        self.assertTrue(np.all(flux1 == flux2))
-        self.assertTrue(np.all(ivar1 == ivar2))
-        self.assertTrue(np.all(R1 == R2))
+        self.assertTrue(np.allclose(flux1, flux2))
+        self.assertTrue(np.allclose(ivar1, ivar2))
+        self.assertTrue(np.allclose(R1, R2))
 
-        self.assertTrue(np.all(flux1 == flux2))
-        self.assertTrue(np.all(ivar1 == ivar2))
-        self.assertTrue(np.all(R1 == R2))
-
-        #- But with regularization, they should match exactly
-        flux1, ivar1, R1 = ex2d(pix, ivar, self.psf, 0, 3, wave, regularize=0.01)
-        flux2, ivar2, R2 = ex2d(pix, ivar, self.psf, 0, 3, wave, regularize=0.01)
         self.assertTrue(np.all(flux1 == flux2))
         self.assertTrue(np.all(ivar1 == ivar2))
         self.assertTrue(np.all(R1 == R2))
