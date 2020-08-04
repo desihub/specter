@@ -2,7 +2,12 @@
 specter change log
 ==================
 
-0.9.4 (unreleased)
+0.9.5 (unreleased)
+------------------
+
+* No changes yet
+
+0.9.4 (2020-08-03)
 ------------------
 
 * Update documentation configuration for ReadTheDocs (PR `#77`_).
