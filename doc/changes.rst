@@ -5,7 +5,7 @@ specter change log
 0.9.5 (unreleased)
 ------------------
 
-* No changes yet
+* Replace biasing test >0 by !=0 in psf.project
 
 0.9.4 (2020-08-03)
 ------------------
