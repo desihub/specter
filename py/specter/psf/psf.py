@@ -590,7 +590,7 @@ class PSF(object):
             #- Evaluate positive photons within wavelength range
             wmin, wmax = self.wavelength(ispec, y=(0, self.npix_y))
             for j, w in enumerate(wspec):
-                if np.any(phot[:,i,j] > 0.0) and (wmin <= w <= wmax):
+                if np.any(phot[:,i,j] != 0.0) and (wmin <= w <= wmax):
                     xx, yy, pix = self.xypix(ispec, w, \
                         xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
                     if (xx.stop > xx.start) and (yy.stop > yy.start):
