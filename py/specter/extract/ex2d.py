@@ -148,8 +148,8 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
                 #- Extend pix range by another PSF width to reduce edge-effects
                 extra_ypix = int(round(pixpad_frac * spotsize[0]))
-                ylo -= extra_ypix
-                yhi += extra_ypix
+                ylo = max(0, ylo-extra_ypix)
+                yhi = min(psf.npix_y, yhi+extra_ypix)
 
                 if xyrange is None:
                     subxy = np.s_[ylo:yhi, xlo:xhi]
