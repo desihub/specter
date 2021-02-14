@@ -179,11 +179,6 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                 wmin, wmax = ww[0], ww[-1]
                 nw = len(ww)
 
-                # print('--> {} {} {:.1f} {:.1f} {:.1f} {:.1f}  {}  {}'.format(
-                #     nlo, nhi, wmin, wlo, whi, wmax,
-                #     specrange,
-                #     (xlo,xhi,ylo,yhi)))
-
                 #- include \r carriage return to prevent scrolling
                 if verbose:
                     sys.stdout.write("\rSpectra {specrange} wavelengths ({wmin:.2f}, {wmax:.2f}) -> ({wlo:.2f}, {whi:.2f})".format(\
