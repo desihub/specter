@@ -6,6 +6,9 @@ specter change log
 ------------------
 
 * Replace biasing test >0 by !=0 in psf.project
+* Tune extraction patch boundary parameters to limit edge effects (PR `#82`_).
+
+.. _`#82`: https://github.com/desihub/specter/pull/82
 
 0.9.4 (2020-08-03)
 ------------------

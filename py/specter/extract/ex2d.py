@@ -18,7 +18,9 @@ from specter.util import outer
 def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
          regularize=0.0, ndecorr=False, bundlesize=25, nsubbundles=1,
          wavesize=50, full_output=False, verbose=False,
-         debug=False, psferr=None):
+         debug=False, psferr=None,
+         pixpad_frac=0.8, wavepad_frac=0.2,
+         ):
     '''2D PSF extraction of flux from image patch given pixel inverse variance.
 
     Parameters
@@ -62,6 +64,10 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
         fractional error on the psf model instead of the value saved
         in the psf fits file. This is used only to compute the chi2,
         not to weight pixels in fit
+    pixpad_frac : float, optional
+        fraction of a PSF spotsize to pad in pixels when extracting
+    wavepad_frac : float, optional
+        fraction of a PSF spotsize to pad in wavelengths when extracting
 
     Returns
     -------
@@ -132,13 +138,24 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
             for iwave in range(0, len(wavelengths), wavesize):
                 #- Low and High wavelengths for the core region
                 wlo = wavelengths[iwave]
-                if iwave+wavesize < len(wavelengths):
-                    whi = wavelengths[iwave+wavesize]
+                if iwave+wavesize-1 < len(wavelengths):
+                    whi = wavelengths[iwave+wavesize-1]
                 else:
                     whi = wavelengths[-1]
 
                 #- Identify subimage that covers the core wavelengths
-                subxyrange = xlo,xhi,ylo,yhi = psf.xyrange(specrange, (wlo, whi))
+                xlo,xhi,ylo,yhi = psf.xyrange(specrange, (wlo, whi))
+
+                #- Extend pix range by another PSF width to reduce edge-effects
+                extra_ypix = int(round(pixpad_frac * spotsize[0]))
+                ylo -= extra_ypix
+                yhi += extra_ypix
+                if xyrange is not None:
+                    ylo = max(ylo, xyrange[2])
+                    yhi = min(yhi, xyrange[3])
+                else:
+                    ylo = max(ylo, 0)
+                    yhi = min(yhi, psf.npix_y)
 
                 if xyrange is None:
                     subxy = np.s_[ylo:yhi, xlo:xhi]
@@ -149,12 +166,15 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                 subivar = imageivar[subxy]
 
                 #- Determine extra border wavelength extent: nlo,nhi extra wavelength bins
-                ny, nx = psf.pix(speclo, wlo).shape
-                ymin = ylo-ny+2
-                ymax = yhi+ny-2
-
+                # ny, nx = psf.pix(speclo, wlo).shape
+                # ymin = ylo-ny+2
+                # ymax = yhi+ny-2
+                ny, nx = spotsize
+                ymin = ylo-int(wavepad_frac * ny)
+                ymax = yhi+int(wavepad_frac * ny)
                 nlo = max(int((wlo - psf.wavelength(speclo, ymin))/dw)-1, ndiag)
                 nhi = max(int((psf.wavelength(speclo, ymax) - whi)/dw)-1, ndiag)
+
                 ww = np.arange(wlo-nlo*dw, whi+(nhi+0.5)*dw, dw)
                 wmin, wmax = ww[0], ww[-1]
                 nw = len(ww)
@@ -191,8 +211,8 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                 #- Fill in the final output arrays
                 ## iispec = slice(speclo-specmin, spechi-specmin)
                 iispec = np.arange(speclo-specmin, spechi-specmin)
-                flux[iispec[keep], iwave:iwave+wavesize+1] = specflux[keep, nlo:-nhi]
-                ivar[iispec[keep], iwave:iwave+wavesize+1] = specivar[keep, nlo:-nhi]
+                flux[iispec[keep], iwave:iwave+wavesize] = specflux[keep, nlo:-nhi]
+                ivar[iispec[keep], iwave:iwave+wavesize] = specivar[keep, nlo:-nhi]
 
                 if full_output:
                     A = results['A'].copy()
@@ -236,8 +256,8 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
                     #- outputs
                     #- TODO: watch out for edge effects on overlapping regions of submodels
                     modelimage[subxy] = submodel
-                    pixmask_fraction[iispec[keep], iwave:iwave+wavesize+1] = subpixmask_fraction[keep, nlo:-nhi]
-                    chi2pix[iispec[keep], iwave:iwave+wavesize+1] = chi2x[keep, nlo:-nhi]
+                    pixmask_fraction[iispec[keep], iwave:iwave+wavesize] = subpixmask_fraction[keep, nlo:-nhi]
+                    chi2pix[iispec[keep], iwave:iwave+wavesize] = chi2x[keep, nlo:-nhi]
 
                 #- Fill diagonals of resolution matrix
                 for ispec in np.arange(speclo, spechi)[keep]:

@@ -327,8 +327,8 @@ class PSF(object):
             wavemax = self.wmax
 
         #- Find the spectra with the smallest/largest y centroids
-        ispec_ymin = specmin + np.argmin(self.y(None, wavemin)[specmin:specmax+1])
-        ispec_ymax = specmin + np.argmax(self.y(None, wavemax)[specmin:specmax+1])
+        ispec_ymin = specmin + np.argmin(self.y(None, wavemin)[specmin:specmax])
+        ispec_ymax = specmin + np.argmax(self.y(None, wavemax)[specmin:specmax])
         ymin = self.xypix(ispec_ymin, wavemin)[1].start
         ymax = self.xypix(ispec_ymax, wavemax)[1].stop
 
