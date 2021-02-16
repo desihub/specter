@@ -2,8 +2,13 @@
 specter change log
 ==================
 
-0.9.5 (unreleased)
-------------------
+0.10.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.10.0 (2021-02-15)
+-------------------
 
 * Replace biasing test >0 by !=0 in psf.project
 * Tune extraction patch boundary parameters to limit edge effects (PR `#82`_).
