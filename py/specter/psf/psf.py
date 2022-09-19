@@ -375,7 +375,9 @@ class PSF(object):
             xmax = self.npix_x
         else:
             wxmax = w[np.argmax(x)]
-            xmax = self.xypix(specmax-1, wxmax)[0].stop
+            #- use _xypix not xypix to avoid corner-case rounding when
+            #- very near edge of CCD
+            xmax = self._xypix(specmax-1, wxmax)[0].stop
 
         return (xmin, xmax, ymin, ymax)
 

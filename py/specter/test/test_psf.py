@@ -340,6 +340,13 @@ class GenericPSFTests(object):
             self.assertTrue(xmin <= xmax)
             self.assertTrue(ymin <= ymax)
 
+        #- corner case that can fail with full PSFs even if they don't fail with
+        #- test PSFs, but add here anyway as an extra check
+        w_edge = psf.wavelength(psf.nspec-1, psf.npix_y-0.49999)
+        xmin, xmax, ymin, ymax = psf.xyrange(psf.nspec-1, [w_edge-1, w_edge])
+        self.assertGreater(xmax, xmin)
+        self.assertGreater(ymax, ymin)
+
     #- Test projection matrix with scalar vs. tuple spec_range
     def test_projmat_ispec(self):
         ispec = 0
