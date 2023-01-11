@@ -5,7 +5,11 @@ specter change log
 0.10.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Avoid at-edge-of-ccd extraction crash (PR `#84`_).
+* FITS writing use "overwrite" not "clobber" for astropy >= 5.1 (PR `#86`_).
+
+.. _`#84`: https://github.com/desihub/specter/pull/84
+.. _`#86`: https://github.com/desihub/specter/pull/86
 
 0.10.0 (2021-02-15)
 -------------------
