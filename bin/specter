@@ -422,7 +422,7 @@ if opts.extra:
                        ])
     hx.append(fits.BinTableHDU(a, header=hdr, name='XYWAVE'))
 
-hx.writeto(opts.output, clobber=True)
+hx.writeto(opts.output, overwrite=True)
 
 if opts.debug:
     #--- DEBUG ---
