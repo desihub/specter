@@ -2,7 +2,12 @@
 specter change log
 ==================
 
-0.10.1 (unreleased)
+0.10.2 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.10.1 (2023-01-12)
 -------------------
 
 * Avoid at-edge-of-ccd extraction crash (PR `#84`_).
