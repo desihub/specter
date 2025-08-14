@@ -33,8 +33,13 @@ class TestThroughput(unittest.TestCase):
         self.assertTrue(self.thru.fiberdia > 0)
 
     def test_atmthru(self):
-        t = self.thru.atmospheric_throughput(self.w)
-        self.assertTrue(np.all( (0.0<=t) & (t<= 1.0)))
+        t0 = self.thru.atmospheric_throughput(self.w)
+        self.assertTrue(np.all((0.0 <= t0) & (t0 <= 1.0)))
+        t1 = self.thru.atmospheric_throughput(self.w, airmass=1.0)
+        t2 = self.thru.atmospheric_throughput(self.w, airmass=2.0)
+        self.assertTrue(np.all(t1 >= 0.0))
+        self.assertTrue(np.all(t2 >= 0.0))
+        self.assertTrue(np.all(t1 >= t2))
 
     def test_atmext(self):
         ext = self.thru.extinction(self.w)
