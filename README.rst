@@ -8,7 +8,7 @@ Specter
     :target: https://github.com/desihub/specter/actions
     :alt: GitHub Actions CI Status
 
-.. |Coveralls Status| image:: https://coveralls.io/repos/desihub/specter/badge.svg
+.. |Coveralls Status| image:: https://coveralls.io/repos/github/desihub/specter/badge.svg
     :target: https://coveralls.io/github/desihub/specter
     :alt: Test Coverage Status
 

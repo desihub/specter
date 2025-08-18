@@ -163,7 +163,9 @@ def weighted_solve(A, b, w):
     W = spdiags(w, [0,], n, n)
     y = A.T.dot(W.dot(b))
     iCov = A.T.dot(W.dot(A))
-    x = np.linalg.lstsq(iCov, y)[0]
+    # rcond=-1 preserves an old default precision from NumPy ~1.2 era.
+    # This should match what existing tests expect.
+    x = np.linalg.lstsq(iCov, y, rcond=-1)[0]
     return x, iCov
 
 def trapz(edges, xp, yp):
