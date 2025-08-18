@@ -22,7 +22,7 @@ jobs:
                       numpy-version: '<3.0'
                       scipy-version: '<1.16'
                       astropy-version: '<8.0'
-                      healpy-version: '<0.90'
+                      numba-version: '<0.90'
                     - os: ubuntu-latest
                       python-version: '3.12'
                       numpy-version: '<2.2'

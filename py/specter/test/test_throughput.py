@@ -9,14 +9,14 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import os
 import numpy as np
 import unittest
-from pkg_resources import resource_filename
+from importlib.resources import files
 from ..throughput import load_throughput
 
 class TestThroughput(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.thru = load_throughput(resource_filename('specter.test', 't/throughput.fits'))
+        cls.thru = load_throughput(str(files('specter').pathjoin('test', 't', 'throughput.fits')))
         cls.w = np.arange(5000, 9000, 1)
 
     def setUp(self):

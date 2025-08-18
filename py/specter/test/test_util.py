@@ -13,7 +13,6 @@ from numpy.polynomial import legendre
 from specter import util
 from specter.util import legval_numba
 import unittest
-from pkg_resources import resource_filename
 from specter.psf import load_psf
 
 class TestUtil(unittest.TestCase):
@@ -97,7 +96,7 @@ class TestUtil(unittest.TestCase):
         x_array_2=np.random.rand(500)
         c_array_1=np.random.rand(8)
         c_array_2=np.random.rand(11)
-       
+
         #make sure legval_numba gets the same answer as numpy legval
         #first test x scalars
         numba_return_scalar_1 = legval_numba(x_scalar_1, c_array_1)

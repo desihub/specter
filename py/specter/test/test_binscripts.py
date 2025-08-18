@@ -11,7 +11,7 @@ import numpy as np
 import unittest
 from astropy.io import fits
 from uuid import uuid4
-from pkg_resources import resource_filename
+from importlib.resources import files
 from specter.io import read_image, write_spectra
 from astropy.io import fits
 
@@ -30,7 +30,7 @@ class TestBinScripts(unittest.TestCase):
         #- locations for python 2.7 vs. 3.5
         #- python 2.7: py/specter/test/test_binscripts.py
         #- python 3.5: build/lib/specter/test/test_binscripts.py
-        
+
         #- python 2.7 location:
         cls.specter_dir = os.path.dirname( # top-level
             os.path.dirname( # py/
@@ -56,11 +56,11 @@ class TestBinScripts(unittest.TestCase):
 
         if not os.path.isdir(cls.specter_dir + '/bin'):
             raise RuntimeError('Unable to auto-locate specter/bin from {}'.format(__file__))
-            
+
         cls.executable = sys.executable
-        cls.sky_file = resource_filename('specter', 'data/sky-uves.fits')
-        cls.monospot_file = resource_filename('specter.test', 't/psf-monospot.fits')
-        cls.throughput_file = resource_filename('specter.test', 't/throughput.fits')
+        cls.sky_file = str(files('specter').pathjoin('data', 'sky-uves.fits'))
+        cls.monospot_file = str(files('specter').pathjoin('test', 't', 'psf-monospot.fits'))
+        cls.throughput_file = str(files('specter').pathjoin('test', 't', 'throughput.fits'))
         cls.exspec_cmd = """{executable} {specter_dir}/bin/exspec \
           -i {imgfile} \
           -p {monospot_file} \

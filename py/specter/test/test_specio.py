@@ -11,13 +11,13 @@ import os
 from os.path import basename, join
 from glob import glob
 import unittest
-from pkg_resources import resource_filename
+from importlib.resources import files
 from ..io import read_simspec
 
 class TestSpecIO(unittest.TestCase):
 
     def setUp(self):
-        self.test_data_dir = resource_filename('specter.test', 't')
+        self.test_data_dir = str(files("specter").pathjoin('test', 't'))
         self.specfiles = sorted(glob(join(self.test_data_dir, 'spec-*.fits')))
 
     def test_files(self):
