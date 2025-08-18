@@ -183,6 +183,10 @@ def trapz(edges, xp, yp):
     if len(xp) != len(yp):
         raise ValueError("xp and yp must have same length")
 
+    if hasattr(np, 'trapezoid'):
+        np_trapz = np.trapezoid
+    else:
+        np_trapz = np.trapz
     yedge = np.interp(edges, xp, yp)
     result = np.zeros(len(edges)-1)
     iedge = np.searchsorted(xp, edges)
@@ -190,7 +194,7 @@ def trapz(edges, xp, yp):
         ilo, ihi = iedge[i], iedge[i+1]
         xx = np.concatenate( (edges[i:i+1], xp[ilo:ihi], edges[i+1:i+2]) )
         yy = np.concatenate( (yedge[i:i+1], yp[ilo:ihi], yedge[i+1:i+2]) )
-        result[i] = np.trapz(yy, xx)
+        result[i] = np_trapz(yy, xx)
 
     return result
 

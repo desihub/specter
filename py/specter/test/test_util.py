@@ -34,11 +34,15 @@ class TestUtil(unittest.TestCase):
                 self.assertTrue(util.gaussint(-x, sigma=x) == 0.15865525393145707)
 
     def test_trapz(self):
+        if hasattr(np, 'trapezoid'):
+            np_trapz = np.trapezoid
+        else:
+            np_trapz = np.trapz
         x = np.linspace(0, 2, 20)
         y = np.sin(x)
         #- Check integration over full range
         edges = (x[0], x[-1])
-        self.assertTrue(np.trapz(y, x) == util.trapz(edges, x, y)[0])
+        self.assertTrue(np_trapz(y, x) == util.trapz(edges, x, y)[0])
 
         #- Check that integrations add up to each other
         lo = 0.5*(x[0] + x[1])
