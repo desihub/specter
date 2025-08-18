@@ -22,7 +22,7 @@ class TestExtract(unittest.TestCase):
     """
     @classmethod
     def setUpClass(cls):
-        cls.psf = load_psf(str(files("specter") / "test" / "t" / "tpsf-spot.fits"))
+        cls.psf = load_psf(str(files("specter") / "test" / "t" / "psf-spot.fits"))
 
         np.random.seed(0)
         nspec = 10
