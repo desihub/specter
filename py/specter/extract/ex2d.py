@@ -349,6 +349,8 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
     w = ivar.ravel()
     W = spdiags(ivar.ravel(), 0, npix, npix)
 
+    print(W.dtype(), A.dtype(), file=sys.stderr)
+
     #-----
     #- Extend A with an optional regularization term to limit ringing.
     #- If any flux bins don't contribute to these pixels,

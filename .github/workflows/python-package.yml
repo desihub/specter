@@ -47,8 +47,6 @@ jobs:
               run: sudo apt install libbz2-dev subversion
             - name: Checkout code
               uses: actions/checkout@v4
-              with:
-                fetch-depth: 0
             - name: Set up Python ${{ matrix.python-version }}
               uses: actions/setup-python@v5
               with:
@@ -56,13 +54,12 @@ jobs:
             - name: Install Python dependencies
               run: |
                 python -m pip install --upgrade pip setuptools wheel
-                python -m pip install requests pyyaml configobj
                 python -m pip install "numpy${{ matrix.numpy-version}}" "scipy${{ matrix.scipy-version }}" "astropy${{ matrix.astropy-version }}" "numba${{ matrix.numba-version }}"
                 python -m pip cache remove fitsio
                 python -m pip install --no-deps --force-reinstall --ignore-installed fitsio
                 python -m pip install pytest
             - name: Run the test
-              run: DESI_SURVEYOPS=$(pwd) pytest
+              run: pytest
 
     coverage:
         name: Test coverage
@@ -78,8 +75,6 @@ jobs:
               run: sudo apt install libbz2-dev subversion
             - name: Checkout code
               uses: actions/checkout@v4
-              with:
-                fetch-depth: 0
             - name: Set up Python ${{ matrix.python-version }}
               uses: actions/setup-python@v5
               with:
@@ -92,7 +87,7 @@ jobs:
                 python -m pip install --no-deps --force-reinstall --ignore-installed fitsio
                 python -m pip install pytest pytest-cov coveralls
             - name: Run the test with coverage
-              run: DESI_SURVEYOPS=$(pwd) pytest --cov
+              run: pytest --cov
             - name: Coveralls
               env:
                 COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
@@ -110,8 +105,6 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
-              with:
-                fetch-depth: 0
             - name: Set up Python ${{ matrix.python-version }}
               uses: actions/setup-python@v5
               with:
@@ -133,8 +126,6 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
-              with:
-                fetch-depth: 0
             - name: Set up Python ${{ matrix.python-version }}
               uses: actions/setup-python@v5
               with:
@@ -162,8 +153,6 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
-              with:
-                fetch-depth: 0
             - name: Set up Python ${{ matrix.python-version }}
               uses: actions/setup-python@v5
               with:
