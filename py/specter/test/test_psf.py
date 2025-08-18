@@ -587,25 +587,25 @@ class GenericPSFTests(object):
 class TestPixPSF(GenericPSFTests,unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.psf = load_psf(str(files("specter").pathjoin("test", "t", "psf-pix.fits")))
+        cls.psf = load_psf(str(files("specter").joinpath("test", "t", "psf-pix.fits")))
 
 #- Test SpotGrid PSF format
 class TestSpotPSF(GenericPSFTests,unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.psf = load_psf(str(files("specter").pathjoin("test", "t", "psf-spot.fits")))
+        cls.psf = load_psf(str(files("specter").joinpath("test", "t", "psf-spot.fits")))
 
 #- Test MonoSpot PSF format
 class TestMonoSpotPSF(GenericPSFTests,unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.psf = load_psf(str(files("specter").pathjoin("test", "t", "psf-monospot.fits")))
+        cls.psf = load_psf(str(files("specter").joinpath("test", "t", "psf-monospot.fits")))
 
 #- Test GaussHermitePSF format
 class TestGaussHermitePSF(GenericPSFTests,unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.psf = load_psf(str(files("specter").pathjoin("test", "t", "psf-gausshermite.fits")))
+        cls.psf = load_psf(str(files("specter").joinpath("test", "t", "psf-gausshermite.fits")))
 
     def test_spot_center(self):
         import scipy.ndimage
@@ -627,7 +627,7 @@ class TestGaussHermitePSF(GenericPSFTests,unittest.TestCase):
 class TestGaussHermite2PSF(GenericPSFTests,unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.psf = load_psf(str(files("specter").pathjoin("test", "t", "psf-gausshermite2.fits")))
+        cls.psf = load_psf(str(files("specter").joinpath("test", "t", "psf-gausshermite2.fits")))
 
 if __name__ == '__main__':
     testLoader = unittest.defaultTestLoader.loadTestsFromTestCase  #- shorthand

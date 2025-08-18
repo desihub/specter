@@ -17,7 +17,7 @@ from ..io import read_simspec
 class TestSpecIO(unittest.TestCase):
 
     def setUp(self):
-        self.test_data_dir = str(files("specter").pathjoin('test', 't'))
+        self.test_data_dir = str(files("specter").joinpath('test', 't'))
         self.specfiles = sorted(glob(join(self.test_data_dir, 'spec-*.fits')))
 
     def test_files(self):

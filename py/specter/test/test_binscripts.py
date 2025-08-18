@@ -58,9 +58,9 @@ class TestBinScripts(unittest.TestCase):
             raise RuntimeError('Unable to auto-locate specter/bin from {}'.format(__file__))
 
         cls.executable = sys.executable
-        cls.sky_file = str(files('specter').pathjoin('data', 'sky-uves.fits'))
-        cls.monospot_file = str(files('specter').pathjoin('test', 't', 'psf-monospot.fits'))
-        cls.throughput_file = str(files('specter').pathjoin('test', 't', 'throughput.fits'))
+        cls.sky_file = str(files('specter').joinpath('data', 'sky-uves.fits'))
+        cls.monospot_file = str(files('specter').joinpath('test', 't', 'psf-monospot.fits'))
+        cls.throughput_file = str(files('specter').joinpath('test', 't', 'throughput.fits'))
         cls.exspec_cmd = """{executable} {specter_dir}/bin/exspec \
           -i {imgfile} \
           -p {monospot_file} \

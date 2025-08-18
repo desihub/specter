@@ -16,7 +16,7 @@ class TestThroughput(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.thru = load_throughput(str(files('specter').pathjoin('test', 't', 'throughput.fits')))
+        cls.thru = load_throughput(str(files('specter').joinpath('test', 't', 'throughput.fits')))
         cls.w = np.arange(5000, 9000, 1)
 
     def setUp(self):

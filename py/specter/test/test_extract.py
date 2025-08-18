@@ -22,7 +22,7 @@ class TestExtract(unittest.TestCase):
     """
     @classmethod
     def setUpClass(cls):
-        cls.psf = load_psf(str(files("specter").pathjoin("test", "t", "tpsf-spot.fits")))
+        cls.psf = load_psf(str(files("specter") / "test" / "t" / "tpsf-spot.fits"))
 
         np.random.seed(0)
         nspec = 10
@@ -326,7 +326,7 @@ class TestExtract(unittest.TestCase):
             iisub, iiextract = split_bundle(3, 7)
 
     def test_psfbias(self):
-        psf = load_psf(resource_filename('specter.test', "t/psf-pix.fits"))
+        psf = load_psf(str(files('specter').joinpath("test", "t", "psf-pix.fits")))
         wmid = 0.5*(psf.wmin+psf.wmax)
         ww = np.linspace(wmid-10, wmid+10)
         phot = np.ones(len(ww))
