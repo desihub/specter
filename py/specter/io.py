@@ -8,33 +8,46 @@ separate directory as this grows.
 Stephen Bailey, LBL
 January 2013
 """
-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import os
-import os.path
+import sys
+import warnings
 from astropy.io import fits
 import numpy as np
+
+
+class ByteOrderWarning(UserWarning):
+    """Used for warnings about byte ordering.
+    """
+    pass
+
 
 def read_image(filename):
     """
     Read (image, ivar, header) from input filename
     """
-    fx = fits.open(filename)
-    if 'IMAGE' in fx:
-        image = fx['IMAGE'].data
-        hdr = fx['IMAGE'].header
-    else:
-        image = fx[0].data
-        hdr = fx[0].header
+    with fits.open(filename, mode='readonly') as fx:
+        if 'IMAGE' in fx:
+            image = fx['IMAGE'].data
+            hdr = fx['IMAGE'].header
+        else:
+            image = fx[0].data
+            hdr = fx[0].header
+        if 'IVAR' in fx:
+            ivar = fx['IVAR'].data
+        else:
+            # Isn't this supposed to be the image hdu?
+            ivar = fx[0].data
 
-    if 'IVAR' in fx:
-        ivar = fx['IVAR'].data
-    else:
-        ivar = fx[0].data
+    if image.dtype.byteorder == '>':
+        warnings.warn("Converting image data to little-endian!", ByteOrderWarning)
+        image = image.byteswap()
 
-    fx.close()
+    if ivar.dtype.byteorder == '>':
+        warnings.warn("Converting ivar data to little-endian!", ByteOrderWarning)
+        ivar = ivar.byteswap()
+
     return image, ivar, hdr
+
 
 def write_spectra(outfile, wave, flux, ivar, resolution, header):
     """
