@@ -321,10 +321,6 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
         ivar[nspec, nwave] = inverse variance of flux
         R : 2D resolution matrix to convert
     """
-    # if image.dtype.byteorder == '>':
-    #     raise ValueError("Big endian byte order detected for input image!")
-    # if ivar.dtype.byteorder == '>':
-    #     raise ValueError("Big endian byte order detected for input image!")
 
     #- Range of image to consider
     waverange = (wavelengths[0], wavelengths[-1])
@@ -348,11 +344,6 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
 
     #- Projection matrix and inverse covariance
     A = psf.projection_matrix(specrange, wavelengths, xyrange, use_cache=use_cache)
-
-    # Investigating possible endian error, see
-    # https://github.com/scipy/scipy/issues/22258
-    # and https://github.com/scipy/scipy/pull/22284
-    # print(image.dtype, ivar.dtype, A.dtype, file=sys.stderr)
 
     #- Pixel weights matrix
     w = ivar.ravel()

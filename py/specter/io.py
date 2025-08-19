@@ -25,6 +25,9 @@ def read_image(filename):
     """
     Read (image, ivar, header) from input filename
     """
+    # Changed due to non-native endian error. See e.g.
+    # https://github.com/scipy/scipy/issues/22258
+    # and https://github.com/scipy/scipy/pull/22284
     with fits.open(filename, mode='readonly') as fx:
         if 'IMAGE' in fx:
             image = fx['IMAGE'].data
