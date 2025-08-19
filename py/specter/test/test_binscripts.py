@@ -120,6 +120,8 @@ class TestBinScripts(unittest.TestCase):
             self.assertIn('XYWAVE', fx)
 
     def test_bb(self):
+        """This test assumes that test_aa has already been run.
+        """
         for dwave in [1.0, 2.0]:
             cmd = self.exspec_cmd.format(
                 executable=self.executable,
