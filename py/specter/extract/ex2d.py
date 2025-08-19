@@ -349,7 +349,10 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
     w = ivar.ravel()
     W = spdiags(ivar.ravel(), 0, npix, npix)
 
-    print(W.dtype(), A.dtype(), file=sys.stderr)
+    # Investigating possible endian error, see
+    # https://github.com/scipy/scipy/issues/22258
+    # and https://github.com/scipy/scipy/pull/22284
+    print(W.dtype, W.dtype.name, A.dtype, A.dtype.name, file=sys.stderr)
 
     #-----
     #- Extend A with an optional regularization term to limit ringing.
