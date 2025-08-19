@@ -17,28 +17,33 @@ jobs:
             fail-fast: true
             matrix:
                 include:
+                    # Numba forces NumPy < 2.3.
                     - os: ubuntu-latest
                       python-version: '3.13'
-                      numpy-version: '<3.0'
-                      scipy-version: '<1.16'
+                      numpy-version: '<2.3'
+                      scipy-version: '<1.17'
                       astropy-version: '<8.0'
-                      numba-version: '<0.90'
+                      numba-version: '<0.70'
+                    # This should select NumPy 2.1.x
                     - os: ubuntu-latest
                       python-version: '3.12'
                       numpy-version: '<2.2'
-                      scipy-version: '<1.15'
+                      scipy-version: '<1.16'
                       astropy-version: '<7.0'
-                      numba-version: '<0.80'
+                      numba-version: '<0.61'
+                    # This should select NumPy 2.0.x
                     - os: ubuntu-latest
                       python-version: '3.11'
                       numpy-version: '<2.1'
-                      scipy-version: '<1.14'
+                      scipy-version: '<1.15'
                       astropy-version: '<6.1'
-                      numba-version: '<0.70'
+                      numba-version: '<0.61'
+                    # This set is similar to the coverage test, but should pick
+                    # up the most recent NumPy version less than 2.0.
                     - os: ubuntu-latest
                       python-version: '3.10'
                       numpy-version: '<2.0'
-                      scipy-version: '<1.9'
+                      scipy-version: '<1.12'
                       astropy-version: '<6.1'
                       numba-version: '<0.60'
 

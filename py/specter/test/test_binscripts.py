@@ -15,17 +15,17 @@ from importlib.resources import files
 from specter.io import read_image, write_spectra
 from astropy.io import fits
 
-_base = uuid4().hex
-imgfile1 = 'testimg1-'+_base+'.fits'
-imgfile2 = 'testimg2-'+_base+'.fits'
-specfile1 = 'testspec1-'+_base+'.fits'
-specfile2 = 'testspec2-'+_base+'.fits'
-
 
 class TestBinScripts(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        _base = uuid4().hex
+        cls.imgfile1 = 'testimg1-'+_base+'.fits'
+        cls.imgfile2 = 'testimg2-'+_base+'.fits'
+        cls.specfile1 = 'testspec1-'+_base+'.fits'
+        cls.specfile2 = 'testspec2-'+_base+'.fits'
+
         #- when running "python setup.py test", this file is run from different
         #- locations for python 2.7 vs. 3.5
         #- python 2.7: py/specter/test/test_binscripts.py
@@ -83,6 +83,11 @@ class TestBinScripts(unittest.TestCase):
         else:
             os.environ['PYTHONPATH'] = cls.origPath
 
+        # for filename in [cls.imgfile1, cls.imgfile2, cls.specfile1, cls.specfile2]:
+        #     if os.path.exists(filename):
+        #         print("Removing", filename)
+        #         os.remove(filename)
+
     def test_aa(self):
         cmd = """{executable} {specter_dir}/bin/specter \
           -i {sky} \
@@ -96,26 +101,26 @@ class TestBinScripts(unittest.TestCase):
             sky=self.sky_file,
             monospot_file=self.monospot_file,
             throughput_file=self.throughput_file,
-            imgfile = imgfile1)
+            imgfile = self.imgfile1)
         print(cmd)
         err = os.system(cmd)
         self.assertEqual(err, 0, 'Error code {} != 0'.format(err))
-        self.assertTrue(os.path.exists(imgfile1))
+        self.assertTrue(os.path.exists(self.imgfile1))
 
-        with fits.open(imgfile1) as fx:
+        with fits.open(self.imgfile1) as fx:
             self.assertIn('CCDIMAGE', fx)
             self.assertIn('IVAR', fx)
 
         #- Test the I/O routines while we have the file handy
-        image, ivar, hdr = read_image(imgfile1)
+        image, ivar, hdr = read_image(self.imgfile1)
         self.assertEqual(image.shape, ivar.shape)
 
-        os.remove(imgfile1)
+        os.remove(self.imgfile1)
         cmd = cmd + ' --extra'
         err = os.system(cmd)
         self.assertEqual(err, 0, 'Error code {} != 0'.format(err))
-        self.assertTrue(os.path.exists(imgfile1))
-        with fits.open(imgfile1) as fx:
+        self.assertTrue(os.path.exists(self.imgfile1))
+        with fits.open(self.imgfile1) as fx:
             self.assertIn('PHOTONS', fx)
             self.assertIn('XYWAVE', fx)
 
@@ -126,17 +131,17 @@ class TestBinScripts(unittest.TestCase):
             cmd = self.exspec_cmd.format(
                 executable=self.executable,
                 specter_dir=self.specter_dir,
-                imgfile = imgfile1,
+                imgfile = self.imgfile1,
                 monospot_file=self.monospot_file,
-                specfile = specfile1,
+                specfile = self.specfile1,
                 dwave = dwave,
                 specmin=0, nspec=2,
                 )
             err = os.system(cmd)
             self.assertEqual(err, 0, 'Error code {} != 0 with dwave={}'.format(err, dwave))
-            self.assertTrue(os.path.exists(specfile1))
+            self.assertTrue(os.path.exists(self.specfile1))
 
-        with fits.open(specfile1) as fx:
+        with fits.open(self.specfile1) as fx:
             print(fx.info())
             self.assertIn('FLUX', fx)
             self.assertIn('IVAR', fx)
@@ -145,7 +150,7 @@ class TestBinScripts(unittest.TestCase):
 
             #- this is covered in the exspec binscript, but not yet visible to
             #- coverage tools; try it here just for good measure
-            write_spectra(specfile2,
+            write_spectra(self.specfile2,
                 fx['WAVELENGTH'].data, fx['FLUX'].data,
                 fx['IVAR'].data, fx['RESOLUTION'].data, fx[0].header)
 
@@ -154,15 +159,15 @@ class TestBinScripts(unittest.TestCase):
         cmd = self.exspec_cmd.format(
             executable=sys.executable,
             specter_dir=self.specter_dir,
-            imgfile = imgfile1,
+            imgfile = self.imgfile1,
             monospot_file=self.monospot_file,
-            specfile = specfile1,
+            specfile = self.specfile1,
             dwave = 1.0,
             specmin=498, nspec=2,
             )
         err = os.system(cmd)
         self.assertEqual(err, 0, 'Error code {} != 0 for --specrange=498,500'.format(err))
-        self.assertTrue(os.path.exists(specfile1))
+        self.assertTrue(os.path.exists(self.specfile1))
 
     def test_dd(self):
         """Test both single core and dual core running"""
@@ -178,31 +183,20 @@ class TestBinScripts(unittest.TestCase):
               monospot_file=self.monospot_file,
               throughput_file=self.throughput_file)
 
-        if os.path.exists(imgfile1):
-            os.remove(imgfile1)
-        if os.path.exists(imgfile2):
-            os.remove(imgfile2)
+        if os.path.exists(self.imgfile1):
+            os.remove(self.imgfile1)
+        if os.path.exists(self.imgfile2):
+            os.remove(self.imgfile2)
 
-        err = os.system(cmd + " --numcores 1 -o " + imgfile1)
+        err = os.system(cmd + " --numcores 1 -o " + self.imgfile1)
         self.assertEqual(err, 0, 'Error code {} != 0'.format(err))
-        self.assertTrue(os.path.exists(imgfile1))
+        self.assertTrue(os.path.exists(self.imgfile1))
 
-        err = os.system(cmd + " --numcores 2 -o " + imgfile2)
+        err = os.system(cmd + " --numcores 2 -o " + self.imgfile2)
         self.assertEqual(err, 0, 'Error code {} != 0'.format(err))
-        self.assertTrue(os.path.exists(imgfile2))
+        self.assertTrue(os.path.exists(self.imgfile2))
 
-        img1 = fits.getdata(imgfile1)
-        img2 = fits.getdata(imgfile2)
+        img1 = fits.getdata(self.imgfile1)
+        img2 = fits.getdata(self.imgfile2)
 
         self.assertTrue(np.allclose(img1, img2))
-
-    @classmethod
-    def tearDownClass(cls):
-        for filename in [imgfile1, imgfile2, specfile1, specfile2]:
-            if os.path.exists(filename):
-                print("Removing", filename)
-                os.remove(filename)
-
-
-if __name__ == '__main__':
-    unittest.main()
