@@ -38,13 +38,16 @@ def read_image(filename):
             # Isn't this supposed to be the image hdu?
             ivar = fx[0].data
 
-    if image.dtype.byteorder == '>':
-        warnings.warn("Converting image data to little-endian!", ByteOrderWarning)
-        image = image.byteswap()
-
-    if ivar.dtype.byteorder == '>':
-        warnings.warn("Converting ivar data to little-endian!", ByteOrderWarning)
-        ivar = ivar.byteswap()
+    for label, obj in [('image', image), ('ivar', ivar)]:
+        if obj.dtype.byteorder == '>':
+            warnings.warn(f"Converting {label} data to little-endian!", ByteOrderWarning)
+            if obj.dtype.kind == 'f':
+                if obj.dtype.itemsize == 8:
+                    obj = obj.astype(np.float64)
+                elif image.dtype.itemsize == 4:
+                    obj = obj.astype(np.float32)
+                else:
+                    raise ValueError("Cannot convert this dtype!")
 
     return image, ivar, hdr
 
