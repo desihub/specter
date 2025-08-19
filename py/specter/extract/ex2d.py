@@ -345,14 +345,14 @@ def ex2d_patch(image, ivar, psf, specmin, nspec, wavelengths, xyrange=None,
     #- Projection matrix and inverse covariance
     A = psf.projection_matrix(specrange, wavelengths, xyrange, use_cache=use_cache)
 
-    #- Pixel weights matrix
-    w = ivar.ravel()
-    W = spdiags(ivar.ravel(), 0, npix, npix)
-
     # Investigating possible endian error, see
     # https://github.com/scipy/scipy/issues/22258
     # and https://github.com/scipy/scipy/pull/22284
-    print(W.dtype, W.dtype.name, A.dtype, A.dtype.name, file=sys.stderr)
+    print(image.dtype, ivar.dtype, A.dtype, file=sys.stderr)
+
+    #- Pixel weights matrix
+    w = ivar.ravel()
+    W = spdiags(ivar.ravel(), 0, npix, npix)
 
     #-----
     #- Extend A with an optional regularization term to limit ringing.
