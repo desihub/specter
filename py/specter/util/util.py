@@ -184,8 +184,10 @@ def trapz(edges, xp, yp):
         raise ValueError("xp and yp must have same length")
 
     if hasattr(np, 'trapezoid'):
+        # NumPy >= 2.0
         np_trapz = np.trapezoid
     else:
+        # NumPy < 2.0
         np_trapz = np.trapz
     yedge = np.interp(edges, xp, yp)
     result = np.zeros(len(edges)-1)

@@ -10,15 +10,8 @@ January 2013
 """
 import os
 import sys
-import warnings
 from astropy.io import fits
 import numpy as np
-
-
-class ByteOrderWarning(UserWarning):
-    """Used for warnings about byte ordering.
-    """
-    pass
 
 
 def read_image(filename):
@@ -41,12 +34,11 @@ def read_image(filename):
             # Isn't this supposed to be the image hdu?
             ivar = fx[0].data
 
+    # This byteswap technique is copied from redrock.utils.native_endian().
     if not image.dtype.isnative:
-        warnings.warn("Converting image data to little-endian!", ByteOrderWarning)
         image = image.byteswap().view(image.dtype.newbyteorder('native'))
 
     if not ivar.dtype.isnative:
-        warnings.warn("Converting ivar data to little-endian!", ByteOrderWarning)
         ivar = ivar.byteswap().view(ivar.dtype.newbyteorder('native'))
 
     return image, ivar, hdr

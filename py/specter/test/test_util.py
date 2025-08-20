@@ -35,8 +35,10 @@ class TestUtil(unittest.TestCase):
 
     def test_trapz(self):
         if hasattr(np, 'trapezoid'):
+            # NumPy >= 2.0
             np_trapz = np.trapezoid
         else:
+            # NumPy < 2.0
             np_trapz = np.trapz
         x = np.linspace(0, 2, 20)
         y = np.sin(x)
