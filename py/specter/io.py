@@ -18,9 +18,6 @@ def read_image(filename):
     """
     Read (image, ivar, header) from input filename
     """
-    # Changed due to non-native endian error. See e.g.
-    # https://github.com/scipy/scipy/issues/22258
-    # and https://github.com/scipy/scipy/pull/22284
     with fits.open(filename, mode='readonly') as fx:
         if 'IMAGE' in fx:
             image = fx['IMAGE'].data
@@ -31,9 +28,14 @@ def read_image(filename):
         if 'IVAR' in fx:
             ivar = fx['IVAR'].data
         else:
-            # Isn't this supposed to be the image hdu?
-            ivar = fx[0].data
+            ivar = fx[1].data
 
+    # Recent versions of scipy enforce native-endian inputs, particularly for
+    # sparse operations; see e.g., https://github.com/scipy/scipy/issues/22258.
+    # Apparently native-endian was *always* required, but more recent versions
+    # actually enforce this *before* passing to the underlying C/C++ libraries.
+    #
+    # FITS data are stored as big-endian, so we have to swap if necessary.
     # This byteswap technique is copied from redrock.utils.native_endian().
     if not image.dtype.isnative:
         image = image.byteswap().view(image.dtype.newbyteorder('native'))

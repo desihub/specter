@@ -141,7 +141,7 @@ class TestBinScripts(unittest.TestCase):
             cmd += ['--trimxy']  # Trim output image.
         return cmd
 
-    def exspec_command(self, imagefile, specfile, dwave, specmin=0, nwave=2):
+    def exspec_command(self, imagefile, specfile, dwave, specmin=0, nspec=2):
         """Generate a exspec command.
 
         Parameters
@@ -169,7 +169,7 @@ class TestBinScripts(unittest.TestCase):
                '-o', specfile,  # output extracted spectra
                '-w', f'7500,7620,{dwave}',  # wavemin,wavemax,dw
                '--specmin', str(specmin),  # first spectrum to extract
-               '--nspec', str(nwave)]  # Number of spectra to extract
+               '--nspec', str(nspec)]  # Number of spectra to extract
         return cmd
 
     def test_specter_command(self):
