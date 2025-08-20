@@ -123,14 +123,27 @@ class SpotGridPSF(PSF):
         xc, yc = self.xy(ispec, wavelength) # center of PSF in CCD coordinates
         ratio=self.CcdPixelSize/self.SpotPixelSize
 
+        # In the test set-up x, y are scalars, and .ravel() converts them to
+        # arrays with shape (1, ).
         xr=x.ravel()
         yr=y.ravel()
 
+        # Old code, not sure why this is still here.
         #img=spline((x-xc)*ratio,(y-yc)*ratio)
         #return img/np.sum(img)
         img=np.zeros(xr.shape)
         for i in range(xr.size) :
-            img[i]=spline((yr[i]-yc)*ratio,(xr[i]-xc)*ratio)
+            # In the test set-up, spline(y, x) returns an array with
+            # shape (1, 1).
+            #
+            # This started throwing a warning about converting an array with
+            # ndim > 0 to a scalar, because (1, 1) is genuinely incompatible.
+            # img[i]=spline((yr[i]-yc)*ratio,(xr[i]-xc)*ratio)
+            #
+            # It's also not clear why this has to be done element-wise.
+            img[i] = spline((yr[i] - yc)*ratio, (xr[i] - xc)*ratio)[0][0]
+        # In the test set-up, img is a zero-dimensional array, which is distinct
+        # from a scalar, and may be troublesome to deal with.
         return img.reshape(x.shape)
 
 import numba
