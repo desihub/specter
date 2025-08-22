@@ -340,7 +340,7 @@ class GaussHermitePSF(PSF):
             raise ValueError('x and y should be 1D or 2D arrays')
 
         if x.ndim != y.ndim:
-            raise ValueError('x and y should both be 1D or both 2D, not {x.ndim=} {y.ndim=}')
+            raise ValueError(f'x and y should both be 1D or both 2D, not {x.ndim=} {y.ndim=}')
 
         if x.ndim == 1 and y.ndim == 1:
             x, y = np.meshgrid(x, y)
