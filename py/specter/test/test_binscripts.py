@@ -91,7 +91,13 @@ class TestBinScripts(unittest.TestCase):
         else:
             os.environ['PYTHONPATH'] = cls.origPath
 
-        rmtree(cls.tmp_dir)
+        # remove setUpClass files that aren't removed after every test
+        os.remove(cls.imgfile_exspec)
+
+        # At this point the directory should be empty, so remove it.
+        # If the directory isn't empty, this will fail while potentially
+        # saving us from removing more than we intended, e.g. if cls.tmp_dir got reset.
+        os.rmdir(cls.tmp_dir)
 
     def setUp(self):
         """This method runs before every individual test method in this class.
@@ -101,7 +107,10 @@ class TestBinScripts(unittest.TestCase):
     def tearDown(self):
         """This method runs after every individual test method in this class.
         """
-        pass
+        # remove temporary files leftover from individual tests
+        for filename in (self.imgfile1, self.imgfile2, self.specfile1, self.specfile2):
+            if os.path.exists(filename):
+                os.remove(filename)
 
     @classmethod
     def specter_command(cls, imagefile, extra=False, noise=False, trimxy=False):
