@@ -201,8 +201,6 @@ class TestBinScripts(unittest.TestCase):
         self.assertTrue(image.dtype.isnative)
         self.assertTrue(ivar.dtype.isnative)
 
-        os.remove(self.imgfile1)
-
     def test_specter_command_extra(self):
         """Test specter ... --extra.
         """
@@ -217,11 +215,6 @@ class TestBinScripts(unittest.TestCase):
         """
         cmd1 = self.specter_command(self.imgfile1, trimxy=True) + ['--numcores', '1']
         cmd2 = self.specter_command(self.imgfile2, trimxy=True) + ['--numcores', '2']
-
-        if os.path.exists(self.imgfile1):
-            os.remove(self.imgfile1)
-        if os.path.exists(self.imgfile2):
-            os.remove(self.imgfile2)
 
         proc = sp.Popen(cmd1, stdout=sp.PIPE, stderr=sp.PIPE)
         out, err = proc.communicate()
