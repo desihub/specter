@@ -103,13 +103,15 @@ class SpotGridPSF(PSF):
     def _value(self, x, y, ispec, wavelength):
 
         """
-        return PSF value (same shape as x and y), NOT integrated, for display of PSF.
+        return PSF 2D array (shape from x and y), NOT integrated, for display of PSF.
 
         Arguments:
-          x: x-coordinates baseline array (1D or 2D from np.meshgrid)
-          y: y-coordinates baseline array (same shape as x)
+          x: x-coordinates baseline array (1D or 2D)
+          y: y-coordinates baseline array (1D or 2D; if 2D same shape as x)
           ispec: fiber
           wavelength: wavelength
+
+        Returns: 2D psf
         """
 
         # check dimensions and convert to 2D if needed
