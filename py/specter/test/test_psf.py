@@ -13,6 +13,8 @@ import unittest
 from importlib.resources import files
 from specter.psf import load_psf
 from specter.util import custom_hermitenorm, custom_erf
+from specter.psf.spotgrid import SpotGridPSF
+from specter.psf.gausshermite import GaussHermitePSF
 
 class GenericPSFTests(object):
     """
@@ -364,12 +366,39 @@ class GenericPSFTests(object):
 
     #test psf._value to make sure we haven't broken it
     def test_value(self):
+
+        #- psf._value only implemented in some PSF formats; skip others
+        if not isinstance(self.psf, (SpotGridPSF, GaussHermitePSF)):
+            return
+
         ispec = 0
         #value expects a single wavelength
         wave = self.psf.wavelength(0)[0]
-        x = self.psf.x(0, wave)
-        y = self.psf.y(0, wave)
-        img=self.psf._value(x,y,ispec,wave)
+        x0, y0 = self.psf.xy(0, wave)
+        dx = np.linspace(-5,5,21)
+        dy = np.linspace(-5,5,31)
+
+        #- 2D x,y inputs
+        xx, yy = np.meshgrid(x0+dx, y0+dy)
+        img=self.psf._value(xx,yy,ispec,wave)
+        self.assertEqual(img.ndim, 2)
+        self.assertEqual(img.shape, (len(dy), len(dx)))
+
+        #- 1D x,y inputs
+        img=self.psf._value(x0+dx,y0+dy,ispec,wave)
+        self.assertEqual(img.ndim, 2)
+        self.assertEqual(img.shape, (len(dy), len(dx)))
+
+        #- scalar or mismatched dimensionality
+        with self.assertRaises(ValueError):
+            img=self.psf._value(x0,y0,ispec,wave)
+
+        with self.assertRaises(ValueError):
+            img=self.psf._value(xx,y0+dy,ispec,wave)
+
+        with self.assertRaises(ValueError):
+            img=self.psf._value(xx,yy[:,::2],ispec,wave)
+
 
     #- Test shift of PSF xy solution
     @unittest.expectedFailure

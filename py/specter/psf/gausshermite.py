@@ -334,6 +334,18 @@ class GaussHermitePSF(PSF):
           wavelength: wavelength
 
         """
+        # check dimensions and convert to 2D if needed
+        if np.isscalar(x) or np.isscalar(y):
+            raise ValueError('x and y should be 1D or 2D arrays')
+
+        if x.ndim != y.ndim:
+            raise ValueError('x and y should both be 1D or both 2D, not {x.ndim=} {y.ndim=}')
+
+        if x.ndim == 1 and y.ndim == 1:
+            x, y = np.meshgrid(x, y)
+
+        if x.shape != y.shape:
+            raise ValueError(f'{x.shape=} and {y.shape=} should be 2D of the same shape')
 
         # x, y = self.xy(ispec, wavelength)
         xc = self._x.eval(ispec, wavelength)

@@ -106,12 +106,24 @@ class SpotGridPSF(PSF):
         return PSF value (same shape as x and y), NOT integrated, for display of PSF.
 
         Arguments:
-          x: x-coordinates baseline array
+          x: x-coordinates baseline array (1D or 2D from np.meshgrid)
           y: y-coordinates baseline array (same shape as x)
           ispec: fiber
           wavelength: wavelength
         """
 
+        # check dimensions and convert to 2D if needed
+        if np.isscalar(x) or np.isscalar(y):
+            raise ValueError('x and y should be 1D or 2D arrays')
+
+        if x.ndim != y.ndim:
+            raise ValueError('x and y should both be 1D or both 2D, not {x.ndim=} {y.ndim=}')
+
+        if x.ndim == 1 and y.ndim == 1:
+            x, y = np.meshgrid(x, y)
+
+        if x.shape != y.shape:
+            raise ValueError(f'{x.shape=} and {y.shape=} should be 2D of the same shape')
 
         p, w = self._fiberpos[ispec], wavelength
         pix_spot_values=self._fspot(p, w)
@@ -128,22 +140,15 @@ class SpotGridPSF(PSF):
         xr=x.ravel()
         yr=y.ravel()
 
-        # Old code, not sure why this is still here.
-        #img=spline((x-xc)*ratio,(y-yc)*ratio)
-        #return img/np.sum(img)
+        # Conceptually, we want
+        #   img=spline((x-xc)*ratio,(y-yc)*ratio)
+        # but spline doesn't take 2D x,y inputs, so do element-wise
         img=np.zeros(xr.shape)
         for i in range(xr.size) :
-            # In the test set-up, spline(y, x) returns an array with
-            # shape (1, 1).
-            #
-            # This started throwing a warning about converting an array with
-            # ndim > 0 to a scalar, because (1, 1) is genuinely incompatible.
-            # img[i]=spline((yr[i]-yc)*ratio,(xr[i]-xc)*ratio)
-            #
-            # It's also not clear why this has to be done element-wise.
             img[i] = spline((yr[i] - yc)*ratio, (xr[i] - xc)*ratio)[0][0]
-        # In the test set-up, img is a zero-dimensional array, which is distinct
-        # from a scalar, and may be troublesome to deal with.
+
+        img /= np.sum(img)
+
         return img.reshape(x.shape)
 
 import numba
