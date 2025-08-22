@@ -2,10 +2,19 @@
 specter change log
 ==================
 
-0.10.2 (unreleased)
+0.11.1 (unreleased)
 -------------------
 
 * No changes yet.
+
+0.11.0 (2025-08-22)
+-------------------
+
+* Updates for numpy 2.x and PyPI support (PR `#93`_).
+* Update doc config to re-enable searching on readthedocs (PR `#88`_).
+
+.. _`#93`: https://github.com/desihub/specter/pull/93
+.. _`#88`: https://github.com/desihub/specter/pull/88
 
 0.10.1 (2023-01-12)
 -------------------
