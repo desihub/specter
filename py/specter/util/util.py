@@ -163,7 +163,9 @@ def weighted_solve(A, b, w):
     W = spdiags(w, [0,], n, n)
     y = A.T.dot(W.dot(b))
     iCov = A.T.dot(W.dot(A))
-    x = np.linalg.lstsq(iCov, y)[0]
+    # rcond=-1 preserves an old default precision from NumPy ~1.2 era.
+    # This should match what existing tests expect.
+    x = np.linalg.lstsq(iCov, y, rcond=-1)[0]
     return x, iCov
 
 def trapz(edges, xp, yp):
@@ -181,6 +183,12 @@ def trapz(edges, xp, yp):
     if len(xp) != len(yp):
         raise ValueError("xp and yp must have same length")
 
+    if hasattr(np, 'trapezoid'):
+        # NumPy >= 2.0
+        np_trapz = np.trapezoid
+    else:
+        # NumPy < 2.0
+        np_trapz = np.trapz
     yedge = np.interp(edges, xp, yp)
     result = np.zeros(len(edges)-1)
     iedge = np.searchsorted(xp, edges)
@@ -188,7 +196,7 @@ def trapz(edges, xp, yp):
         ilo, ihi = iedge[i], iedge[i+1]
         xx = np.concatenate( (edges[i:i+1], xp[ilo:ihi], edges[i+1:i+2]) )
         yy = np.concatenate( (yedge[i:i+1], yp[ilo:ihi], yedge[i+1:i+2]) )
-        result[i] = np.trapz(yy, xx)
+        result[i] = np_trapz(yy, xx)
 
     return result
 

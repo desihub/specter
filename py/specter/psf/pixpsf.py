@@ -17,9 +17,9 @@ from specter.util import sincshift
 #- Turn off complex -> real warnings in sinc interpolation
 import warnings
 try:
-	warnings.simplefilter("ignore", np.ComplexWarning)
-except   AttributeError:
-	pass
+    warnings.simplefilter("ignore", np.ComplexWarning)
+except AttributeError:
+    pass
 
 class PixPSF(PSF):
     """

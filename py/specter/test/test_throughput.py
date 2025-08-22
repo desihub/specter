@@ -9,14 +9,14 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import os
 import numpy as np
 import unittest
-from pkg_resources import resource_filename
+from importlib.resources import files
 from ..throughput import load_throughput
 
 class TestThroughput(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.thru = load_throughput(resource_filename('specter.test', 't/throughput.fits'))
+        cls.thru = load_throughput(str(files('specter').joinpath('test', 't', 'throughput.fits')))
         cls.w = np.arange(5000, 9000, 1)
 
     def setUp(self):
@@ -33,8 +33,13 @@ class TestThroughput(unittest.TestCase):
         self.assertTrue(self.thru.fiberdia > 0)
 
     def test_atmthru(self):
-        t = self.thru.atmospheric_throughput(self.w)
-        self.assertTrue(np.all( (0.0<=t) & (t<= 1.0)))
+        t0 = self.thru.atmospheric_throughput(self.w)
+        self.assertTrue(np.all((0.0 <= t0) & (t0 <= 1.0)))
+        t1 = self.thru.atmospheric_throughput(self.w, airmass=1.0)
+        t2 = self.thru.atmospheric_throughput(self.w, airmass=2.0)
+        self.assertTrue(np.all(t1 >= 0.0))
+        self.assertTrue(np.all(t2 >= 0.0))
+        self.assertTrue(np.all(t1 >= t2))
 
     def test_atmext(self):
         ext = self.thru.extinction(self.w)

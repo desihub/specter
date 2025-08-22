@@ -13,7 +13,6 @@ from numpy.polynomial import legendre
 from specter import util
 from specter.util import legval_numba
 import unittest
-from pkg_resources import resource_filename
 from specter.psf import load_psf
 
 class TestUtil(unittest.TestCase):
@@ -35,11 +34,17 @@ class TestUtil(unittest.TestCase):
                 self.assertTrue(util.gaussint(-x, sigma=x) == 0.15865525393145707)
 
     def test_trapz(self):
+        if hasattr(np, 'trapezoid'):
+            # NumPy >= 2.0
+            np_trapz = np.trapezoid
+        else:
+            # NumPy < 2.0
+            np_trapz = np.trapz
         x = np.linspace(0, 2, 20)
         y = np.sin(x)
         #- Check integration over full range
         edges = (x[0], x[-1])
-        self.assertTrue(np.trapz(y, x) == util.trapz(edges, x, y)[0])
+        self.assertTrue(np_trapz(y, x) == util.trapz(edges, x, y)[0])
 
         #- Check that integrations add up to each other
         lo = 0.5*(x[0] + x[1])
@@ -97,7 +102,7 @@ class TestUtil(unittest.TestCase):
         x_array_2=np.random.rand(500)
         c_array_1=np.random.rand(8)
         c_array_2=np.random.rand(11)
-       
+
         #make sure legval_numba gets the same answer as numpy legval
         #first test x scalars
         numba_return_scalar_1 = legval_numba(x_scalar_1, c_array_1)

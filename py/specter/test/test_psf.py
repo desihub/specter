@@ -10,9 +10,11 @@ import os
 import numpy as np
 from scipy import special as sp
 import unittest
-from pkg_resources import resource_filename
+from importlib.resources import files
 from specter.psf import load_psf
 from specter.util import custom_hermitenorm, custom_erf
+from specter.psf.spotgrid import SpotGridPSF
+from specter.psf.gausshermite import GaussHermitePSF
 
 class GenericPSFTests(object):
     """
@@ -351,7 +353,7 @@ class GenericPSFTests(object):
     def test_projmat_ispec(self):
         ispec = 0
         ww = self.psf.wavelength(ispec, y=np.arange(0, 10))
-        #legval cache expects a tuple of specmin,specmax 
+        #legval cache expects a tuple of specmin,specmax
         #revert to no_cache for the scalar case
         xyrange = self.psf.xyrange(ispec, ww)
         #make sure we have cleared self.legval_dict
@@ -364,12 +366,39 @@ class GenericPSFTests(object):
 
     #test psf._value to make sure we haven't broken it
     def test_value(self):
+
+        #- psf._value only implemented in some PSF formats; skip others
+        if not isinstance(self.psf, (SpotGridPSF, GaussHermitePSF)):
+            return
+
         ispec = 0
         #value expects a single wavelength
         wave = self.psf.wavelength(0)[0]
-        x = self.psf.x(0, wave)
-        y = self.psf.y(0, wave)
-        img=self.psf._value(x,y,ispec,wave)
+        x0, y0 = self.psf.xy(0, wave)
+        dx = np.linspace(-5,5,21)
+        dy = np.linspace(-5,5,31)
+
+        #- 2D x,y inputs
+        xx, yy = np.meshgrid(x0+dx, y0+dy)
+        img=self.psf._value(xx,yy,ispec,wave)
+        self.assertEqual(img.ndim, 2)
+        self.assertEqual(img.shape, (len(dy), len(dx)))
+
+        #- 1D x,y inputs
+        img=self.psf._value(x0+dx,y0+dy,ispec,wave)
+        self.assertEqual(img.ndim, 2)
+        self.assertEqual(img.shape, (len(dy), len(dx)))
+
+        #- scalar or mismatched dimensionality
+        with self.assertRaises(ValueError):
+            img=self.psf._value(x0,y0,ispec,wave)
+
+        with self.assertRaises(ValueError):
+            img=self.psf._value(xx,y0+dy,ispec,wave)
+
+        with self.assertRaises(ValueError):
+            img=self.psf._value(xx,yy[:,::2],ispec,wave)
+
 
     #- Test shift of PSF xy solution
     @unittest.expectedFailure
@@ -541,7 +570,7 @@ class GenericPSFTests(object):
                 #first test uncached case
                 xx1, yy1, pix1 = self.psf.xypix(ispec, w)
                 #this looks ridiculous but we have to regenerate the cache every time
-                #so that self.legval_dict can be cleared to avoid hitting the 
+                #so that self.legval_dict can be cleared to avoid hitting the
                 #wrong part of _xypix in the non-cache case
                 self.psf.cache_params(spec_range,ww)
                 xx2, yy2, pix2 = self.psf.xypix(ispec, w, ispec_cache=ispec_cache, iwave_cache=iflux)
@@ -587,25 +616,25 @@ class GenericPSFTests(object):
 class TestPixPSF(GenericPSFTests,unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.psf = load_psf(resource_filename("specter.test", "t/psf-pix.fits"))
+        cls.psf = load_psf(str(files("specter").joinpath("test", "t", "psf-pix.fits")))
 
 #- Test SpotGrid PSF format
 class TestSpotPSF(GenericPSFTests,unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.psf = load_psf(resource_filename("specter.test", "t/psf-spot.fits"))
+        cls.psf = load_psf(str(files("specter").joinpath("test", "t", "psf-spot.fits")))
 
 #- Test MonoSpot PSF format
 class TestMonoSpotPSF(GenericPSFTests,unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.psf = load_psf(resource_filename("specter.test", "t/psf-monospot.fits"))
+        cls.psf = load_psf(str(files("specter").joinpath("test", "t", "psf-monospot.fits")))
 
 #- Test GaussHermitePSF format
 class TestGaussHermitePSF(GenericPSFTests,unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.psf = load_psf(resource_filename("specter.test", "t/psf-gausshermite.fits"))
+        cls.psf = load_psf(str(files("specter").joinpath("test", "t", "psf-gausshermite.fits")))
 
     def test_spot_center(self):
         import scipy.ndimage
@@ -627,7 +656,7 @@ class TestGaussHermitePSF(GenericPSFTests,unittest.TestCase):
 class TestGaussHermite2PSF(GenericPSFTests,unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.psf = load_psf(resource_filename("specter.test", "t/psf-gausshermite2.fits"))
+        cls.psf = load_psf(str(files("specter").joinpath("test", "t", "psf-gausshermite2.fits")))
 
 if __name__ == '__main__':
     testLoader = unittest.defaultTestLoader.loadTestsFromTestCase  #- shorthand

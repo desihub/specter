@@ -8,33 +8,43 @@ separate directory as this grows.
 Stephen Bailey, LBL
 January 2013
 """
-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import os
-import os.path
+import sys
 from astropy.io import fits
 import numpy as np
+
 
 def read_image(filename):
     """
     Read (image, ivar, header) from input filename
     """
-    fx = fits.open(filename)
-    if 'IMAGE' in fx:
-        image = fx['IMAGE'].data
-        hdr = fx['IMAGE'].header
-    else:
-        image = fx[0].data
-        hdr = fx[0].header
+    with fits.open(filename, mode='readonly') as fx:
+        if 'IMAGE' in fx:
+            image = fx['IMAGE'].data
+            hdr = fx['IMAGE'].header
+        else:
+            image = fx[0].data
+            hdr = fx[0].header
+        if 'IVAR' in fx:
+            ivar = fx['IVAR'].data
+        else:
+            ivar = fx[1].data
 
-    if 'IVAR' in fx:
-        ivar = fx['IVAR'].data
-    else:
-        ivar = fx[0].data
+    # Recent versions of scipy enforce native-endian inputs, particularly for
+    # sparse operations; see e.g., https://github.com/scipy/scipy/issues/22258.
+    # Apparently native-endian was *always* required, but more recent versions
+    # actually enforce this *before* passing to the underlying C/C++ libraries.
+    #
+    # FITS data are stored as big-endian, so we have to swap if necessary.
+    # This byteswap technique is copied from redrock.utils.native_endian().
+    if not image.dtype.isnative:
+        image = image.byteswap().view(image.dtype.newbyteorder('native'))
 
-    fx.close()
+    if not ivar.dtype.isnative:
+        ivar = ivar.byteswap().view(ivar.dtype.newbyteorder('native'))
+
     return image, ivar, hdr
+
 
 def write_spectra(outfile, wave, flux, ivar, resolution, header):
     """

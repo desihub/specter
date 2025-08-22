@@ -1,12 +1,14 @@
 # Compiled files
-*.py[co]
-__pycache__/
+*.py[cod]
+__pycache__
 *.nbi
 *.nbo
 
 # Other generated files
 htmlcov
 .coverage
+py/desiutil/.cache
+.pytest_cache
 
 # Sphinx
 doc/api
@@ -22,6 +24,7 @@ doc/nb/.ipynb_checkpoints
 dist
 build
 eggs
+.eggs
 parts
 var
 sdist
@@ -33,6 +36,8 @@ MANIFEST
 # Other
 .*.swp
 *~
+.vscode
+.env
 
 # Mac OSX
 .DS_Store

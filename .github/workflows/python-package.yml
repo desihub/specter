@@ -1,0 +1,170 @@
+# Workflow is based on the Astropy GitHub actions workflow, ci_workflows.yml
+name: CI
+
+on:
+    push:
+        branches:
+            - '*'
+        tags:
+            - '*'
+    pull_request:
+
+jobs:
+    tests:
+        name: Unit tests
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: true
+            matrix:
+                include:
+                    # Numba forces NumPy < 2.3.
+                    - os: ubuntu-latest
+                      python-version: '3.13'
+                      numpy-version: '<2.3'
+                      scipy-version: '<1.17'
+                      astropy-version: '<8.0'
+                      numba-version: '<0.70'
+                    # This should select NumPy 2.1.x
+                    - os: ubuntu-latest
+                      python-version: '3.12'
+                      numpy-version: '<2.2'
+                      scipy-version: '<1.16'
+                      astropy-version: '<7.0'
+                      numba-version: '<0.61'
+                    # This should select NumPy 2.0.x
+                    - os: ubuntu-latest
+                      python-version: '3.11'
+                      numpy-version: '<2.1'
+                      scipy-version: '<1.15'
+                      astropy-version: '<6.1'
+                      numba-version: '<0.61'
+                    # This set is similar to the coverage test, but should pick
+                    # up the most recent NumPy version less than 2.0.
+                    - os: ubuntu-latest
+                      python-version: '3.10'
+                      numpy-version: '<2.0'
+                      scipy-version: '<1.12'
+                      astropy-version: '<6.1'
+                      numba-version: '<0.60'
+
+        steps:
+            - name: Install System Packages
+              run: sudo apt install libbz2-dev subversion
+            - name: Checkout code
+              uses: actions/checkout@v4
+            - name: Set up Python ${{ matrix.python-version }}
+              uses: actions/setup-python@v5
+              with:
+                python-version: ${{ matrix.python-version }}
+            - name: Install Python dependencies
+              run: |
+                python -m pip install --upgrade pip setuptools wheel
+                python -m pip install "numpy${{ matrix.numpy-version}}" "scipy${{ matrix.scipy-version }}" "astropy${{ matrix.astropy-version }}" "numba${{ matrix.numba-version }}"
+                python -m pip cache remove fitsio
+                python -m pip install --no-deps --force-reinstall --ignore-installed fitsio
+                python -m pip install pytest
+            - name: Run the test
+              run: pytest
+
+    coverage:
+        name: Test coverage
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: true
+            matrix:
+                os: [ubuntu-latest]
+                python-version: ['3.10']
+
+        steps:
+            - name: Install System Packages
+              run: sudo apt install libbz2-dev subversion
+            - name: Checkout code
+              uses: actions/checkout@v4
+            - name: Set up Python ${{ matrix.python-version }}
+              uses: actions/setup-python@v5
+              with:
+                python-version: ${{ matrix.python-version }}
+            - name: Install Python dependencies
+              run: |
+                python -m pip install --upgrade pip setuptools wheel
+                python -m pip install numpy\<1.23 scipy\<1.9 astropy\<6.1 numba\<0.60
+                python -m pip cache remove fitsio
+                python -m pip install --no-deps --force-reinstall --ignore-installed fitsio
+                python -m pip install pytest pytest-cov coveralls
+            - name: Run the test with coverage
+              run: pytest --cov
+            - name: Coveralls
+              env:
+                COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: coveralls
+
+    docs:
+        name: Doc test
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest]
+                python-version: ['3.10']
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+            - name: Set up Python ${{ matrix.python-version }}
+              uses: actions/setup-python@v5
+              with:
+                python-version: ${{ matrix.python-version }}
+            - name: Install Python dependencies
+              run: python -m pip install --upgrade pip setuptools wheel Sphinx sphinx-rtd-theme
+            - name: Test the documentation
+              run: sphinx-build -W --keep-going -b html doc doc/_build/html
+
+    api:
+        name: API doc completeness test
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest]
+                python-version: ['3.13']
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+            - name: Set up Python ${{ matrix.python-version }}
+              uses: actions/setup-python@v5
+              with:
+                python-version: ${{ matrix.python-version }}
+            - name: Install Python dependencies
+              run: python -m pip install --upgrade pip setuptools wheel
+            - name: Install DESI dependencies
+              env:
+                DESIUTIL_VERSION: 3.5.2
+              run: python -m pip install desiutil==${DESIUTIL_VERSION}
+            - name: Generate api.rst
+              run: desi_api_file --api ./api.rst specter
+            - name: Compare generated api.rst to checked-in version
+              run: diff --ignore-space-change --ignore-blank-lines ./api.rst ./doc/api.rst
+
+    style:
+        name: Style check
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest]
+                python-version: ['3.10']
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+            - name: Set up Python ${{ matrix.python-version }}
+              uses: actions/setup-python@v5
+              with:
+                python-version: ${{ matrix.python-version }}
+            - name: Install Python dependencies
+              run: python -m pip install --upgrade pip setuptools wheel pycodestyle
+            - name: Test the style
+              # Uncomment this to allow failures
+              continue-on-error: true
+              run: pycodestyle --statistics py/specter

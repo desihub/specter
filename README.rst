@@ -2,6 +2,20 @@
 Specter
 =======
 
+|Actions Status| |Coveralls Status| |Documentation Status|
+
+.. |Actions Status| image:: https://github.com/desihub/specter/workflows/CI/badge.svg
+    :target: https://github.com/desihub/specter/actions
+    :alt: GitHub Actions CI Status
+
+.. |Coveralls Status| image:: https://coveralls.io/repos/github/desihub/specter/badge.svg
+    :target: https://coveralls.io/github/desihub/specter
+    :alt: Test Coverage Status
+
+.. |Documentation Status| image:: https://readthedocs.org/projects/desi-specter/badge/?version=latest
+    :target: https://desi-specter.readthedocs.io/en/latest/
+    :alt: Documentation Status
+
 Introduction
 ------------
 
@@ -91,27 +105,7 @@ Full Documentation
 
 Please visit `specter on Read the Docs`_
 
-.. image:: https://readthedocs.org/projects/desi-specter/badge/?version=latest
-    :target: https://desi-specter.readthedocs.io/en/latest/
-    :alt: Documentation Status
-
 .. _`specter on Read the Docs`: https://desi-specter.readthedocs.io/en/latest/
-
-
-Travis Build Status
--------------------
-
-.. image:: https://img.shields.io/travis/desihub/specter.svg
-    :target: https://travis-ci.org/desihub/specter
-    :alt: Travis Build Status
-
-
-Test Coverage Status
---------------------
-
-.. image:: https://coveralls.io/repos/desihub/specter/badge.svg?service=github
-    :target: https://coveralls.io/github/desihub/specter
-    :alt: Test Coverage Status
 
 License
 -------

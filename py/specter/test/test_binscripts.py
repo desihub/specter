@@ -7,30 +7,36 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import os
 import sys
-import numpy as np
 import unittest
-from astropy.io import fits
+import subprocess as sp
+from shutil import rmtree
+from tempfile import mkdtemp
 from uuid import uuid4
-from pkg_resources import resource_filename
-from specter.io import read_image, write_spectra
+from importlib.resources import files
+import numpy as np
 from astropy.io import fits
-
-_base = uuid4().hex
-imgfile1 = 'testimg1-'+_base+'.fits'
-imgfile2 = 'testimg2-'+_base+'.fits'
-specfile1 = 'testspec1-'+_base+'.fits'
-specfile2 = 'testspec2-'+_base+'.fits'
+from specter.io import read_image, write_spectra
 
 
 class TestBinScripts(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        """This method runs before any other methods in this class.
+        """
+        cls.tmp_dir = mkdtemp()
+        _base = uuid4().hex
+        cls.imgfile1 = os.path.join(cls.tmp_dir, f'testimg1-{_base}.fits')
+        cls.imgfile2 = os.path.join(cls.tmp_dir, f'testimg2-{_base}.fits')
+        cls.imgfile_exspec = os.path.join(cls.tmp_dir, f'testimg-exspec-{_base}.fits')
+        cls.specfile1 = os.path.join(cls.tmp_dir, f'testspec1-{_base}.fits')
+        cls.specfile2 = os.path.join(cls.tmp_dir, f'testspec2-{_base}.fits')
+
         #- when running "python setup.py test", this file is run from different
         #- locations for python 2.7 vs. 3.5
         #- python 2.7: py/specter/test/test_binscripts.py
         #- python 3.5: build/lib/specter/test/test_binscripts.py
-        
+
         #- python 2.7 location:
         cls.specter_dir = os.path.dirname( # top-level
             os.path.dirname( # py/
@@ -56,17 +62,11 @@ class TestBinScripts(unittest.TestCase):
 
         if not os.path.isdir(cls.specter_dir + '/bin'):
             raise RuntimeError('Unable to auto-locate specter/bin from {}'.format(__file__))
-            
+
         cls.executable = sys.executable
-        cls.sky_file = resource_filename('specter', 'data/sky-uves.fits')
-        cls.monospot_file = resource_filename('specter.test', 't/psf-monospot.fits')
-        cls.throughput_file = resource_filename('specter.test', 't/throughput.fits')
-        cls.exspec_cmd = """{executable} {specter_dir}/bin/exspec \
-          -i {imgfile} \
-          -p {monospot_file} \
-          -o {specfile} \
-          -w 7500,7620,{dwave} \
-          --specmin {specmin} --nspec {nspec}"""
+        cls.sky_file = str(files('specter').joinpath('data', 'sky-uves.fits'))
+        cls.monospot_file = str(files('specter').joinpath('test', 't', 'psf-monospot.fits'))
+        cls.throughput_file = str(files('specter').joinpath('test', 't', 'throughput.fits'))
 
         #- Add this package to PYTHONPATH so that binscripts can find it
         try:
@@ -76,131 +76,187 @@ class TestBinScripts(unittest.TestCase):
             cls.origPath = None
             os.environ['PYTHONPATH'] = os.path.join(cls.specter_dir,'py')
 
+        # Generate input file needed for exspec tests.
+        cmd = cls.specter_command(cls.imgfile_exspec, extra=True, noise=True)
+        proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+        out, err = proc.communicate()
+        cls.extra_returned = (proc.returncode, out.decode('utf-8'), err.decode('utf-8'))
+
     @classmethod
     def tearDownClass(cls):
+        """This method runs after all other test methods in this class.
+        """
         if cls.origPath is None:
             del os.environ['PYTHONPATH']
         else:
             os.environ['PYTHONPATH'] = cls.origPath
 
-    def test_aa(self):
-        cmd = """{executable} {specter_dir}/bin/specter \
-          -i {sky} \
-          -p {monospot_file} \
-          -t {throughput_file} \
-          -o {imgfile} \
-          -w 7500,7620 \
-          -n --specmin 0 --nspec 2 --exptime 1500""".format(
-            executable=self.executable,
-            specter_dir=self.specter_dir,
-            sky=self.sky_file,
-            monospot_file=self.monospot_file,
-            throughput_file=self.throughput_file,
-            imgfile = imgfile1)
-        print(cmd)
-        err = os.system(cmd)
-        self.assertEqual(err, 0, 'Error code {} != 0'.format(err))
-        self.assertTrue(os.path.exists(imgfile1))
+        # remove setUpClass files that aren't removed after every test
+        os.remove(cls.imgfile_exspec)
 
-        with fits.open(imgfile1) as fx:
+        # At this point the directory should be empty, so remove it.
+        # If the directory isn't empty, this will fail while potentially
+        # saving us from removing more than we intended, e.g. if cls.tmp_dir got reset.
+        os.rmdir(cls.tmp_dir)
+
+    def setUp(self):
+        """This method runs before every individual test method in this class.
+        """
+        pass
+
+    def tearDown(self):
+        """This method runs after every individual test method in this class.
+        """
+        # remove temporary files leftover from individual tests
+        for filename in (self.imgfile1, self.imgfile2, self.specfile1, self.specfile2):
+            if os.path.exists(filename):
+                os.remove(filename)
+
+    @classmethod
+    def specter_command(cls, imagefile, extra=False, noise=False, trimxy=False):
+        """Generate a specter command.
+
+        Parameters
+        ----------
+        imagefile : :class:`str`
+            2d image file name used as output.
+        extra : :class:`bool`, optional
+            If ``True``, add ``--extra`` to the command.
+        noise : :class:`bool`, optional
+            If ``True``, add ``--noise`` to the command.
+        trimxy : :class:`bool`, optional
+            If ``True``, add ``--trimxy`` to the command.
+
+        Returns
+        -------
+        :class:`list`
+            A list suitable for passing to :class:`subprocess.Popen`.
+        """
+        cmd = [cls.executable,
+               os.path.join(cls.specter_dir, 'bin', 'specter'),
+               '-i', cls.sky_file,  # Input spectra, in this case sky lines.
+               '-p', cls.monospot_file,  # Input PSF
+               '-t', cls.throughput_file,  # Throughput file
+               '-o', imagefile,  # Output file
+               '-w', '7500,7620',  # Wavelength range
+               '--specmin', '0',  # Starting index for simulated spectra
+               '--nspec', '2',  # Number of spectra to simulate
+               '--exptime', '1500']  # Exposure time
+        if extra:
+            cmd += ['--extra']  # Write extra HDUs to output.
+        if noise:
+            cmd += ['--noise']  # Add noise.
+        if trimxy:
+            cmd += ['--trimxy']  # Trim output image.
+        return cmd
+
+    def exspec_command(self, imagefile, specfile, dwave, specmin=0, nspec=2):
+        """Generate a exspec command.
+
+        Parameters
+        ----------
+        imagefile : :class:`str`
+            "Raw" image file used as input.
+        specfile : :class:`str`
+            "Extracted" spectrum file used as output.
+        dwave : :class:`float`
+            Interval between wavelength bins.
+        specmin : :class:`int`, optional
+            First spectrum to extract.
+        nwave : :class:`int`, optional
+            Number of spectra to extract.
+
+        Returns
+        -------
+        :class:`list`
+            A list suitable for passing to :class:`subprocess.Popen`.
+        """
+        cmd = [self.executable,
+               os.path.join(self.specter_dir, 'bin', 'exspec'),
+               '-i', imagefile,  # Input image
+               '-p', self.monospot_file,  # Input PSF
+               '-o', specfile,  # output extracted spectra
+               '-w', f'7500,7620,{dwave}',  # wavemin,wavemax,dw
+               '--specmin', str(specmin),  # first spectrum to extract
+               '--nspec', str(nspec)]  # Number of spectra to extract
+        return cmd
+
+    def test_specter_command(self):
+        """Test the outputs of a specter command.
+        """
+        cmd = self.specter_command(self.imgfile1, noise=True)
+        # print(cmd)
+        proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+        out, err = proc.communicate()
+        self.assertEqual(proc.returncode, 0, 'Error code {} != 0'.format(proc.returncode))
+        self.assertTrue(os.path.exists(self.imgfile1))
+
+        with fits.open(self.imgfile1) as fx:
             self.assertIn('CCDIMAGE', fx)
             self.assertIn('IVAR', fx)
 
         #- Test the I/O routines while we have the file handy
-        image, ivar, hdr = read_image(imgfile1)
+        image, ivar, hdr = read_image(self.imgfile1)
         self.assertEqual(image.shape, ivar.shape)
+        self.assertTrue(image.dtype.isnative)
+        self.assertTrue(ivar.dtype.isnative)
 
-        os.remove(imgfile1)
-        cmd = cmd + ' --extra'
-        err = os.system(cmd)
-        self.assertEqual(err, 0, 'Error code {} != 0'.format(err))
-        self.assertTrue(os.path.exists(imgfile1))
-        with fits.open(imgfile1) as fx:
+    def test_specter_command_extra(self):
+        """Test specter ... --extra.
+        """
+        self.assertEqual(self.extra_returned[0], 0, 'Error code {} != 0'.format(self.extra_returned[0]))
+        self.assertTrue(os.path.exists(self.imgfile_exspec))
+        with fits.open(self.imgfile_exspec) as fx:
             self.assertIn('PHOTONS', fx)
             self.assertIn('XYWAVE', fx)
 
-    def test_bb(self):
-        for dwave in [1.0, 2.0]:
-            cmd = self.exspec_cmd.format(
-                executable=self.executable,
-                specter_dir=self.specter_dir,
-                imgfile = imgfile1,
-                monospot_file=self.monospot_file,
-                specfile = specfile1,
-                dwave = dwave,
-                specmin=0, nspec=2,
-                )
-            err = os.system(cmd)
-            self.assertEqual(err, 0, 'Error code {} != 0 with dwave={}'.format(err, dwave))
-            self.assertTrue(os.path.exists(specfile1))
+    def test_specter_command_cores(self):
+        """Compare specter results running on 1 or 2 cores.
+        """
+        cmd1 = self.specter_command(self.imgfile1, trimxy=True) + ['--numcores', '1']
+        cmd2 = self.specter_command(self.imgfile2, trimxy=True) + ['--numcores', '2']
 
-        with fits.open(specfile1) as fx:
-            print(fx.info())
-            self.assertIn('FLUX', fx)
-            self.assertIn('IVAR', fx)
-            self.assertIn('WAVELENGTH', fx)
-            self.assertIn('RESOLUTION', fx)
+        proc = sp.Popen(cmd1, stdout=sp.PIPE, stderr=sp.PIPE)
+        out, err = proc.communicate()
+        self.assertEqual(proc.returncode, 0, 'Error code {} != 0'.format(proc.returncode))
+        self.assertTrue(os.path.exists(self.imgfile1))
 
-            #- this is covered in the exspec binscript, but not yet visible to
-            #- coverage tools; try it here just for good measure
-            write_spectra(specfile2,
-                fx['WAVELENGTH'].data, fx['FLUX'].data,
-                fx['IVAR'].data, fx['RESOLUTION'].data, fx[0].header)
+        proc = sp.Popen(cmd2, stdout=sp.PIPE, stderr=sp.PIPE)
+        out, err = proc.communicate()
+        self.assertEqual(proc.returncode, 0, 'Error code {} != 0'.format(proc.returncode))
+        self.assertTrue(os.path.exists(self.imgfile2))
 
-    def test_cc(self):
-        #- Also check it works for the last fibers and not just the first ones
-        cmd = self.exspec_cmd.format(
-            executable=sys.executable,
-            specter_dir=self.specter_dir,
-            imgfile = imgfile1,
-            monospot_file=self.monospot_file,
-            specfile = specfile1,
-            dwave = 1.0,
-            specmin=498, nspec=2,
-            )
-        err = os.system(cmd)
-        self.assertEqual(err, 0, 'Error code {} != 0 for --specrange=498,500'.format(err))
-        self.assertTrue(os.path.exists(specfile1))
-
-    def test_dd(self):
-        """Test both single core and dual core running"""
-        cmd = """{executable} {specter_dir}/bin/specter \
-          -i {sky} \
-          -p {monospot_file} \
-          -t {throughput_file} \
-          -w 7500,7620 \
-          --specmin 0 --nspec 2 --exptime 1500 --trimxy""".format(
-              executable=self.executable,
-              specter_dir=self.specter_dir,
-              sky=self.sky_file,
-              monospot_file=self.monospot_file,
-              throughput_file=self.throughput_file)
-
-        if os.path.exists(imgfile1):
-            os.remove(imgfile1)
-        if os.path.exists(imgfile2):
-            os.remove(imgfile2)
-
-        err = os.system(cmd + " --numcores 1 -o " + imgfile1)
-        self.assertEqual(err, 0, 'Error code {} != 0'.format(err))
-        self.assertTrue(os.path.exists(imgfile1))
-
-        err = os.system(cmd + " --numcores 2 -o " + imgfile2)
-        self.assertEqual(err, 0, 'Error code {} != 0'.format(err))
-        self.assertTrue(os.path.exists(imgfile2))
-
-        img1 = fits.getdata(imgfile1)
-        img2 = fits.getdata(imgfile2)
+        img1 = fits.getdata(self.imgfile1)
+        img2 = fits.getdata(self.imgfile2)
 
         self.assertTrue(np.allclose(img1, img2))
 
-    @classmethod
-    def tearDownClass(cls):
-        for filename in [imgfile1, imgfile2, specfile1, specfile2]:
-            if os.path.exists(filename):
-                print("Removing", filename)
-                os.remove(filename)
+    def test_exspec(self):
+        """Test the exspec command.
 
+        This test requires a file that should be generated by setUpClass().
+        """
+        check_specfile = True
+        for dwave, specmin, nspec in [(1.0, 0, 2), (2.0, 0, 2), (1.0, 498, 2)]:
+            cmd = self.exspec_command(self.imgfile_exspec, self.specfile1,
+                                      dwave=dwave, specmin=specmin, nspec=nspec)
+            proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+            out, err = proc.communicate()
+            self.assertEqual(proc.returncode, 0,
+                             'Error code {} != 0 with dwave={}, specmin={}, nspec={}.'.format(proc.returncode, dwave, specmin, nspec))
+            self.assertTrue(os.path.exists(self.specfile1))
 
-if __name__ == '__main__':
-    unittest.main()
+            if check_specfile:
+                with fits.open(self.specfile1) as fx:
+                    # print(fx.info())
+                    self.assertIn('FLUX', fx)
+                    self.assertIn('IVAR', fx)
+                    self.assertIn('WAVELENGTH', fx)
+                    self.assertIn('RESOLUTION', fx)
+
+                    #- this is covered in the exspec binscript, but not yet visible to
+                    #- coverage tools; try it here just for good measure
+                    write_spectra(self.specfile2,
+                        fx['WAVELENGTH'].data, fx['FLUX'].data,
+                        fx['IVAR'].data, fx['RESOLUTION'].data, fx[0].header)
+                check_specfile = False  # This check only needs to run once.

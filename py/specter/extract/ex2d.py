@@ -131,7 +131,7 @@ def ex2d(image, imageivar, psf, specmin, nspec, wavelengths, xyrange=None,
         for subbundle_index in range(len(iiextract)):
             speclo = bundlelo + iiextract[subbundle_index][0]
             spechi = bundlelo + iiextract[subbundle_index][-1]+1
-            keep = np.in1d(iiextract[subbundle_index], iibundle[subbundle_index])
+            keep = np.isin(iiextract[subbundle_index], iibundle[subbundle_index])
 
             specrange = (speclo, spechi)
 

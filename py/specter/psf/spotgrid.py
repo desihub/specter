@@ -103,15 +103,29 @@ class SpotGridPSF(PSF):
     def _value(self, x, y, ispec, wavelength):
 
         """
-        return PSF value (same shape as x and y), NOT integrated, for display of PSF.
+        return PSF 2D array (shape from x and y), NOT integrated, for display of PSF.
 
         Arguments:
-          x: x-coordinates baseline array
-          y: y-coordinates baseline array (same shape as x)
+          x: x-coordinates baseline array (1D or 2D)
+          y: y-coordinates baseline array (1D or 2D; if 2D same shape as x)
           ispec: fiber
           wavelength: wavelength
+
+        Returns: 2D psf
         """
 
+        # check dimensions and convert to 2D if needed
+        if np.isscalar(x) or np.isscalar(y):
+            raise ValueError('x and y should be 1D or 2D arrays')
+
+        if x.ndim != y.ndim:
+            raise ValueError(f'x and y should both be 1D or both 2D, not {x.ndim=} {y.ndim=}')
+
+        if x.ndim == 1 and y.ndim == 1:
+            x, y = np.meshgrid(x, y)
+
+        if x.shape != y.shape:
+            raise ValueError(f'{x.shape=} and {y.shape=} should be 2D of the same shape')
 
         p, w = self._fiberpos[ispec], wavelength
         pix_spot_values=self._fspot(p, w)
@@ -123,14 +137,20 @@ class SpotGridPSF(PSF):
         xc, yc = self.xy(ispec, wavelength) # center of PSF in CCD coordinates
         ratio=self.CcdPixelSize/self.SpotPixelSize
 
+        # In the test set-up x, y are scalars, and .ravel() converts them to
+        # arrays with shape (1, ).
         xr=x.ravel()
         yr=y.ravel()
 
-        #img=spline((x-xc)*ratio,(y-yc)*ratio)
-        #return img/np.sum(img)
+        # Conceptually, we want
+        #   img=spline((x-xc)*ratio,(y-yc)*ratio)
+        # but spline doesn't take 2D x,y inputs, so do element-wise
         img=np.zeros(xr.shape)
         for i in range(xr.size) :
-            img[i]=spline((yr[i]-yc)*ratio,(xr[i]-xc)*ratio)
+            img[i] = spline((yr[i] - yc)*ratio, (xr[i] - xc)*ratio)[0][0]
+
+        img /= np.sum(img)
+
         return img.reshape(x.shape)
 
 import numba
