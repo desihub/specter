@@ -5,7 +5,9 @@ specter change log
 0.11.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Add Dockerfile for specter tests (PR `#98`_).
+
+.. _`#98`: https://github.com/desihub/specter/pull/98
 
 0.11.0 (2025-08-22)
 -------------------
