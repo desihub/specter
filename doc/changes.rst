@@ -142,9 +142,11 @@ specter change log
 0.8.0 (2017-09-29)
 ------------------
 
+* Memory (PR `#49`_).
 * Added subbundle divide-and-conquer extractions for ~2x speedup (PR `#51`_).
 * Added GaussHermite PSF format v3 (PR `#52`_).
 
+.. _`#49`: https://github.com/desihub/specter/pull/49
 .. _`#51`: https://github.com/desihub/specter/pull/51
 .. _`#52`: https://github.com/desihub/specter/pull/52
 
@@ -155,15 +157,28 @@ specter change log
 * Enable projecting photons onto multiple images simultaneously
 * Fix GaussHermite PSF spot size and centering bugs
 * New PSF function ._value to evaluate non-pixel-integrated PSF values
+* update module file (PR `#43`_).
+* index fix for small PSFs (PR `#45`_).
+* Multi project (PR `#46`_).
+* fix GH PSF spot centering (PR `#47`_).
+* Non integrated psf value (PR `#48`_).
+
+.. _`#43`: https://github.com/desihub/specter/pull/43
+.. _`#45`: https://github.com/desihub/specter/pull/45
+.. _`#46`: https://github.com/desihub/specter/pull/46
+.. _`#47`: https://github.com/desihub/specter/pull/47
+.. _`#48`: https://github.com/desihub/specter/pull/48
 
 0.6.0 (2016-08-16)
 ------------------
 
+* python3 updates (PR `#39`_).
 * Added full_output option to ex2d to get model image and metrics based upon
   goodness of fit (PR `#40`_).
 * PSFs can specify their model error with PSFERR header keyword; default 0.01
   (PR `#40`_).
 
+.. _`#39`: https://github.com/desihub/specter/pull/39
 .. _`#40`: https://github.com/desihub/specter/pull/40
 
 0.5.0 (2016-05-23)
@@ -173,12 +188,20 @@ specter change log
 * Load test files in class methods to hopefully speed up tests.
 * Improve Travis test support to latest standards.
 * Added a documentation page for the specter API.
+* Pip installable data (PR `#37`_).
+
+.. _`#37`: https://github.com/desihub/specter/pull/37
 
 0.4.1 (2016-03-10)
 ------------------
 
 * Bug fixes for small PSFs, and fixes of the fixes
 * This is a release candidate for DESI Spectro Pipeline 2016a
+* refactored most of exspec script into function (PR `#32`_).
+* fix ex2d when PSF spots are small (PR `#33`_).
+
+.. _`#32`: https://github.com/desihub/specter/pull/32
+.. _`#33`: https://github.com/desihub/specter/pull/33
 
 0.4 (2016-03-03)
 ----------------
@@ -187,6 +210,11 @@ specter change log
   API change to ex2d() to use specmin,nspec instead of
   specrange=(specmin,specmax)
 * removed desiutil dependency
+* Less scipy (PR `#29`_).
+* Coverage (PR `#30`_).
+
+.. _`#29`: https://github.com/desihub/specter/pull/29
+.. _`#30`: https://github.com/desihub/specter/pull/30
 
 0.3 (2015-12-15)
 ----------------
@@ -194,6 +222,19 @@ specter change log
 * pip install support, among many changes.
 * This version includes the desiutil infrastructure.  This will probably be
   removed in the future, but for now this is needed for installation support.
+* Fix fiberloss (PR `#12`_).
+* Pip install support, etc. (PR `#13`_).
+* astropy.io.fits instead of fitsio (PR `#19`_).
+* Spotgrid (PR `#21`_).
+* Signal Decorrelation (PR `#23`_).
+* Specrange (PR `#25`_).
+
+.. _`#12`: https://github.com/desihub/specter/pull/12
+.. _`#13`: https://github.com/desihub/specter/pull/13
+.. _`#19`: https://github.com/desihub/specter/pull/19
+.. _`#21`: https://github.com/desihub/specter/pull/21
+.. _`#23`: https://github.com/desihub/specter/pull/23
+.. _`#25`: https://github.com/desihub/specter/pull/25
 
 0.2.5 (2015-04-14)
 ------------------
