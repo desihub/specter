@@ -50,70 +50,103 @@ specter change log
 0.9.3 (2020-04-16)
 ------------------
 
-* Improve handling of heavily (or completely) masked inputs (PR #78).
+* Improve handling of heavily (or completely) masked inputs (PR `#78`_).
+
+.. _`#78`: https://github.com/desihub/specter/pull/78
 
 0.9.2 (2020-04-07)
 ------------------
 
-* Fix NaN flux coming from masked input pixels (PR #76).
+* Fix NaN flux coming from masked input pixels (PR `#76`_).
+
+.. _`#76`: https://github.com/desihub/specter/pull/76
 
 0.9.1 (2018-11-07)
 ------------------
 
 * Faster Pixelated Gauss-Hermite (pgh) for ~25-30% extraction speedup
-  (PR #71 and #73).
-* Faster xypix 10-50% extraction speedup (PR #74).
-* Memory and operation order improvements for ~few percent speedup (PR #75).
+  (PR `#71`_ and `#73`_).
+* Faster xypix 10-50% extraction speedup (PR `#74`_).
+* Memory and operation order improvements for ~few percent speedup (PR `#75`_).
+
+.. _`#71`: https://github.com/desihub/specter/pull/71
+.. _`#73`: https://github.com/desihub/specter/pull/73
+.. _`#74`: https://github.com/desihub/specter/pull/74
+.. _`#75`: https://github.com/desihub/specter/pull/75
 
 0.9.0 (2018-09-26)
 ------------------
 
-* Faster extractions by vectorizing and caching legval calls (PR #70).
+* Faster extractions by vectorizing and caching legval calls (PR `#70`_).
+
+.. _`#70`: https://github.com/desihub/specter/pull/70
 
 0.8.7 (2018-07-26)
 ------------------
 
-* Add custom `xsigma` and `ysigma` functions to GaussHermitePSF (PR #66).
-* Don't use numba caching due to MPI race condition (PR #67).
-* Small speed improvements (PR #68 and #69).
+* Add custom `xsigma` and `ysigma` functions to GaussHermitePSF (PR `#66`_).
+* Don't use numba caching due to MPI race condition (PR `#67`_).
+* Small speed improvements (PR `#68`_ and `#69`_).
+
+.. _`#66`: https://github.com/desihub/specter/pull/66
+.. _`#67`: https://github.com/desihub/specter/pull/67
+.. _`#68`: https://github.com/desihub/specter/pull/68
+.. _`#69`: https://github.com/desihub/specter/pull/69
 
 0.8.6 (2018-06-27)
 ------------------
 
-* Added numba-ized legval for ~20% overall ex2d speedup (PR #61).
-* Fixed tests (PR #62).
-* Less regularization for ringing to lower bias (PR #63).
+* Added numba-ized legval for ~20% overall ex2d speedup (PR `#61`_).
+* Fixed tests (PR `#62`_).
+* Less regularization for ringing to lower bias (PR `#63`_).
+
+.. _`#61`: https://github.com/desihub/specter/pull/61
+.. _`#62`: https://github.com/desihub/specter/pull/62
+.. _`#63`: https://github.com/desihub/specter/pull/63
 
 0.8.5 (2018-05-10)
 ------------------
 
-* Allow user to override psferr in ex2d (PR #60)
+* Allow user to override psferr in ex2d (PR `#60`_).
+
+.. _`#60`: https://github.com/desihub/specter/pull/60
 
 0.8.4 (2018-03-29)
 ------------------
 
-* np.outer replacement for 6% faster runtime (PR #58)
+* np.outer replacement for 6% faster runtime (PR `#58`_).
+
+.. _`#58`: https://github.com/desihub/specter/pull/58
 
 0.8.3 (2018-02-23)
 ------------------
 
-* SpotGrid speedup (used by DESI pixsim); adds numba dependency (PR #56)
+* SpotGrid speedup (used by DESI pixsim); adds numba dependency (PR `#56`_).
+
+.. _`#56`: https://github.com/desihub/specter/pull/56
 
 0.8.2 (2017-12-20)
 ------------------
 
-* Don't require 2to3 during installations; fix license (PR #55)
+* Don't require 2to3 during installations; fix license (PR `#55`_).
+
+.. _`#55`: https://github.com/desihub/specter/pull/55
 
 0.8.1 (2017-10-25)
 ------------------
 
-* Robust even if nsubbundles>bundlesize (PR #53)
+* Robust even if nsubbundles>bundlesize (PR `#53`_).
+
+.. _`#53`: https://github.com/desihub/specter/pull/53
 
 0.8.0 (2017-09-29)
 ------------------
 
-* Added subbundle divide-and-conquer extractions for ~2x speedup (PR #51)
-* Added GaussHermite PSF format v3 (PR #52)
+* Added subbundle divide-and-conquer extractions for ~2x speedup (PR `#51`_).
+* Added GaussHermite PSF format v3 (PR `#52`_).
+
+.. _`#51`: https://github.com/desihub/specter/pull/51
+.. _`#52`: https://github.com/desihub/specter/pull/52
 
 0.7.0 (2017-03-02)
 ------------------
@@ -126,11 +159,12 @@ specter change log
 0.6.0 (2016-08-16)
 ------------------
 
-PR #40:
-
 * Added full_output option to ex2d to get model image and metrics based upon
-  goodness of fit
+  goodness of fit (PR `#40`_).
 * PSFs can specify their model error with PSFERR header keyword; default 0.01
+  (PR `#40`_).
+
+.. _`#40`: https://github.com/desihub/specter/pull/40
 
 0.5.0 (2016-05-23)
 ------------------
