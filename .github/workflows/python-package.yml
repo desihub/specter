@@ -22,7 +22,7 @@ jobs:
                       numpy-version: '<2.6'
                       scipy-version: '<2'
                       astropy-version: '<8.0'
-                      numba-version: '<0.70'
+                      numba-version: '<1.0'
                     - os: ubuntu-latest
                       python-version: '3.13'
                       numpy-version: '<2.3'
@@ -40,7 +40,9 @@ jobs:
 
         steps:
             - name: Install System Packages
-              run: sudo apt install libbz2-dev subversion
+              run: |
+                  sudo apt-get -y update
+                  sudo apt-get -y install libbz2-dev subversion
             - name: Checkout code
               uses: actions/checkout@v4
             - name: Set up Python ${{ matrix.python-version }}
@@ -68,7 +70,9 @@ jobs:
 
         steps:
             - name: Install System Packages
-              run: sudo apt install libbz2-dev subversion
+              run: |
+                  sudo apt-get -y update
+                  sudo apt-get -y install libbz2-dev subversion
             - name: Checkout code
               uses: actions/checkout@v4
             - name: Set up Python ${{ matrix.python-version }}
