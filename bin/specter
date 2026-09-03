@@ -251,8 +251,11 @@ else:
                       )
 
     #- Parallel map to run project(arglist[0]), project(arglist[1]), etc.
-    pool = MP.Pool(opts.numcores)
-    images = pool.map(project, arglist)
+    #- Use "fork" explicitly since project() is a local closure that can't
+    #- be pickled for the "spawn"/"forkserver" start methods (Python's
+    #- default on Linux as of 3.14).
+    with MP.get_context('fork').Pool(opts.numcores) as pool:
+        images = pool.map(project, arglist)
 
     #- Add the individual images
     img = reduce(np.add, images)
