@@ -2,12 +2,19 @@
 specter change log
 ==================
 
-0.11.1 (unreleased)
+0.11.2 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.11.1 (2026-09-11)
 -------------------
 
 * Add Dockerfile for specter tests (PR `#98`_).
+* Use multiprocessing fork for python 3.14 support (PR `#100`_).
 
 .. _`#98`: https://github.com/desihub/specter/pull/98
+.. _`#100`: https://github.com/desihub/specter/pull/100
 
 0.11.0 (2025-08-22)
 -------------------
